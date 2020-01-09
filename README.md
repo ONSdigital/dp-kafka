@@ -11,4 +11,4 @@ until you signal that the message has been consumed (typically with `CommitAndRe
 Otherwise, if the application gets shutdown (e.g. interrupt signal), and has to be shutdown,
 the consumer may not be shutdown in a timely manner (because it is blocked sending the read message to `Incoming()`).
 
-See the [example source file](../cmd/kafka-example/main.go) for a typical usage.
+See the [example source file](cmd/kafka-example/main.go) for a typical usage.
