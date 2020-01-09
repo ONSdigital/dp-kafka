@@ -7,11 +7,12 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/ONSdigital/go-ns/kafka"
-	"github.com/ONSdigital/go-ns/log"
+	kafka "github.com/ONSdigital/dp-kafka"
+	"github.com/ONSdigital/log.go/log"
 	"github.com/kelseyhightower/envconfig"
 )
 
+// Config is the kafka configuration for this example
 type Config struct {
 	Brokers       []string      `envconfig:"KAFKA_ADDR"`
 	KafkaMaxBytes int           `envconfig:"KAFKA_MAX_BYTES"`
@@ -45,13 +46,13 @@ func main() {
 		panic(err)
 	}
 
-	log.Info("[KAFKA-TEST] Starting (consumer sent to stdout, stdin sent to producer)",
-		log.Data{"consumed_group": cfg.ConsumedGroup, "consumed_topic": cfg.ConsumedTopic, "produced_topic": cfg.ProducedTopic})
+	log.Event(nil, "[KAFKA-TEST] Starting (consumer sent to stdout, stdin sent to producer)",
+		log.Data{"consumed_group": cfg.ConsumedGroup, "consumed_topic": cfg.ConsumedTopic, "produced_topic": cfg.ProducedTopic}, log.INFO)
 
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 	producer, err := kafka.NewProducer(cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes)
 	if err != nil {
-		log.ErrorC("[KAFKA-TEST] Could not create producer", err, nil)
+		log.Event(nil, "[KAFKA-TEST] Could not create producer", log.Error(err))
 		panic("[KAFKA-TEST] Could not create producer")
 	}
 
@@ -62,7 +63,7 @@ func main() {
 		consumer, err = kafka.NewConsumerGroup(cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest)
 	}
 	if err != nil {
-		log.ErrorC("[KAFKA-TEST] Could not create consumer", err, nil)
+		log.Event(nil, "[KAFKA-TEST] Could not create consumer", log.Error(err))
 		panic("[KAFKA-TEST] Could not create consumer")
 	}
 
@@ -97,14 +98,14 @@ func main() {
 		for {
 			select {
 			case <-time.After(1 * time.Second):
-				log.Trace("[KAFKA-TEST] tick", nil)
+				log.Event(nil, "[KAFKA-TEST] tick")
 			case <-eventLoopContext.Done():
-				log.Trace("[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
+				log.Event(nil, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
 			case consumedMessage := <-consumer.Incoming():
 				consumeCount++
 				logData := log.Data{"consumeCount": consumeCount, "consumeMax": cfg.ConsumeMax, "messageOffset": consumedMessage.Offset()}
-				log.Info("[KAFKA-TEST] Received message", logData)
+				log.Event(nil, "[KAFKA-TEST] Received message", logData)
 
 				consumedData := consumedMessage.GetData()
 				logData["messageString"] = string(consumedData)
@@ -122,30 +123,30 @@ func main() {
 					logData["sleep"] = sleep
 				}
 
-				log.Info("[KAFKA-TEST] Message consumed", logData)
+				log.Event(nil, "[KAFKA-TEST] Message consumed", logData)
 				if sleep > time.Duration(0) {
 					time.Sleep(sleep)
-					log.Trace("[KAFKA-TEST] done sleeping", nil)
+					log.Event(nil, "[KAFKA-TEST] done sleeping")
 				}
 
 				// send downstream
 				producer.Output() <- consumedData
 
 				if cfg.KafkaSync {
-					log.Trace("[KAFKA-TEST] pre-release", nil)
+					log.Event(nil, "[KAFKA-TEST] pre-release")
 					consumer.CommitAndRelease(consumedMessage)
 				} else {
-					log.Trace("[KAFKA-TEST] pre-commit", nil)
+					log.Event(nil, "[KAFKA-TEST] pre-commit")
 					consumedMessage.Commit()
 				}
-				log.Info("[KAFKA-TEST] committed message", log.Data{"messageOffset": consumedMessage.Offset()})
+				log.Event(nil, "[KAFKA-TEST] committed message", log.Data{"messageOffset": consumedMessage.Offset()})
 				if consumeCount == cfg.ConsumeMax {
-					log.Trace("[KAFKA-TEST] consumed max - exiting eventLoop", nil)
+					log.Event(nil, "[KAFKA-TEST] consumed max - exiting eventLoop", nil)
 					return
 				}
 			case stdinLine := <-stdinChannel:
 				producer.Output() <- []byte(stdinLine)
-				log.Info("[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
+				log.Event(nil, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}
 	}()
@@ -153,13 +154,13 @@ func main() {
 	// block until a fatal error, signal or eventLoopDone - then proceed to shutdown
 	select {
 	case <-eventLoopDone:
-		log.Info("[KAFKA-TEST] Quitting after event loop aborted", nil)
+		log.Event(nil, "[KAFKA-TEST] Quitting after event loop aborted")
 	case sig := <-signals:
-		log.Info("[KAFKA-TEST] Quitting after OS signal", log.Data{"signal": sig})
+		log.Event(nil, "[KAFKA-TEST] Quitting after OS signal", log.Data{"signal": sig})
 	case consumerError := <-consumer.Errors():
-		log.ErrorC("[KAFKA-TEST] Aborting consumer", consumerError, nil)
+		log.Event(nil, "[KAFKA-TEST] Aborting consumer", log.Error(consumerError))
 	case producerError := <-producer.Errors():
-		log.ErrorC("[KAFKA-TEST] Aborting producer", producerError, nil)
+		log.Event(nil, "[KAFKA-TEST] Aborting producer", log.Error(producerError))
 	}
 
 	// give the app `Timeout` seconds to close gracefully before killing it.
@@ -167,29 +168,29 @@ func main() {
 
 	// background graceful shutdown
 	go func() {
-		log.Info("[KAFKA-TEST] Stopping kafka consumer listener", nil)
+		log.Event(nil, "[KAFKA-TEST] Stopping kafka consumer listener")
 		consumer.StopListeningToConsumer(ctx)
-		log.Info("[KAFKA-TEST] Stopped kafka consumer listener", nil)
+		log.Event(nil, "[KAFKA-TEST] Stopped kafka consumer listener")
 		eventLoopCancel()
 		// wait for eventLoopDone: all in-flight messages have been processed
 		<-eventLoopDone
-		log.Info("[KAFKA-TEST] Closing kafka producer", nil)
+		log.Event(nil, "[KAFKA-TEST] Closing kafka producer")
 		producer.Close(ctx)
-		log.Info("[KAFKA-TEST] Closed kafka producer", nil)
-		log.Info("[KAFKA-TEST] Closing kafka consumer", nil)
+		log.Event(nil, "[KAFKA-TEST] Closed kafka producer")
+		log.Event(nil, "[KAFKA-TEST] Closing kafka consumer")
 		consumer.Close(ctx)
-		log.Info("[KAFKA-TEST] Closed kafka consumer", nil)
+		log.Event(nil, "[KAFKA-TEST] Closed kafka consumer")
 
-		log.Info("[KAFKA-TEST] Done shutdown - cancelling timeout context", nil)
+		log.Event(nil, "[KAFKA-TEST] Done shutdown - cancelling timeout context")
 		cancel() // stop timer
 	}()
 
 	// wait for timeout or success (via cancel)
 	<-ctx.Done()
 	if ctx.Err() == context.DeadlineExceeded {
-		log.ErrorC("[KAFKA-TEST]", ctx.Err(), nil)
+		log.Event(nil, "[KAFKA-TEST]", log.Error(ctx.Err()))
 	} else {
-		log.Info("[KAFKA-TEST] Done shutdown gracefully", log.Data{"context": ctx.Err()})
+		log.Event(nil, "[KAFKA-TEST] Done shutdown gracefully", log.Data{"context": ctx.Err()})
 	}
 	os.Exit(1)
 }

@@ -1,7 +1,7 @@
 package kafkatest
 
 import (
-	"github.com/ONSdigital/go-ns/kafka"
+	kafka "github.com/ONSdigital/dp-kafka"
 )
 
 // NewMessageConsumer creates a consumer using the given channel.

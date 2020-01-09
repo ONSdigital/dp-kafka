@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ONSdigital/go-ns/log"
+	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 )
 
@@ -46,11 +46,11 @@ func (producer *Producer) Close(ctx context.Context) (err error) {
 	case <-producer.closed:
 		close(producer.errors)
 		close(producer.output)
-		log.Info("Successfully closed kafka producer", nil)
+		log.Event(nil, "Successfully closed kafka producer")
 		return producer.producer.Close()
 
 	case <-ctx.Done():
-		log.Info("Shutdown context time exceeded, skipping graceful shutdown of consumer group", nil)
+		log.Event(nil, "Shutdown context time exceeded, skipping graceful shutdown of consumer group")
 		return ErrShutdownTimedOut
 	}
 }
@@ -73,16 +73,16 @@ func NewProducer(brokers []string, topic string, envMax int) (Producer, error) {
 
 	go func() {
 		defer close(closedChannel)
-		log.Info("Started kafka producer", log.Data{"topic": topic})
+		log.Event(nil, "Started kafka producer", log.Data{"topic": topic})
 		for {
 			select {
 			case err := <-producer.Errors():
-				log.ErrorC("Producer", err, log.Data{"topic": topic})
+				log.Event(nil, "Producer", log.Data{"topic": topic}, log.Error(err))
 				errorChannel <- err
 			case message := <-outputChannel:
 				producer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
 			case <-closerChannel:
-				log.Info("Closing kafka producer", log.Data{"topic": topic})
+				log.Event(nil, "Closing kafka producer", log.Data{"topic": topic})
 				return
 			}
 		}
