@@ -30,7 +30,7 @@ type Config struct {
 func main() {
 	log.Namespace = "kafka-example"
 	cfg := &Config{
-		Brokers:       []string{"locahost:9092"},
+		Brokers:       []string{"localhost:9092"},
 		KafkaMaxBytes: 50 * 1024 * 1024,
 		KafkaSync:     true,
 		ConsumedGroup: log.Namespace,
@@ -47,10 +47,17 @@ func main() {
 	}
 
 	log.Event(nil, "[KAFKA-TEST] Starting (consumer sent to stdout, stdin sent to producer)",
-		log.Data{"consumed_group": cfg.ConsumedGroup, "consumed_topic": cfg.ConsumedTopic, "produced_topic": cfg.ProducedTopic}, log.INFO)
+		log.Data{"consumed_group": cfg.ConsumedGroup, "consumed_topic": cfg.ConsumedTopic, "produced_topic": cfg.ProducedTopic})
 
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
-	producer, err := kafka.NewProducer(cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes)
+
+	var (
+		chOut    = make(chan []byte)
+		chErr    = make(chan error)
+		chCloser = make(chan struct{})
+		chClosed = make(chan struct{})
+	)
+	producer, err := kafka.NewProducer(cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, chOut, chErr, chCloser, chClosed)
 	if err != nil {
 		log.Event(nil, "[KAFKA-TEST] Could not create producer", log.Error(err))
 		panic("[KAFKA-TEST] Could not create producer")
