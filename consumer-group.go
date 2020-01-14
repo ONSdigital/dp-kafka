@@ -127,7 +127,13 @@ func NewConsumerGroup(brokers []string, topic string, group string, offset int64
 func NewConsumerWithChannels(
 	brokers []string, topic string, group string, offset int64, sync bool,
 	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (*ConsumerGroup, error) {
+	return NewConsumerWithChannelsAndClusterClient(brokers, topic, group, offset, sync,
+		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, &SaramaClusterClient{})
+}
 
+// NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
+func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, group string, offset int64, sync bool,
+	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool, cli SaramaCluster) (*ConsumerGroup, error) {
 	config := cluster.NewConfig()
 	config.Group.Return.Notifications = true
 	config.Consumer.Return.Errors = true
@@ -137,7 +143,7 @@ func NewConsumerWithChannels(
 
 	logData := log.Data{"topic": topic, "group": group, "config": config}
 
-	consumer, err := cluster.NewConsumer(brokers, group, []string{topic}, config)
+	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
 	if err != nil {
 		log.Event(nil, "newConsumer failed", log.Error(err), logData)
 		return nil, err
