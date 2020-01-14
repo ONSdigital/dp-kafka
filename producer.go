@@ -2,20 +2,9 @@ package kafka
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
-)
-
-// ErrShutdownTimedOut represents an error received due to the context
-// deadline being exceeded
-var (
-	ErrShutdownTimedOut = errors.New("Shutdown context timed out")
-	ErrNoOputputChannel = errors.New("OutputChannel does not exist")
-	ErrNoErrorChannel   = errors.New("ErrorChannel does not exist")
-	ErrNoCloserChannel  = errors.New("CloserChannel does not exist")
-	ErrNoClosedChannel  = errors.New("ClosedChannel does not exist")
 )
 
 // Producer provides a producer of Kafka messages

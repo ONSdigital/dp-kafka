@@ -101,16 +101,32 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 // NewSyncConsumer returns a new synchronous consumer group using default configuration.
 func NewSyncConsumer(brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
-	return newConsumer(brokers, topic, group, offset, true)
+	return NewConsumerWithChannels(
+		brokers, topic, group, offset, true,
+		make(chan Message, 1), // Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
+		make(chan struct{}),
+		make(chan struct{}),
+		make(chan error),
+		make(chan bool, 1),
+	)
 }
 
 // NewConsumerGroup returns a new asynchronous consumer group using default configuration.
 func NewConsumerGroup(brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
-	return newConsumer(brokers, topic, group, offset, false)
+	return NewConsumerWithChannels(
+		brokers, topic, group, offset, false,
+		make(chan Message), // not sync -> upstream channel unbuffered
+		make(chan struct{}),
+		make(chan struct{}),
+		make(chan error),
+		make(chan bool, 1),
+	)
 }
 
-// newConsumer returns a new consumer group using default configuration.
-func newConsumer(brokers []string, topic string, group string, offset int64, sync bool) (*ConsumerGroup, error) {
+// NewConsumerWithChannels returns a new consumer group using default configuration and provided channels
+func NewConsumerWithChannels(
+	brokers []string, topic string, group string, offset int64, sync bool,
+	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (*ConsumerGroup, error) {
 
 	config := cluster.NewConfig()
 	config.Group.Return.Notifications = true
@@ -127,24 +143,33 @@ func newConsumer(brokers []string, topic string, group string, offset int64, syn
 		return nil, err
 	}
 
-	var upstream chan Message
-	if sync {
-		// make the upstream channel buffered, so we can send-and-wait for upstreamDone
-		upstream = make(chan Message, 1)
-	} else {
-		upstream = make(chan Message)
+	// Validate provided channels
+	if chUpstream == nil {
+		return &ConsumerGroup{}, ErrNoUpstreamChannel
+	}
+	if chCloser == nil {
+		return &ConsumerGroup{}, ErrNoCloserChannel
+	}
+	if chClosed == nil {
+		return &ConsumerGroup{}, ErrNoClosedChannel
+	}
+	if chErrors == nil {
+		return &ConsumerGroup{}, ErrNoErrorChannel
+	}
+	if chUpstreamDone == nil {
+		return &ConsumerGroup{}, ErrNoUpstreamDoneChannel
 	}
 
 	cg := &ConsumerGroup{
 		consumer:     consumer,
-		incoming:     upstream,
-		closer:       make(chan struct{}),
-		closed:       make(chan struct{}),
-		errors:       make(chan error),
+		incoming:     chUpstream,
+		closer:       chCloser,
+		closed:       chClosed,
+		errors:       chErrors,
 		topic:        topic,
 		group:        group,
 		sync:         sync,
-		upstreamDone: make(chan bool, 1),
+		upstreamDone: chUpstreamDone,
 	}
 
 	// listener goroutine - listen to consumer.Messages() and upstream them

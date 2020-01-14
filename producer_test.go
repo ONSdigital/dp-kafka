@@ -28,8 +28,8 @@ func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaIn
 	return
 }
 
-// createLocalChannels creates local channels for testing
-func createLocalChannels() (chOut chan []byte, chErr chan error, chCloser, chClosed chan struct{}) {
+// createProducerChannels creates local producer channels for testing
+func createProducerChannels() (chOut chan []byte, chErr chan error, chCloser, chClosed chan struct{}) {
 	chOut = make(chan []byte)
 	chErr = make(chan error)
 	chCloser = make(chan struct{})
@@ -100,7 +100,7 @@ func TestProducerMissingChannels(t *testing.T) {
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: mockNewAsyncProducerEmpty,
 		}
-		chOut, chErr, chCloser, chClosed := createLocalChannels()
+		chOut, chErr, chCloser, chClosed := createProducerChannels()
 		Convey("Missing outputChan will cause ErrNoOputputChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(testBrokers, testTopic, 123,
 				nil, chErr, chCloser, chClosed, saramaCli)
@@ -140,7 +140,7 @@ func TestProducerChannels(t *testing.T) {
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn),
 		}
-		chOut, chErr, chCloser, chClosed := createLocalChannels()
+		chOut, chErr, chCloser, chClosed := createProducerChannels()
 		producer, err := kafka.NewProducerWithSaramaClient(testBrokers, testTopic, 123,
 			chOut, chErr, chCloser, chClosed, saramaCli)
 
