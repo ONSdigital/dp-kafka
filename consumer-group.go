@@ -12,6 +12,7 @@ var tick = time.Millisecond * 1500
 
 // ConsumerGroup represents a Kafka consumer group instance.
 type ConsumerGroup struct {
+	brokers      []string
 	consumer     *cluster.Consumer
 	incoming     chan Message
 	errors       chan error
@@ -190,6 +191,7 @@ func NewConsumerWithChannelsAndClusterClient(
 	}
 
 	cg := &ConsumerGroup{
+		brokers:      brokers,
 		consumer:     consumer,
 		incoming:     chUpstream,
 		closer:       chCloser,

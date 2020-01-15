@@ -2,10 +2,12 @@ package kafka
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/log.go/log"
+	"github.com/Shopify/sarama"
 )
 
 // ServiceName is the name of this service: Kafka
@@ -17,50 +19,105 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// List of errors
-var (
-	ErrNotImplemented = errors.New("healthcheck not implemented")
-)
+// ErrBrokersNotReachable is an Error type for 'Broker Not reachable' with a list of unreacheable addresses
+type ErrBrokersNotReachable struct {
+	Addrs []string
+}
+
+func (e *ErrBrokersNotReachable) Error() string {
+	return fmt.Sprintf("broker/s not reachable at addresses: %v", e.Addrs)
+}
+
+// ErrInvalidBrokers is an Error type for 'Invalid topic info' with a list of invalid broker addresses
+type ErrInvalidBrokers struct {
+	Addrs []string
+}
+
+func (e *ErrInvalidBrokers) Error() string {
+	return fmt.Sprintf("unexpected metadata response for broker/s. Invalid brokers: %v", e.Addrs)
+}
 
 // minTime is the oldest time for Check structure.
 var minTime = time.Unix(0, 0)
 
-// Checker checks health of Kafka producer and returns it inside a Check structure. This method decides the severity of any possible error.
+// Checker checks health of Kafka producer and returns it inside a Check structure.
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
-	statusCode, err := healthcheck(ctx)
-	// TODO perform any producer-specific health check?
+	err := healthcheck(ctx, p.brokers, p.topic)
 	if err != nil {
-		return getCheck(ctx, statusCode, health.StatusCritical, err.Error()), err
+		return checker(ctx, err)
 	}
-	return getCheck(ctx, statusCode, health.StatusOK, MsgHealthyProducer), nil
+	return getCheck(ctx, health.StatusOK, MsgHealthyProducer), nil
 }
 
-// Checker checks health of Kafka consumer-group and returns it inside a Check structure. This method decides the severity of any possible error.
-func (p *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
-	statusCode, err := healthcheck(ctx)
-	// TODO perform any consumer-specific health check?
+// Checker checks health of Kafka consumer-group and returns it inside a Check structure.
+func (c *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
+	err := healthcheck(ctx, c.brokers, c.topic)
 	if err != nil {
-		return getCheck(ctx, statusCode, health.StatusCritical, err.Error()), err
+		return checker(ctx, err)
 	}
-	return getCheck(ctx, statusCode, health.StatusOK, MsgHealthyConsumerGroup), nil
+	return getCheck(ctx, health.StatusOK, MsgHealthyConsumerGroup), nil
 }
 
-// healthcheck implements the common healthcheck logic for kafka producers and consumers (contact broker(s)?)
-func healthcheck(ctx context.Context) (code int, err error) {
-	// TODO implement
-	// return 500, ErrNotImplemented
-	return 200, nil
+// checker decides the severity and gets the corresponding Check struct for the provided error. Common for providers and consumers.
+func checker(ctx context.Context, err error) (*health.Check, error) {
+	switch err.(type) {
+	case *ErrInvalidBrokers:
+		return getCheck(ctx, health.StatusWarning, err.Error()), err
+	default:
+		return getCheck(ctx, health.StatusCritical, err.Error()), err
+	}
+}
+
+// healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided brokers and
+func healthcheck(ctx context.Context, brokers []string, topic string) error {
+	// Validate connections to brokers
+	unreachBrokers := []string{}
+	invalidBrokers := []string{}
+	for _, addr := range brokers {
+		broker := sarama.NewBroker(addr)
+		// Open a connection to broker (will not fail if cannot establish)
+		err := broker.Open(nil)
+		if err != nil {
+			unreachBrokers = append(unreachBrokers, addr)
+			log.Event(ctx, "failed to open connection to broker", log.Data{"address": addr}, log.Error(err))
+			continue
+		}
+		defer broker.Close()
+		// Metadata request (will fail if connection cannot be established)
+		request := sarama.MetadataRequest{Topics: []string{topic}}
+		resp, err := broker.GetMetadata(&request)
+		if err != nil {
+			unreachBrokers = append(unreachBrokers, addr)
+			log.Event(ctx, "failed to obtain metadata from broker", log.Data{"address": addr, "topic": topic}, log.Error(err))
+			continue
+		}
+		// Validate metadata response is as expected
+		if len(resp.Topics) == 0 {
+			invalidBrokers = append(invalidBrokers, addr)
+			log.Event(ctx, "topic metadata not found in broker", log.Data{"address": addr, "topic": topic})
+			continue
+		}
+		log.Event(ctx, "------resp", log.Data{"response": resp})
+	}
+	// If any connection is not established, the healthcheck will fail
+	if len(unreachBrokers) > 0 {
+		return &ErrBrokersNotReachable{Addrs: unreachBrokers}
+	}
+	// If any broker returned invalid metadata response, the healthcheck will fail
+	if len(invalidBrokers) > 0 {
+		return &ErrInvalidBrokers{Addrs: invalidBrokers}
+	}
+	return nil
 }
 
 // getCheck creates a Check structure and populate it according the code, status and message
-func getCheck(ctx context.Context, code int, status, message string) *health.Check {
+func getCheck(ctx context.Context, status, message string) *health.Check {
 
 	currentTime := time.Now().UTC()
 
 	check := &health.Check{
 		Name:        ServiceName,
 		Status:      status,
-		StatusCode:  code,
 		Message:     message,
 		LastChecked: currentTime,
 		LastSuccess: minTime,

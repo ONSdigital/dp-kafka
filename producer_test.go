@@ -19,8 +19,6 @@ const testTopic = "testTopic"
 // timeout for test channels message propagation
 const TIMEOUT = 1 * time.Second
 
-var testBrokers = []string{"localhost:9092"}
-
 // createSaramaChannels creates sarama channels for testing
 func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) {
 	saramaErrsChan = make(chan *sarama.ProducerError)

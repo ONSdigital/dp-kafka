@@ -10,6 +10,8 @@ import (
 // Producer provides a producer of Kafka messages
 type Producer struct {
 	producer sarama.AsyncProducer
+	brokers  []string
+	topic    string
 	output   chan []byte
 	errors   chan error
 	closer   chan struct{}
@@ -118,5 +120,5 @@ func NewProducerWithSaramaClient(
 	}()
 
 	// Return producer with channels
-	return Producer{producer, outputChan, errorChan, closerChan, closedChan}, nil
+	return Producer{producer, brokers, topic, outputChan, errorChan, closerChan, closedChan}, nil
 }

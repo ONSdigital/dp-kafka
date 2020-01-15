@@ -28,7 +28,10 @@ type Config struct {
 }
 
 // period of time between tickers
-const ticker = 3 * time.Second
+const ticker = 1 * time.Second
+
+// Number of ticks between health checks
+const healthTickerPeriod = 5
 
 func main() {
 	log.Namespace = "kafka-example"
@@ -123,10 +126,16 @@ func main() {
 	// eventLoop
 	go func() {
 		defer close(eventLoopDone)
+		tick := 0
 		for {
 			select {
 			case <-time.After(ticker):
+				tick++
 				log.Event(ctx, "[KAFKA-TEST] tick")
+				if tick >= healthTickerPeriod {
+					tick = 0
+					performHealthchecks(consumer, producer)
+				}
 			case <-eventLoopContext.Done():
 				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
@@ -235,4 +244,19 @@ func main() {
 		log.Event(ctx, "[KAFKA-TEST] Done shutdown gracefully", log.Data{"context": ctx.Err()})
 	}
 	os.Exit(1)
+}
+
+// performHealthchecks triggers healthchecks in consumer and proucer, and logs the result
+func performHealthchecks(consumer *kafka.ConsumerGroup, producer kafka.Producer) {
+	ctx := context.Background()
+	pCheck, pErr := producer.Checker(ctx)
+	if pErr != nil {
+		log.Event(ctx, "[KAFKA-TEST] Producer healthcheck error", log.Error(pErr))
+	}
+	log.Event(ctx, "[KAFKA-TEST] Producer healthcheck", log.Data{"check": pCheck})
+	cCheck, cErr := consumer.Checker(ctx)
+	if cErr != nil {
+		log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck error", log.Error(cErr))
+	}
+	log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck", log.Data{"check": cCheck})
 }
