@@ -104,7 +104,7 @@ func TestProducerMissingChannels(t *testing.T) {
 				ctx, testBrokers, testTopic, 123,
 				nil, chErr, chCloser, chClosed, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldEqual, kafka.ErrNoOputputChannel)
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Output"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 		Convey("Missing errorsChan will cause ErrNoErrorChannel", func() {
@@ -112,7 +112,7 @@ func TestProducerMissingChannels(t *testing.T) {
 				ctx, testBrokers, testTopic, 123,
 				chOut, nil, chCloser, chClosed, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldEqual, kafka.ErrNoErrorChannel)
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Error"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 		Convey("Missing closerChan will cause ErrNoCloserChannel", func() {
@@ -120,7 +120,7 @@ func TestProducerMissingChannels(t *testing.T) {
 				ctx, testBrokers, testTopic, 123,
 				chOut, chErr, nil, chClosed, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldEqual, kafka.ErrNoCloserChannel)
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closer"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 		Convey("Missing closedChan will cause ErrNoClosedChannel", func() {
@@ -128,7 +128,7 @@ func TestProducerMissingChannels(t *testing.T) {
 				ctx, testBrokers, testTopic, 123,
 				chOut, chErr, chCloser, nil, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldEqual, kafka.ErrNoClosedChannel)
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closed"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 	})

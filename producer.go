@@ -88,17 +88,21 @@ func NewProducerWithSaramaClient(
 	}
 
 	// Validate provided channels
+	missingChannels := []string{}
 	if outputChan == nil {
-		return Producer{}, ErrNoOputputChannel
+		missingChannels = append(missingChannels, "Output")
 	}
 	if errorChan == nil {
-		return Producer{}, ErrNoErrorChannel
+		missingChannels = append(missingChannels, "Error")
 	}
 	if closerChan == nil {
-		return Producer{}, ErrNoCloserChannel
+		missingChannels = append(missingChannels, "Closer")
 	}
 	if closedChan == nil {
-		return Producer{}, ErrNoClosedChannel
+		missingChannels = append(missingChannels, "Closed")
+	}
+	if len(missingChannels) > 0 {
+		return Producer{}, &ErrNoChannel{ChannelNames: missingChannels}
 	}
 
 	// Sart kafka producer with topic. Redirect errors and messages; and handle closerChannel

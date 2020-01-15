@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -18,24 +17,6 @@ const MsgHealthyProducer = "kafka producer is healthy"
 
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
-
-// ErrBrokersNotReachable is an Error type for 'Broker Not reachable' with a list of unreacheable addresses
-type ErrBrokersNotReachable struct {
-	Addrs []string
-}
-
-func (e *ErrBrokersNotReachable) Error() string {
-	return fmt.Sprintf("broker/s not reachable at addresses: %v", e.Addrs)
-}
-
-// ErrInvalidBrokers is an Error type for 'Invalid topic info' with a list of invalid broker addresses
-type ErrInvalidBrokers struct {
-	Addrs []string
-}
-
-func (e *ErrInvalidBrokers) Error() string {
-	return fmt.Sprintf("unexpected metadata response for broker/s. Invalid brokers: %v", e.Addrs)
-}
 
 // minTime is the oldest time for Check structure.
 var minTime = time.Unix(0, 0)

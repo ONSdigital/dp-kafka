@@ -174,20 +174,24 @@ func NewConsumerWithChannelsAndClusterClient(
 	}
 
 	// Validate provided channels
+	missingChannels := []string{}
 	if chUpstream == nil {
-		return &ConsumerGroup{}, ErrNoUpstreamChannel
+		missingChannels = append(missingChannels, "Upstream")
 	}
 	if chCloser == nil {
-		return &ConsumerGroup{}, ErrNoCloserChannel
+		missingChannels = append(missingChannels, "Closer")
 	}
 	if chClosed == nil {
-		return &ConsumerGroup{}, ErrNoClosedChannel
+		missingChannels = append(missingChannels, "Closed")
 	}
 	if chErrors == nil {
-		return &ConsumerGroup{}, ErrNoErrorChannel
+		missingChannels = append(missingChannels, "Error")
 	}
 	if chUpstreamDone == nil {
-		return &ConsumerGroup{}, ErrNoUpstreamDoneChannel
+		missingChannels = append(missingChannels, "UpstreamDone")
+	}
+	if len(missingChannels) > 0 {
+		return &ConsumerGroup{}, &ErrNoChannel{ChannelNames: missingChannels}
 	}
 
 	cg := &ConsumerGroup{
