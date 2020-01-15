@@ -101,7 +101,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 }
 
 // NewSyncConsumer returns a new synchronous consumer group using default configuration.
-func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -118,7 +118,7 @@ func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group 
 }
 
 // NewConsumerGroup returns a new asynchronous consumer group using default configuration.
-func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -137,7 +137,7 @@ func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group
 // NewConsumerWithChannels returns a new consumer group using default configuration and provided channels
 func NewConsumerWithChannels(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (*ConsumerGroup, error) {
+	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -152,7 +152,7 @@ func NewConsumerWithChannels(
 // NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithChannelsAndClusterClient(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool, cli SaramaCluster) (*ConsumerGroup, error) {
+	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool, cli SaramaCluster) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -170,7 +170,7 @@ func NewConsumerWithChannelsAndClusterClient(
 	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
 	if err != nil {
 		log.Event(ctx, "newConsumer failed", log.Error(err), logData)
-		return nil, err
+		return ConsumerGroup{}, err
 	}
 
 	// Validate provided channels
@@ -191,10 +191,10 @@ func NewConsumerWithChannelsAndClusterClient(
 		missingChannels = append(missingChannels, "UpstreamDone")
 	}
 	if len(missingChannels) > 0 {
-		return &ConsumerGroup{}, &ErrNoChannel{ChannelNames: missingChannels}
+		return ConsumerGroup{}, &ErrNoChannel{ChannelNames: missingChannels}
 	}
 
-	cg := &ConsumerGroup{
+	cg := ConsumerGroup{
 		brokers:      brokers,
 		consumer:     consumer,
 		incoming:     chUpstream,

@@ -44,35 +44,35 @@ func TestConsumerMissingChannels(t *testing.T) {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				nil, chCloser, chClosed, chErrors, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, &kafka.ConsumerGroup{})
+			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Upstream"}})
 		})
 		Convey("Missing closer channel will cause ErrNoCloserChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				chUpstream, nil, chClosed, chErrors, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, &kafka.ConsumerGroup{})
+			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closer"}})
 		})
 		Convey("Missing closed channel will cause ErrNoClosedChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				chUpstream, chCloser, nil, chErrors, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, &kafka.ConsumerGroup{})
+			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closed"}})
 		})
 		Convey("Missing errors channel will cause ErrNoErrorChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				chUpstream, chCloser, chClosed, nil, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, &kafka.ConsumerGroup{})
+			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Error"}})
 		})
 		Convey("Missing upstream-done channel will cause ErrNoUpstreadmDoneChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				chUpstream, chCloser, chClosed, chErrors, nil, clusterCli)
-			So(consumer, ShouldResemble, &kafka.ConsumerGroup{})
+			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"UpstreamDone"}})
 		})
 	})

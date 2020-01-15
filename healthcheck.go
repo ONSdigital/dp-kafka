@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -54,6 +55,9 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 	// Validate connections to brokers
 	unreachBrokers := []string{}
 	invalidBrokers := []string{}
+	if len(brokers) == 0 {
+		return errors.New("No brokers defined")
+	}
 	for _, addr := range brokers {
 		broker := sarama.NewBroker(addr)
 		// Open a connection to broker (will not fail if cannot establish)
@@ -78,7 +82,6 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 			log.Event(ctx, "topic metadata not found in broker", log.Data{"address": addr, "topic": topic})
 			continue
 		}
-		log.Event(ctx, "------resp", log.Data{"response": resp})
 	}
 	// If any connection is not established, the healthcheck will fail
 	if len(unreachBrokers) > 0 {

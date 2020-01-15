@@ -170,10 +170,8 @@ func main() {
 				producer.Output() <- consumedData
 
 				if cfg.KafkaSync {
-					if consumer != nil {
-						log.Event(ctx, "[KAFKA-TEST] pre-release")
-						consumer.CommitAndRelease(consumedMessage)
-					}
+					log.Event(ctx, "[KAFKA-TEST] pre-release")
+					consumer.CommitAndRelease(consumedMessage)
 				} else {
 					log.Event(ctx, "[KAFKA-TEST] pre-commit")
 					consumedMessage.Commit()
@@ -215,10 +213,8 @@ func main() {
 
 	// background graceful shutdown
 	go func() {
-		if consumer != nil {
-			log.Event(ctx, "[KAFKA-TEST] Stopping kafka consumer listener")
-			consumer.StopListeningToConsumer(ctx)
-		}
+		log.Event(ctx, "[KAFKA-TEST] Stopping kafka consumer listener")
+		consumer.StopListeningToConsumer(ctx)
 		log.Event(ctx, "[KAFKA-TEST] Stopped kafka consumer listener")
 		eventLoopCancel()
 		// wait for eventLoopDone: all in-flight messages have been processed
@@ -226,10 +222,8 @@ func main() {
 		log.Event(ctx, "[KAFKA-TEST] Closing kafka producer")
 		producer.Close(ctx)
 		log.Event(ctx, "[KAFKA-TEST] Closed kafka producer")
-		if consumer != nil {
-			log.Event(ctx, "[KAFKA-TEST] Closing kafka consumer")
-			consumer.Close(ctx)
-		}
+		log.Event(ctx, "[KAFKA-TEST] Closing kafka consumer")
+		consumer.Close(ctx)
 		log.Event(ctx, "[KAFKA-TEST] Closed kafka consumer")
 
 		log.Event(ctx, "[KAFKA-TEST] Done shutdown - cancelling timeout context")
@@ -247,7 +241,7 @@ func main() {
 }
 
 // performHealthchecks triggers healthchecks in consumer and proucer, and logs the result
-func performHealthchecks(consumer *kafka.ConsumerGroup, producer kafka.Producer) {
+func performHealthchecks(consumer kafka.ConsumerGroup, producer kafka.Producer) {
 	ctx := context.Background()
 	pCheck, pErr := producer.Checker(ctx)
 	if pErr != nil {

@@ -79,6 +79,12 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			So(err, ShouldBeNil)
 			validateCriticalProducerCheck(&producer, "broker(s) not reachable at addresses: [localhost:12399]")
 		})
+
+		Convey("Producer configured with no brokers returns a critical Check structure", func() {
+			producer, err := createProducerForTesting([]string{})
+			So(err, ShouldBeNil)
+			validateCriticalProducerCheck(&producer, "No brokers defined")
+		})
 	})
 }
 
@@ -93,13 +99,19 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 		Convey("Consumer configured with those brokers return  a warning Check structure", func() {
 			consumer, err := createConsumerForTestig(testBrokers)
 			So(err, ShouldBeNil)
-			validateWarningConsumerGroupCheck(consumer, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
+			validateWarningConsumerGroupCheck(&consumer, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
 		})
 
 		Convey("Consumer configured with different brokers returns a critical Check structure", func() {
 			consumer, err := createConsumerForTestig([]string{"localhost:12399"})
 			So(err, ShouldBeNil)
-			validateCriticalConsumerGroupCheck(consumer, "broker(s) not reachable at addresses: [localhost:12399]")
+			validateCriticalConsumerGroupCheck(&consumer, "broker(s) not reachable at addresses: [localhost:12399]")
+		})
+
+		Convey("Consumer configured with no brokers returns a critical Check structure", func() {
+			consumer, err := createConsumerForTestig([]string{})
+			So(err, ShouldBeNil)
+			validateCriticalConsumerGroupCheck(&consumer, "No brokers defined")
 		})
 	})
 }
