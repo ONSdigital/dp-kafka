@@ -12,7 +12,8 @@ import (
 var testGroup = "testGroup"
 
 // createConsumerChannels creates local channels for testing
-func createConsumerChannels(sync bool) (chUpstream chan kafka.Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) {
+func createConsumerChannels(sync bool) (
+	chUpstream chan kafka.Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) {
 	if sync {
 		// make the upstream channel buffered, so we can send-and-wait for upstreamDone
 		chUpstream = make(chan kafka.Message, 1)

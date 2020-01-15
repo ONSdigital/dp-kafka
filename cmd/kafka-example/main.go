@@ -27,6 +27,9 @@ type Config struct {
 	OverSleep     bool          `envconfig:"OVERSLEEP"`
 }
 
+// period of time between tickers
+const ticker = 3 * time.Second
+
 func main() {
 	log.Namespace = "kafka-example"
 	cfg := &Config{
@@ -51,33 +54,45 @@ func main() {
 
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
+	// Create Producer with channels provided from caller
 	var (
-		chOut    = make(chan []byte)
-		chErr    = make(chan error)
-		chCloser = make(chan struct{})
-		chClosed = make(chan struct{})
+		chOut            = make(chan []byte)
+		chProducerErr    = make(chan error)
+		chProducerCloser = make(chan struct{})
+		chProducerClosed = make(chan struct{})
 	)
-	producer, err := kafka.NewProducer(cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, chOut, chErr, chCloser, chClosed)
+	producer, err := kafka.NewProducer(cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, chOut, chProducerErr, chProducerCloser, chProducerClosed)
 	if err != nil {
-		log.Event(nil, "[KAFKA-TEST] Could not create producer", log.Error(err))
-		panic("[KAFKA-TEST] Could not create producer")
+		log.Event(nil, "[KAFKA-TEST] Could not create producer. Please, try to reconnect later", log.Error(err))
 	}
 
-	var consumer *kafka.ConsumerGroup
+	// Create Consumer with channels provided from caller
+	var (
+		chUpstream       chan kafka.Message
+		chConsumerCloser = make(chan struct{})
+		chConsumerClosed = make(chan struct{})
+		chConsumerErr    = make(chan error)
+		chUpstreamDone   = make(chan bool, 1)
+	)
 	if cfg.KafkaSync {
-		consumer, err = kafka.NewSyncConsumer(cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest)
+		// Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
+		chUpstream = make(chan kafka.Message, 1)
 	} else {
-		consumer, err = kafka.NewConsumerGroup(cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest)
+		chUpstream = make(chan kafka.Message)
 	}
+	consumer, err := kafka.NewConsumerWithChannels(
+		cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync,
+		chUpstream, chConsumerCloser, chConsumerClosed, chConsumerErr, chUpstreamDone)
 	if err != nil {
-		log.Event(nil, "[KAFKA-TEST] Could not create consumer", log.Error(err))
-		panic("[KAFKA-TEST] Could not create consumer")
+		log.Event(nil, "[KAFKA-TEST] Could not create consumer. Please try to reconnect later", log.Error(err))
 	}
 
+	// Create signals and stdin channels
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
 	stdinChannel := make(chan string)
 
+	// Create loop-control channel and context
 	eventLoopContext, eventLoopCancel := context.WithCancel(context.Background())
 	eventLoopDone := make(chan bool)
 	consumeCount := 0
@@ -104,12 +119,12 @@ func main() {
 		defer close(eventLoopDone)
 		for {
 			select {
-			case <-time.After(1 * time.Second):
+			case <-time.After(ticker):
 				log.Event(nil, "[KAFKA-TEST] tick")
 			case <-eventLoopContext.Done():
 				log.Event(nil, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
-			case consumedMessage := <-consumer.Incoming():
+			case consumedMessage := <-chUpstream: // consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incomin()
 				consumeCount++
 				logData := log.Data{"consumeCount": consumeCount, "consumeMax": cfg.ConsumeMax, "messageOffset": consumedMessage.Offset()}
 				log.Event(nil, "[KAFKA-TEST] Received message", logData)
@@ -140,8 +155,10 @@ func main() {
 				producer.Output() <- consumedData
 
 				if cfg.KafkaSync {
-					log.Event(nil, "[KAFKA-TEST] pre-release")
-					consumer.CommitAndRelease(consumedMessage)
+					if consumer != nil {
+						log.Event(nil, "[KAFKA-TEST] pre-release")
+						consumer.CommitAndRelease(consumedMessage)
+					}
 				} else {
 					log.Event(nil, "[KAFKA-TEST] pre-commit")
 					consumedMessage.Commit()
@@ -158,16 +175,24 @@ func main() {
 		}
 	}()
 
+	// log errors from error channels, without exiting
+	go func() {
+		for true {
+			select {
+			case consumerError := <-chConsumerErr:
+				log.Event(nil, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
+			case producerError := <-chProducerErr:
+				log.Event(nil, "[KAFKA-TEST] Producer error", log.Error(producerError))
+			}
+		}
+	}()
+
 	// block until a fatal error, signal or eventLoopDone - then proceed to shutdown
 	select {
 	case <-eventLoopDone:
 		log.Event(nil, "[KAFKA-TEST] Quitting after event loop aborted")
 	case sig := <-signals:
 		log.Event(nil, "[KAFKA-TEST] Quitting after OS signal", log.Data{"signal": sig})
-	case consumerError := <-consumer.Errors():
-		log.Event(nil, "[KAFKA-TEST] Aborting consumer", log.Error(consumerError))
-	case producerError := <-producer.Errors():
-		log.Event(nil, "[KAFKA-TEST] Aborting producer", log.Error(producerError))
 	}
 
 	// give the app `Timeout` seconds to close gracefully before killing it.
@@ -175,8 +200,10 @@ func main() {
 
 	// background graceful shutdown
 	go func() {
-		log.Event(nil, "[KAFKA-TEST] Stopping kafka consumer listener")
-		consumer.StopListeningToConsumer(ctx)
+		if consumer != nil {
+			log.Event(nil, "[KAFKA-TEST] Stopping kafka consumer listener")
+			consumer.StopListeningToConsumer(ctx)
+		}
 		log.Event(nil, "[KAFKA-TEST] Stopped kafka consumer listener")
 		eventLoopCancel()
 		// wait for eventLoopDone: all in-flight messages have been processed
@@ -184,8 +211,10 @@ func main() {
 		log.Event(nil, "[KAFKA-TEST] Closing kafka producer")
 		producer.Close(ctx)
 		log.Event(nil, "[KAFKA-TEST] Closed kafka producer")
-		log.Event(nil, "[KAFKA-TEST] Closing kafka consumer")
-		consumer.Close(ctx)
+		if consumer != nil {
+			log.Event(nil, "[KAFKA-TEST] Closing kafka consumer")
+			consumer.Close(ctx)
+		}
 		log.Event(nil, "[KAFKA-TEST] Closed kafka consumer")
 
 		log.Event(nil, "[KAFKA-TEST] Done shutdown - cancelling timeout context")

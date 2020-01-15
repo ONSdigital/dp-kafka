@@ -141,7 +141,7 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 	config.Consumer.Offsets.Initial = offset
 	config.Consumer.Offsets.Retention = 0 // indefinite retention
 
-	logData := log.Data{"topic": topic, "group": group, "config": config}
+	logData := log.Data{"topic": topic, "group": group}
 
 	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
 	if err != nil {
@@ -181,7 +181,7 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 	// listener goroutine - listen to consumer.Messages() and upstream them
 	// if this blocks while upstreaming a message, we can shutdown consumer via the following goroutine
 	go func() {
-		logData := log.Data{"topic": topic, "group": group, "config": config}
+		logData := log.Data{"topic": topic, "group": group}
 
 		log.Event(nil, "Started kafka consumer listener", logData)
 		defer close(cg.closed)
