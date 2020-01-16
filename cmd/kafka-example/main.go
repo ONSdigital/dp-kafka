@@ -188,14 +188,26 @@ func main() {
 		}
 	}()
 
-	// log errors from error channels, without exiting
+	// log errors from consumer error channel
 	go func() {
 		for true {
 			select {
 			case consumerError := <-chConsumerErr:
 				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
+			case <-chConsumerClosed:
+				return
+			}
+		}
+	}()
+
+	// log errors from producer error channel
+	go func() {
+		for true {
+			select {
 			case producerError := <-chProducerErr:
 				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
+			case <-chProducerClosed:
+				return
 			}
 		}
 	}()
