@@ -14,7 +14,7 @@ type ErrNoChannel struct {
 }
 
 func (e *ErrNoChannel) Error() string {
-	return fmt.Sprintf("%v Missing channel(s): ", e.ChannelNames)
+	return fmt.Sprintf("Missing channel(s): %v", e.ChannelNames)
 }
 
 // ErrBrokersNotReachable is an Error type for 'Broker Not reachable' with a list of unreacheable addresses

@@ -49,7 +49,7 @@ func createProducerForTesting(brokers []string) (kafka.Producer, error) {
 }
 
 // createConsumerForTestig creates a consumer with a mock Sarama library for testing
-func createConsumerForTestig(brokers []string) (*kafka.ConsumerGroup, error) {
+func createConsumerForTestig(brokers []string) (kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: mockNewConsumer,
@@ -122,6 +122,7 @@ func validateSuccessfulProducerCheck(cli *kafka.Producer) (check *health.Check) 
 	t1 := time.Now().UTC()
 	So(err, ShouldBeNil)
 	validateSuccessfulCheck(check, t0, t1, kafka.MsgHealthyProducer)
+	So(cli.Check, ShouldResemble, check)
 	return check
 }
 
@@ -131,6 +132,7 @@ func validateSuccessfulConsumerGroupCheck(cli *kafka.ConsumerGroup) (check *heal
 	t1 := time.Now().UTC()
 	So(err, ShouldBeNil)
 	validateSuccessfulCheck(check, t0, t1, kafka.MsgHealthyConsumerGroup)
+	So(cli.Check, ShouldResemble, check)
 	return check
 }
 
@@ -148,6 +150,7 @@ func validateWarningProducerCheck(cli *kafka.Producer, expectedMessage string) (
 	check, err = cli.Checker(nil)
 	t1 := time.Now().UTC()
 	validateUnsuccessfulCheck(check, t0, t1, expectedMessage, health.StatusWarning)
+	So(cli.Check, ShouldResemble, check)
 	return check, err
 }
 
@@ -156,6 +159,7 @@ func validateWarningConsumerGroupCheck(cli *kafka.ConsumerGroup, expectedMessage
 	check, err = cli.Checker(nil)
 	t1 := time.Now().UTC()
 	validateUnsuccessfulCheck(check, t0, t1, expectedMessage, health.StatusWarning)
+	So(cli.Check, ShouldResemble, check)
 	return check, err
 }
 
@@ -164,6 +168,7 @@ func validateCriticalProducerCheck(cli *kafka.Producer, expectedMessage string) 
 	check, err = cli.Checker(nil)
 	t1 := time.Now().UTC()
 	validateUnsuccessfulCheck(check, t0, t1, expectedMessage, health.StatusCritical)
+	So(cli.Check, ShouldResemble, check)
 	return check, err
 }
 
@@ -172,6 +177,7 @@ func validateCriticalConsumerGroupCheck(cli *kafka.ConsumerGroup, expectedMessag
 	check, err = cli.Checker(nil)
 	t1 := time.Now().UTC()
 	validateUnsuccessfulCheck(check, t0, t1, expectedMessage, health.StatusCritical)
+	So(cli.Check, ShouldResemble, check)
 	return check, err
 }
 

@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 )
@@ -16,6 +17,7 @@ type Producer struct {
 	errors   chan error
 	closer   chan struct{}
 	closed   chan struct{}
+	Check    *health.Check
 }
 
 // Output is the channel to send outgoing messages to.
@@ -87,6 +89,8 @@ func NewProducerWithSaramaClient(
 		return Producer{}, err
 	}
 
+	check := &health.Check{}
+
 	// Validate provided channels
 	missingChannels := []string{}
 	if outputChan == nil {
@@ -124,5 +128,5 @@ func NewProducerWithSaramaClient(
 	}()
 
 	// Return producer with channels
-	return Producer{producer, brokers, topic, outputChan, errorChan, closerChan, closedChan}, nil
+	return Producer{producer, brokers, topic, outputChan, errorChan, closerChan, closedChan, check}, nil
 }

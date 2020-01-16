@@ -10,13 +10,13 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// ServiceName is the name of this service: Kafka
+// ServiceName is the name of this service: Kafka.
 const ServiceName = "Kafka"
 
-// MsgHealthyProducer Check message returned when Kafka producer is healthy
+// MsgHealthyProducer Check message returned when Kafka producer is healthy.
 const MsgHealthyProducer = "kafka producer is healthy"
 
-// MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy
+// MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
 // minTime is the oldest time for Check structure.
@@ -26,21 +26,26 @@ var minTime = time.Unix(0, 0)
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 	err := healthcheck(ctx, p.brokers, p.topic)
 	if err != nil {
-		return checker(ctx, err)
+		p.Check, err = checker(ctx, err)
+		return p.Check, nil
 	}
-	return getCheck(ctx, health.StatusOK, MsgHealthyProducer), nil
+	p.Check = getCheck(ctx, health.StatusOK, MsgHealthyProducer)
+	return p.Check, nil
 }
 
 // Checker checks health of Kafka consumer-group and returns it inside a Check structure.
 func (c *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
 	err := healthcheck(ctx, c.brokers, c.topic)
 	if err != nil {
-		return checker(ctx, err)
+		c.Check, err = checker(ctx, err)
+		return c.Check, nil
 	}
-	return getCheck(ctx, health.StatusOK, MsgHealthyConsumerGroup), nil
+	c.Check = getCheck(ctx, health.StatusOK, MsgHealthyConsumerGroup)
+	return c.Check, nil
 }
 
-// checker decides the severity and gets the corresponding Check struct for the provided error. Common for providers and consumers.
+// checker decides the severity and gets the corresponding Check struct for the provided error.
+// Common for providers and consumers.
 func checker(ctx context.Context, err error) (*health.Check, error) {
 	switch err.(type) {
 	case *ErrInvalidBrokers:
@@ -50,7 +55,10 @@ func checker(ctx context.Context, err error) (*health.Check, error) {
 	}
 }
 
-// healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided brokers and
+// healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided
+// brokers and asking for topic metadata. Possible errors:
+// - ErrBrokersNotReachable if a broker cannot be contacted.
+// - ErrInvalidBrokers if topic metadata is not returned by a broker.
 func healthcheck(ctx context.Context, brokers []string, topic string) error {
 	// Validate connections to brokers
 	unreachBrokers := []string{}
@@ -94,7 +102,7 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 	return nil
 }
 
-// getCheck creates a Check structure and populate it according the code, status and message
+// getCheck creates a Check structure and populate it according the status and message.
 func getCheck(ctx context.Context, status, message string) *health.Check {
 
 	currentTime := time.Now().UTC()

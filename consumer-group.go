@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	cluster "github.com/bsm/sarama-cluster"
 )
@@ -22,6 +23,7 @@ type ConsumerGroup struct {
 	group        string
 	sync         bool
 	upstreamDone chan bool
+	Check        *health.Check
 }
 
 // Incoming provides a channel of incoming messages.
@@ -173,6 +175,8 @@ func NewConsumerWithChannelsAndClusterClient(
 		return ConsumerGroup{}, err
 	}
 
+	check := &health.Check{}
+
 	// Validate provided channels
 	missingChannels := []string{}
 	if chUpstream == nil {
@@ -205,6 +209,7 @@ func NewConsumerWithChannelsAndClusterClient(
 		group:        group,
 		sync:         sync,
 		upstreamDone: chUpstreamDone,
+		Check:        check,
 	}
 
 	// listener goroutine - listen to consumer.Messages() and upstream them
