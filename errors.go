@@ -2,8 +2,6 @@ package kafka
 
 import "errors"
 
-// ErrShutdownTimedOut represents an error received due to the context
-// deadline being exceeded
 var (
 	ErrShutdownTimedOut      = errors.New("Shutdown context timed out")
 	ErrNoOputputChannel      = errors.New("Output Channel does not exist")

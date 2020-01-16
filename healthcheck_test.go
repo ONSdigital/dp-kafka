@@ -1,6 +1,7 @@
 package kafka_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,20 +14,20 @@ import (
 func TestKafkaProducerOk(t *testing.T) {
 
 	Convey("Given that kafka broker is available", t, func() {
-
+		ctx := context.Background()
 		chSaramaErr, chSaramaIn := createSaramaChannels()
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn),
 		}
 		chOut, chErr, chCloser, chClosed := createProducerChannels()
-		producer, err := kafka.NewProducerWithSaramaClient(testBrokers, testTopic, 123,
+		producer, err := kafka.NewProducerWithSaramaClient(
+			ctx, testBrokers, testTopic, 123,
 			chOut, chErr, chCloser, chClosed, saramaCli)
 
 		So(err, ShouldBeNil)
 
 		Convey("Producer returns a successful Check structure", func() {
 			validateSuccessfulProducerCheck(&producer)
-			// So(len(producer.GetBucketReaderCalls()), ShouldEqual, 1)
 		})
 	})
 }
@@ -34,19 +35,18 @@ func TestKafkaProducerOk(t *testing.T) {
 func TestKafkaConsumerOk(t *testing.T) {
 
 	Convey("Given that kafka broker is available", t, func() {
-
+		ctx := context.Background()
 		clusterCli := &mock.SaramaClusterMock{
 			NewConsumerFunc: mockNewConsumer,
 		}
 		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone := createConsumerChannels(true)
 		consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
-			testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
+			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 			chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, clusterCli)
 		So(err, ShouldBeNil)
 
 		Convey("Consumer returns a successful Check structure", func() {
 			validateSuccessfulConsumerGroupCheck(consumer)
-			// So(len(producer.GetBucketReaderCalls()), ShouldEqual, 1)
 		})
 	})
 }

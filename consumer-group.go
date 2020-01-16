@@ -57,10 +57,10 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 	select {
 	case <-cg.closed:
-		log.Event(nil, "StopListeningToConsumer got confirmation of closed kafka consumer listener", logData)
+		log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", logData)
 	case <-ctx.Done():
 		err = ctx.Err()
-		log.Event(nil, "StopListeningToConsumer abandoned: context done", log.Error(err), logData)
+		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.Error(err), logData)
 	}
 	return
 }
@@ -88,21 +88,26 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		close(cg.incoming)
 
 		if err = cg.consumer.Close(); err != nil {
-			log.Event(nil, "Close failed of kafka consumer group", log.Error(err), logData)
+			log.Event(ctx, "Close failed of kafka consumer group", log.Error(err), logData)
 		} else {
-			log.Event(nil, "Successfully closed kafka consumer group", logData)
+			log.Event(ctx, "Successfully closed kafka consumer group", logData)
 		}
 	case <-ctx.Done():
 		err = ctx.Err()
-		log.Event(nil, "Close abandoned: context done", log.Error(err), logData)
+		log.Event(ctx, "Close abandoned: context done", log.Error(err), logData)
 	}
 	return
 }
 
 // NewSyncConsumer returns a new synchronous consumer group using default configuration.
-func NewSyncConsumer(brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	return NewConsumerWithChannels(
-		brokers, topic, group, offset, true,
+		ctx, brokers, topic, group, offset, true,
 		make(chan Message, 1), // Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
 		make(chan struct{}),
 		make(chan struct{}),
@@ -112,9 +117,14 @@ func NewSyncConsumer(brokers []string, topic string, group string, offset int64)
 }
 
 // NewConsumerGroup returns a new asynchronous consumer group using default configuration.
-func NewConsumerGroup(brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group string, offset int64) (*ConsumerGroup, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	return NewConsumerWithChannels(
-		brokers, topic, group, offset, false,
+		ctx, brokers, topic, group, offset, false,
 		make(chan Message), // not sync -> upstream channel unbuffered
 		make(chan struct{}),
 		make(chan struct{}),
@@ -125,15 +135,28 @@ func NewConsumerGroup(brokers []string, topic string, group string, offset int64
 
 // NewConsumerWithChannels returns a new consumer group using default configuration and provided channels
 func NewConsumerWithChannels(
-	brokers []string, topic string, group string, offset int64, sync bool,
+	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
 	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (*ConsumerGroup, error) {
-	return NewConsumerWithChannelsAndClusterClient(brokers, topic, group, offset, sync,
-		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, &SaramaClusterClient{})
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return NewConsumerWithChannelsAndClusterClient(
+		ctx, brokers, topic, group, offset, sync,
+		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, &SaramaClusterClient{},
+	)
 }
 
 // NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
-func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, group string, offset int64, sync bool,
+func NewConsumerWithChannelsAndClusterClient(
+	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
 	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool, cli SaramaCluster) (*ConsumerGroup, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	config := cluster.NewConfig()
 	config.Group.Return.Notifications = true
 	config.Consumer.Return.Errors = true
@@ -145,7 +168,7 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 
 	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
 	if err != nil {
-		log.Event(nil, "newConsumer failed", log.Error(err), logData)
+		log.Event(ctx, "newConsumer failed", log.Error(err), logData)
 		return nil, err
 	}
 
@@ -183,7 +206,7 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 	go func() {
 		logData := log.Data{"topic": topic, "group": group}
 
-		log.Event(nil, "Started kafka consumer listener", logData)
+		log.Event(ctx, "Started kafka consumer listener", logData)
 		defer close(cg.closed)
 		for looping := true; looping; {
 			select {
@@ -206,7 +229,7 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 			}
 		}
 		cg.consumer.CommitOffsets()
-		log.Event(nil, "Closed kafka consumer listener", logData)
+		log.Event(ctx, "Closed kafka consumer listener", logData)
 	}()
 
 	// control goroutine - allows us to close consumer even if blocked while upstreaming a message (above)
@@ -217,11 +240,11 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 		for looping := true; looping; {
 			select {
 			case <-cg.closer:
-				log.Event(nil, "Closing kafka consumer controller", logData)
+				log.Event(ctx, "Closing kafka consumer controller", logData)
 				<-cg.closed
 				looping = false
 			case err := <-cg.consumer.Errors():
-				log.Event(nil, "", log.Error(err))
+				log.Event(ctx, "kafka consumer-group error", log.Error(err))
 				cg.Errors() <- err
 			case <-time.After(tick):
 				if hasBalanced {
@@ -230,11 +253,11 @@ func NewConsumerWithChannelsAndClusterClient(brokers []string, topic string, gro
 			case n, more := <-cg.consumer.Notifications():
 				if more {
 					hasBalanced = true
-					log.Event(nil, "Rebalancing group", log.Data{"topic": cg.topic, "group": cg.group, "partitions": n.Current[cg.topic]})
+					log.Event(ctx, "Rebalancing group", log.Data{"topic": cg.topic, "group": cg.group, "partitions": n.Current[cg.topic]})
 				}
 			}
 		}
-		log.Event(nil, "Closed kafka consumer controller", logData)
+		log.Event(ctx, "Closed kafka consumer controller", logData)
 	}()
 
 	return cg, nil
