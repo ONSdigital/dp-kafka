@@ -103,33 +103,33 @@ func TestProducerMissingChannels(t *testing.T) {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				nil, chErr, chCloser, chClosed, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
+			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Output"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
+			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 		Convey("Missing errorsChan will cause ErrNoErrorChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				chOut, nil, chCloser, chClosed, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
+			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Error"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
+			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 		Convey("Missing closerChan will cause ErrNoCloserChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				chOut, chErr, nil, chClosed, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
+			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closer"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
+			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 		Convey("Missing closedChan will cause ErrNoClosedChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				chOut, chErr, chCloser, nil, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
+			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closed"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
+			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 	})
 }

@@ -169,15 +169,19 @@ func NewConsumerWithChannelsAndClusterClient(
 
 	logData := log.Data{"topic": topic, "group": group}
 
-	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
-	if err != nil {
-		log.Event(ctx, "newConsumer failed", log.Error(err), logData)
-		return ConsumerGroup{}, err
+	// ConsumerGroup initialized with anything that cannot cause an error
+	cg := ConsumerGroup{
+		brokers: brokers,
+		topic:   topic,
+		group:   group,
+		sync:    sync,
 	}
 
-	check := &health.Check{}
+	// Initial check structure
+	check := &health.Check{Name: ServiceName}
+	cg.Check = check
 
-	// Validate provided channels
+	// Validate provided channels. ErrNoChannel should be considered fatal by caller.
 	missingChannels := []string{}
 	if chUpstream == nil {
 		missingChannels = append(missingChannels, "Upstream")
@@ -195,22 +199,21 @@ func NewConsumerWithChannelsAndClusterClient(
 		missingChannels = append(missingChannels, "UpstreamDone")
 	}
 	if len(missingChannels) > 0 {
-		return ConsumerGroup{}, &ErrNoChannel{ChannelNames: missingChannels}
+		return cg, &ErrNoChannel{ChannelNames: missingChannels}
 	}
+	cg.incoming = chUpstream
+	cg.closer = chCloser
+	cg.closed = chClosed
+	cg.errors = chErrors
+	cg.upstreamDone = chUpstreamDone
 
-	cg := ConsumerGroup{
-		brokers:      brokers,
-		consumer:     consumer,
-		incoming:     chUpstream,
-		closer:       chCloser,
-		closed:       chClosed,
-		errors:       chErrors,
-		topic:        topic,
-		group:        group,
-		sync:         sync,
-		upstreamDone: chUpstreamDone,
-		Check:        check,
+	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
+	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
+	if err != nil {
+		log.Event(ctx, "newConsumer failed", log.Error(err), logData)
+		return cg, err
 	}
+	cg.consumer = consumer
 
 	// listener goroutine - listen to consumer.Messages() and upstream them
 	// if this blocks while upstreaming a message, we can shutdown consumer via the following goroutine

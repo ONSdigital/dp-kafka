@@ -73,60 +73,73 @@ func NewProducer(
 // NewProducerWithSaramaClient returns a new producer with a provided Sarama client
 func NewProducerWithSaramaClient(
 	ctx context.Context, brokers []string, topic string, envMax int,
-	outputChan chan []byte, errorChan chan error, closerChan, closedChan chan struct{}, cli Sarama) (Producer, error) {
+	chOutput chan []byte, chError chan error, chCloser, chClosed chan struct{}, cli Sarama) (producer Producer, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Create Sarama AsyncProducer with MaxMessageBytes
+	// Producer initialized with anything that cannot cause an error
+	producer = Producer{
+		brokers: brokers,
+		topic:   topic,
+	}
+
+	// Initial Check struct
+	check := &health.Check{Name: ServiceName}
+	producer.Check = check
+
+	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
+	missingChannels := []string{}
+	if chOutput == nil {
+		missingChannels = append(missingChannels, "Output")
+	}
+	if chError == nil {
+		missingChannels = append(missingChannels, "Error")
+	}
+	if chCloser == nil {
+		missingChannels = append(missingChannels, "Closer")
+	}
+	if chClosed == nil {
+		missingChannels = append(missingChannels, "Closed")
+	}
+	if len(missingChannels) > 0 {
+		return producer, &ErrNoChannel{ChannelNames: missingChannels}
+	}
+	producer.output = chOutput
+	producer.errors = chError
+	producer.closer = chCloser
+	producer.closed = chClosed
+
+	// Create Sarama AsyncProducer with MaxMessageBytes. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	config := sarama.NewConfig()
 	if envMax > 0 {
 		config.Producer.MaxMessageBytes = envMax
 	}
-	producer, err := cli.NewAsyncProducer(brokers, config)
+	saramaProducer, err := cli.NewAsyncProducer(brokers, config)
 	if err != nil {
-		return Producer{}, err
+		return producer, err
 	}
-
-	check := &health.Check{}
-
-	// Validate provided channels
-	missingChannels := []string{}
-	if outputChan == nil {
-		missingChannels = append(missingChannels, "Output")
-	}
-	if errorChan == nil {
-		missingChannels = append(missingChannels, "Error")
-	}
-	if closerChan == nil {
-		missingChannels = append(missingChannels, "Closer")
-	}
-	if closedChan == nil {
-		missingChannels = append(missingChannels, "Closed")
-	}
-	if len(missingChannels) > 0 {
-		return Producer{}, &ErrNoChannel{ChannelNames: missingChannels}
-	}
+	producer.producer = saramaProducer
 
 	// Sart kafka producer with topic. Redirect errors and messages; and handle closerChannel
 	go func() {
-		defer close(closedChan)
+		defer close(chClosed)
 		log.Event(ctx, "Started kafka producer", log.Data{"topic": topic})
 		for {
 			select {
-			case err := <-producer.Errors():
+			case err := <-saramaProducer.Errors():
 				log.Event(ctx, "Producer", log.Data{"topic": topic}, log.Error(err))
-				errorChan <- err
-			case message := <-outputChan:
-				producer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
-			case <-closerChan:
+				chError <- err
+			case message := <-chOutput:
+				saramaProducer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
+			case <-chCloser:
 				log.Event(ctx, "Closing kafka producer", log.Data{"topic": topic})
 				return
 			}
 		}
 	}()
 
-	// Return producer with channels
-	return Producer{producer, brokers, topic, outputChan, errorChan, closerChan, closedChan, check}, nil
+	// Return correctly initialized producer (err might be a non-fatal error returned by srama client creation)
+	return producer, nil
 }
