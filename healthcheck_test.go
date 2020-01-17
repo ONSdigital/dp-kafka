@@ -140,9 +140,9 @@ func validateSuccessfulCheck(check *health.Check, t0 time.Time, t1 time.Time, ms
 	So(check.Name, ShouldEqual, kafka.ServiceName)
 	So(check.Status, ShouldEqual, health.StatusOK)
 	So(check.Message, ShouldEqual, msgHealthy)
-	So(check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
-	So(check.LastSuccess, ShouldHappenOnOrBetween, t0, t1)
-	So(check.LastFailure, ShouldHappenBefore, t0)
+	So(*check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
+	So(*check.LastSuccess, ShouldHappenOnOrBetween, t0, t1)
+	So(check.LastFailure, ShouldBeNil)
 }
 
 func validateWarningProducerCheck(cli *kafka.Producer, expectedMessage string) (check *health.Check, err error) {
@@ -185,7 +185,7 @@ func validateUnsuccessfulCheck(check *health.Check, t0 time.Time, t1 time.Time, 
 	So(check.Name, ShouldEqual, kafka.ServiceName)
 	So(check.Status, ShouldEqual, expectedSeverity)
 	So(check.Message, ShouldEqual, expectedMessage)
-	So(check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
-	So(check.LastSuccess, ShouldHappenBefore, t0)
-	So(check.LastFailure, ShouldHappenOnOrBetween, t0, t1)
+	So(*check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
+	So(check.LastSuccess, ShouldBeNil)
+	So(*check.LastFailure, ShouldHappenOnOrBetween, t0, t1)
 }

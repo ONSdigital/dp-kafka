@@ -19,9 +19,6 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// minTime is the oldest time for Check structure.
-var minTime = time.Unix(0, 0)
-
 // Checker checks health of Kafka producer and returns it inside a Check structure.
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 	err := healthcheck(ctx, p.brokers, p.topic)
@@ -111,15 +108,13 @@ func getCheck(ctx context.Context, status, message string) *health.Check {
 		Name:        ServiceName,
 		Status:      status,
 		Message:     message,
-		LastChecked: currentTime,
-		LastSuccess: minTime,
-		LastFailure: minTime,
+		LastChecked: &currentTime,
 	}
 
 	if status == health.StatusOK {
-		check.LastSuccess = currentTime
+		check.LastSuccess = &currentTime
 	} else {
-		check.LastFailure = currentTime
+		check.LastFailure = &currentTime
 	}
 
 	return check
