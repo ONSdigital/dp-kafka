@@ -59,39 +59,18 @@ func main() {
 
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
-	// Create Producer with channels provided from caller
-	var (
-		chOut            = make(chan []byte)
-		chProducerErr    = make(chan error)
-		chProducerCloser = make(chan struct{})
-		chProducerClosed = make(chan struct{})
-	)
+	// Create Producer with channels
+	pChannels := kafka.CreateProducerChannels()
 	producer, err := kafka.NewProducer(
-		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes,
-		chOut, chProducerErr, chProducerCloser, chProducerClosed,
-	)
+		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
 	if err != nil {
 		log.Event(ctx, "[KAFKA-TEST] Could not create producer. Please, try to reconnect later", log.Error(err))
 	}
 
-	// Create Consumer with channels provided from caller
-	var (
-		chUpstream       chan kafka.Message
-		chConsumerCloser = make(chan struct{})
-		chConsumerClosed = make(chan struct{})
-		chConsumerErr    = make(chan error)
-		chUpstreamDone   = make(chan bool, 1)
-	)
-	if cfg.KafkaSync {
-		// Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
-		chUpstream = make(chan kafka.Message, 1)
-	} else {
-		chUpstream = make(chan kafka.Message)
-	}
+	// Create Consumer with channels
+	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
 	consumer, err := kafka.NewConsumerWithChannels(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync,
-		chUpstream, chConsumerCloser, chConsumerClosed, chConsumerErr, chUpstreamDone,
-	)
+		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
 	if err != nil {
 		log.Event(ctx, "[KAFKA-TEST] Could not create consumer. Please try to reconnect later", log.Error(err))
 	}
@@ -139,7 +118,8 @@ func main() {
 			case <-eventLoopContext.Done():
 				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
-			case consumedMessage := <-chUpstream: // consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incomin()
+			case consumedMessage := <-cgChannels.Upstream:
+				// consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incoming()
 				consumeCount++
 				logData := log.Data{"consumeCount": consumeCount, "consumeMax": cfg.ConsumeMax, "messageOffset": consumedMessage.Offset()}
 				log.Event(ctx, "[KAFKA-TEST] Received message", logData)
@@ -192,9 +172,9 @@ func main() {
 	go func() {
 		for true {
 			select {
-			case consumerError := <-chConsumerErr:
+			case consumerError := <-cgChannels.Errors:
 				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
-			case <-chConsumerClosed:
+			case <-cgChannels.Closed:
 				return
 			}
 		}
@@ -204,9 +184,9 @@ func main() {
 	go func() {
 		for true {
 			select {
-			case producerError := <-chProducerErr:
+			case producerError := <-pChannels.Errors:
 				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
-			case <-chProducerClosed:
+			case <-pChannels.Closed:
 				return
 			}
 		}
@@ -252,7 +232,7 @@ func main() {
 	os.Exit(1)
 }
 
-// performHealthchecks triggers healthchecks in consumer and proucer, and logs the result
+// performHealthchecks triggers healthchecks in consumer and producer, and logs the result
 func performHealthchecks(consumer kafka.ConsumerGroup, producer kafka.Producer) {
 	ctx := context.Background()
 	pCheck, pErr := producer.Checker(ctx)

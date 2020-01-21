@@ -13,21 +13,18 @@ type Producer struct {
 	producer sarama.AsyncProducer
 	brokers  []string
 	topic    string
-	output   chan []byte
-	errors   chan error
-	closer   chan struct{}
-	closed   chan struct{}
+	channels ProducerChannels
 	Check    *health.Check
 }
 
 // Output is the channel to send outgoing messages to.
 func (producer Producer) Output() chan []byte {
-	return producer.output
+	return producer.channels.Output
 }
 
 // Errors provides errors returned from Kafka.
 func (producer Producer) Errors() chan error {
-	return producer.errors
+	return producer.channels.Errors
 }
 
 // Close safely closes the consumer and releases all resources.
@@ -39,12 +36,12 @@ func (producer *Producer) Close(ctx context.Context) (err error) {
 		ctx = context.Background()
 	}
 
-	close(producer.closer)
+	close(producer.channels.Closer)
 
 	select {
-	case <-producer.closed:
-		close(producer.errors)
-		close(producer.output)
+	case <-producer.channels.Closed:
+		close(producer.channels.Errors)
+		close(producer.channels.Output)
 		log.Event(ctx, "Successfully closed kafka producer")
 		return producer.producer.Close()
 
@@ -57,23 +54,15 @@ func (producer *Producer) Close(ctx context.Context) (err error) {
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
-	ctx context.Context, brokers []string, topic string, envMax int,
-	outputChan chan []byte, errorChan chan error, closerChan, closedChan chan struct{}) (Producer, error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
+	ctx context.Context, brokers []string, topic string, envMax int, channels ProducerChannels) (Producer, error) {
 	return NewProducerWithSaramaClient(
-		ctx, brokers, topic, envMax,
-		outputChan, errorChan, closerChan, closedChan, &SaramaClient{},
+		ctx, brokers, topic, envMax, channels, &SaramaClient{},
 	)
 }
 
 // NewProducerWithSaramaClient returns a new producer with a provided Sarama client
 func NewProducerWithSaramaClient(
-	ctx context.Context, brokers []string, topic string, envMax int,
-	outputChan chan []byte, errorChan chan error, closerChan, closedChan chan struct{}, cli Sarama) (Producer, error) {
+	ctx context.Context, brokers []string, topic string, envMax int, channels ProducerChannels, cli Sarama) (Producer, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -92,41 +81,29 @@ func NewProducerWithSaramaClient(
 	check := &health.Check{}
 
 	// Validate provided channels
-	missingChannels := []string{}
-	if outputChan == nil {
-		missingChannels = append(missingChannels, "Output")
-	}
-	if errorChan == nil {
-		missingChannels = append(missingChannels, "Error")
-	}
-	if closerChan == nil {
-		missingChannels = append(missingChannels, "Closer")
-	}
-	if closedChan == nil {
-		missingChannels = append(missingChannels, "Closed")
-	}
-	if len(missingChannels) > 0 {
-		return Producer{}, &ErrNoChannel{ChannelNames: missingChannels}
+	err = channels.Validate()
+	if err != nil {
+		return Producer{}, err
 	}
 
-	// Sart kafka producer with topic. Redirect errors and messages; and handle closerChannel
+	// Start kafka producer with topic. Redirect errors and messages; and handle closerChannel
 	go func() {
-		defer close(closedChan)
+		defer close(channels.Closed)
 		log.Event(ctx, "Started kafka producer", log.Data{"topic": topic})
 		for {
 			select {
 			case err := <-producer.Errors():
 				log.Event(ctx, "Producer", log.Data{"topic": topic}, log.Error(err))
-				errorChan <- err
-			case message := <-outputChan:
+				channels.Errors <- err
+			case message := <-channels.Output:
 				producer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
-			case <-closerChan:
+			case <-channels.Closer:
 				log.Event(ctx, "Closing kafka producer", log.Data{"topic": topic})
 				return
 			}
 		}
 	}()
 
-	// Return producer with channels
-	return Producer{producer, brokers, topic, outputChan, errorChan, closerChan, closedChan, check}, nil
+	// Return producer with channels and check
+	return Producer{producer, brokers, topic, channels, check}, nil
 }

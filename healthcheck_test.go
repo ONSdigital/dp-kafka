@@ -42,22 +42,19 @@ func createProducerForTesting(brokers []string) (kafka.Producer, error) {
 	saramaCli := &mock.SaramaMock{
 		NewAsyncProducerFunc: createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn),
 	}
-	chOut, chErr, chCloser, chClosed := createProducerChannels()
-	return kafka.NewProducerWithSaramaClient(
-		ctx, brokers, testTopic, 123,
-		chOut, chErr, chCloser, chClosed, saramaCli)
+	channels := kafka.CreateProducerChannels()
+	return kafka.NewProducerWithSaramaClient(ctx, brokers, testTopic, 123, channels, saramaCli)
 }
 
-// createConsumerForTestig creates a consumer with a mock Sarama library for testing
-func createConsumerForTestig(brokers []string) (kafka.ConsumerGroup, error) {
+// createConsumerForTesting creates a consumer with a mock Sarama library for testing
+func createConsumerForTesting(brokers []string) (kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: mockNewConsumer,
 	}
-	chUpstream, chCloser, chClosed, chErrors, chUpstreamDone := createConsumerChannels(true)
+	channels := kafka.CreateConsumerGroupChannels(true)
 	return kafka.NewConsumerWithChannelsAndClusterClient(
-		ctx, brokers, testTopic, testGroup, kafka.OffsetNewest, true,
-		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, clusterCli)
+		ctx, brokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
 // TestKafkaProducerHealthcheck tests that the producer healthcheck fails with expected severities and errors
@@ -97,19 +94,19 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 	Convey("Given that kafka brokers are available, without topic metadata", t, func() {
 
 		Convey("Consumer configured with those brokers return  a warning Check structure", func() {
-			consumer, err := createConsumerForTestig(testBrokers)
+			consumer, err := createConsumerForTesting(testBrokers)
 			So(err, ShouldBeNil)
 			validateWarningConsumerGroupCheck(&consumer, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
 		})
 
 		Convey("Consumer configured with different brokers returns a critical Check structure", func() {
-			consumer, err := createConsumerForTestig([]string{"localhost:12399"})
+			consumer, err := createConsumerForTesting([]string{"localhost:12399"})
 			So(err, ShouldBeNil)
 			validateCriticalConsumerGroupCheck(&consumer, "broker(s) not reachable at addresses: [localhost:12399]")
 		})
 
 		Convey("Consumer configured with no brokers returns a critical Check structure", func() {
-			consumer, err := createConsumerForTestig([]string{})
+			consumer, err := createConsumerForTesting([]string{})
 			So(err, ShouldBeNil)
 			validateCriticalConsumerGroupCheck(&consumer, "No brokers defined")
 		})

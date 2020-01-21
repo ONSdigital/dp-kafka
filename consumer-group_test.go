@@ -13,14 +13,9 @@ import (
 var testGroup = "testGroup"
 
 // createConsumerChannels creates local channels for testing
-func createConsumerChannels(sync bool) (
-	chUpstream chan kafka.Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) {
-	if sync {
-		// make the upstream channel buffered, so we can send-and-wait for upstreamDone
-		chUpstream = make(chan kafka.Message, 1)
-	} else {
-		chUpstream = make(chan kafka.Message)
-	}
+func createConsumerChannels() (chUpstream chan kafka.Message, chCloser, chClosed chan struct{},
+	chErrors chan error, chUpstreamDone chan bool) {
+	chUpstream = make(chan kafka.Message)
 	chCloser = make(chan struct{})
 	chClosed = make(chan struct{})
 	chErrors = make(chan error)
@@ -39,41 +34,29 @@ func TestConsumerMissingChannels(t *testing.T) {
 		clusterCli := &mock.SaramaClusterMock{
 			NewConsumerFunc: mockNewConsumer,
 		}
-		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone := createConsumerChannels(true)
-		Convey("Missing upstream channel will cause ErrNoUpstreamChannel", func() {
+		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone := createConsumerChannels()
+		Convey("Missing one channel will cause ErrNoUpstreamChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				nil, chCloser, chClosed, chErrors, chUpstreamDone, clusterCli)
+				kafka.ConsumerGroupChannels{
+					Closer:       chCloser,
+					Closed:       chClosed,
+					Errors:       chErrors,
+					UpstreamDone: chUpstreamDone,
+				},
+				clusterCli)
 			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Upstream"}})
 		})
-		Convey("Missing closer channel will cause ErrNoCloserChannel", func() {
+		Convey("Missing some channels will cause ErrNoCloserChannel", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				chUpstream, nil, chClosed, chErrors, chUpstreamDone, clusterCli)
+				kafka.ConsumerGroupChannels{
+					Upstream: chUpstream,
+				},
+				clusterCli)
 			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closer"}})
-		})
-		Convey("Missing closed channel will cause ErrNoClosedChannel", func() {
-			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
-				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				chUpstream, chCloser, nil, chErrors, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closed"}})
-		})
-		Convey("Missing errors channel will cause ErrNoErrorChannel", func() {
-			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
-				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				chUpstream, chCloser, chClosed, nil, chUpstreamDone, clusterCli)
-			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Error"}})
-		})
-		Convey("Missing upstream-done channel will cause ErrNoUpstreadmDoneChannel", func() {
-			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
-				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				chUpstream, chCloser, chClosed, chErrors, nil, clusterCli)
-			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"UpstreamDone"}})
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Errors", "Closer", "Closed", "UpstreamDone"}})
 		})
 	})
 }

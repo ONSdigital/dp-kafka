@@ -13,15 +13,17 @@ type ErrNoChannel struct {
 	ChannelNames []string
 }
 
+// Error returns the error message with a list of missing channels
 func (e *ErrNoChannel) Error() string {
 	return fmt.Sprintf("Missing channel(s): %v", e.ChannelNames)
 }
 
-// ErrBrokersNotReachable is an Error type for 'Broker Not reachable' with a list of unreacheable addresses
+// ErrBrokersNotReachable is an Error type for 'Broker Not reachable' with a list of unreachable addresses
 type ErrBrokersNotReachable struct {
 	Addrs []string
 }
 
+// Error returns the error message with a list of unreachable addresses
 func (e *ErrBrokersNotReachable) Error() string {
 	return fmt.Sprintf("broker(s) not reachable at addresses: %v", e.Addrs)
 }
@@ -31,6 +33,7 @@ type ErrInvalidBrokers struct {
 	Addrs []string
 }
 
+// Error returns the error message with a list of broker addresses that returned unexpected responses
 func (e *ErrInvalidBrokers) Error() string {
 	return fmt.Sprintf("unexpected metadata response for broker(s). Invalid brokers: %v", e.Addrs)
 }

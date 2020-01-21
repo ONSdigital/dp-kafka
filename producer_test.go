@@ -27,9 +27,9 @@ func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaIn
 }
 
 // createProducerChannels creates local producer channels for testing
-func createProducerChannels() (chOut chan []byte, chErr chan error, chCloser, chClosed chan struct{}) {
-	chOut = make(chan []byte)
-	chErr = make(chan error)
+func createProducerChannels() (chOutput chan []byte, chErrors chan error, chCloser, chClosed chan struct{}) {
+	chOutput = make(chan []byte)
+	chErrors = make(chan error)
 	chCloser = make(chan struct{})
 	chClosed = make(chan struct{})
 	return
@@ -98,37 +98,27 @@ func TestProducerMissingChannels(t *testing.T) {
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: mockNewAsyncProducerEmpty,
 		}
-		chOut, chErr, chCloser, chClosed := createProducerChannels()
-		Convey("Missing outputChan will cause ErrNoOputputChannel", func() {
+		chOutput, chErrors, chCloser, chClosed := createProducerChannels()
+		Convey("Missing one channel will cause ErrNoChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
-				nil, chErr, chCloser, chClosed, saramaCli)
+				kafka.ProducerChannels{
+					Errors: chErrors,
+					Closer: chCloser,
+					Closed: chClosed,
+				}, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Output"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
-		Convey("Missing errorsChan will cause ErrNoErrorChannel", func() {
+		Convey("Missing some channels will cause ErrNoChannel", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
-				chOut, nil, chCloser, chClosed, saramaCli)
+				kafka.ProducerChannels{
+					Output: chOutput,
+				}, saramaCli)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Error"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
-		})
-		Convey("Missing closerChan will cause ErrNoCloserChannel", func() {
-			producer, err := kafka.NewProducerWithSaramaClient(
-				ctx, testBrokers, testTopic, 123,
-				chOut, chErr, nil, chClosed, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closer"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
-		})
-		Convey("Missing closedChan will cause ErrNoClosedChannel", func() {
-			producer, err := kafka.NewProducerWithSaramaClient(
-				ctx, testBrokers, testTopic, 123,
-				chOut, chErr, chCloser, nil, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Closed"}})
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Errors", "Closer", "Closed"}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 	})
@@ -143,13 +133,12 @@ func TestProducerChannels(t *testing.T) {
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn),
 		}
-		chOut, chErr, chCloser, chClosed := createProducerChannels()
+		channels := kafka.CreateProducerChannels()
 		producer, err := kafka.NewProducerWithSaramaClient(
-			ctx, testBrokers, testTopic, 123,
-			chOut, chErr, chCloser, chClosed, saramaCli)
+			ctx, testBrokers, testTopic, 123, channels, saramaCli)
 
 		Convey("Producer is correctly created without error", func() {
-			// Validate proudcer correctly created
+			// Validate producer correctly created
 			So(producer, ShouldNotBeNil)
 			So(err, ShouldBeNil)
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
@@ -159,7 +148,7 @@ func TestProducerChannels(t *testing.T) {
 			// Send message to local kafka output chan
 			message := "HELLO"
 			msg := kafkatest.NewMessage([]byte(message))
-			chOut <- msg.GetData()
+			channels.Output <- msg.GetData()
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
 			// Validate that message was received by sarama message chain, with no error.
@@ -184,7 +173,7 @@ func TestProducerChannels(t *testing.T) {
 				timeout  bool  = false
 			)
 			select {
-			case e := <-chErr:
+			case e := <-channels.Errors:
 				localErr = e
 			case <-time.After(TIMEOUT):
 				timeout = true
@@ -196,14 +185,14 @@ func TestProducerChannels(t *testing.T) {
 		})
 
 		Convey("closing local closer's channel causes kafka producer to close the closed channel", func() {
-			close(chCloser)
+			close(channels.Closer)
 			// Read local closed channel with timeout
 			var (
 				localClosed bool = false
 				timeout     bool = false
 			)
 			select {
-			case <-chClosed:
+			case <-channels.Closed:
 				localClosed = true
 			case <-time.After(TIMEOUT):
 				timeout = true
@@ -212,6 +201,5 @@ func TestProducerChannels(t *testing.T) {
 			So(timeout, ShouldBeFalse)
 			So(localClosed, ShouldBeTrue)
 		})
-
 	})
 }

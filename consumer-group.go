@@ -13,33 +13,29 @@ var tick = time.Millisecond * 1500
 
 // ConsumerGroup represents a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokers      []string
-	consumer     *cluster.Consumer
-	incoming     chan Message
-	errors       chan error
-	closer       chan struct{}
-	closed       chan struct{}
-	topic        string
-	group        string
-	sync         bool
-	upstreamDone chan bool
-	Check        *health.Check
+	brokers  []string
+	channels *ConsumerGroupChannels
+	consumer *cluster.Consumer
+	topic    string
+	group    string
+	sync     bool
+	Check    *health.Check
 }
 
 // Incoming provides a channel of incoming messages.
 func (cg ConsumerGroup) Incoming() chan Message {
-	return cg.incoming
+	return cg.channels.Upstream
 }
 
 // Errors provides a channel of incoming errors.
 func (cg ConsumerGroup) Errors() chan error {
-	return cg.errors
+	return cg.channels.Errors
 }
 
 // Release signals that upstream has completed an incoming message
 // i.e. move on to read the next message
 func (cg ConsumerGroup) Release() {
-	cg.upstreamDone <- true
+	cg.channels.UpstreamDone <- true
 }
 
 // CommitAndRelease commits the consumed message and release the consumer listener to read another message
@@ -55,11 +51,11 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 		ctx = context.Background()
 	}
 
-	close(cg.closer)
+	close(cg.channels.Closer)
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 	select {
-	case <-cg.closed:
+	case <-cg.channels.Closed:
 		log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", logData)
 	case <-ctx.Done():
 		err = ctx.Err()
@@ -79,16 +75,16 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 	// close(closer) - the select{} avoids panic if already closed (by StopListeningToConsumer)
 	select {
-	case <-cg.closer:
+	case <-cg.channels.Closer:
 	default:
-		close(cg.closer)
+		close(cg.channels.Closer)
 	}
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 	select {
-	case <-cg.closed:
-		close(cg.errors)
-		close(cg.incoming)
+	case <-cg.channels.Closed:
+		close(cg.channels.Errors)
+		close(cg.channels.Upstream)
 
 		if err = cg.consumer.Close(); err != nil {
 			log.Event(ctx, "Close failed of kafka consumer group", log.Error(err), logData)
@@ -104,42 +100,20 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 // NewSyncConsumer returns a new synchronous consumer group using default configuration.
 func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return NewConsumerWithChannels(
-		ctx, brokers, topic, group, offset, true,
-		make(chan Message, 1), // Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
-		make(chan struct{}),
-		make(chan struct{}),
-		make(chan error),
-		make(chan bool, 1),
-	)
+	channels := CreateConsumerGroupChannels(true)
+	return NewConsumerWithChannels(ctx, brokers, topic, group, offset, true, channels)
 }
 
 // NewConsumerGroup returns a new asynchronous consumer group using default configuration.
 func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return NewConsumerWithChannels(
-		ctx, brokers, topic, group, offset, false,
-		make(chan Message), // not sync -> upstream channel unbuffered
-		make(chan struct{}),
-		make(chan struct{}),
-		make(chan error),
-		make(chan bool, 1),
-	)
+	channels := CreateConsumerGroupChannels(false)
+	return NewConsumerWithChannels(ctx, brokers, topic, group, offset, false, channels)
 }
 
 // NewConsumerWithChannels returns a new consumer group using default configuration and provided channels
 func NewConsumerWithChannels(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool) (ConsumerGroup, error) {
+	channels ConsumerGroupChannels) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -147,14 +121,14 @@ func NewConsumerWithChannels(
 
 	return NewConsumerWithChannelsAndClusterClient(
 		ctx, brokers, topic, group, offset, sync,
-		chUpstream, chCloser, chClosed, chErrors, chUpstreamDone, &SaramaClusterClient{},
+		channels, &SaramaClusterClient{},
 	)
 }
 
 // NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithChannelsAndClusterClient(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	chUpstream chan Message, chCloser, chClosed chan struct{}, chErrors chan error, chUpstreamDone chan bool, cli SaramaCluster) (ConsumerGroup, error) {
+	channels ConsumerGroupChannels, cli SaramaCluster) (ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -177,39 +151,19 @@ func NewConsumerWithChannelsAndClusterClient(
 
 	check := &health.Check{}
 
-	// Validate provided channels
-	missingChannels := []string{}
-	if chUpstream == nil {
-		missingChannels = append(missingChannels, "Upstream")
-	}
-	if chCloser == nil {
-		missingChannels = append(missingChannels, "Closer")
-	}
-	if chClosed == nil {
-		missingChannels = append(missingChannels, "Closed")
-	}
-	if chErrors == nil {
-		missingChannels = append(missingChannels, "Error")
-	}
-	if chUpstreamDone == nil {
-		missingChannels = append(missingChannels, "UpstreamDone")
-	}
-	if len(missingChannels) > 0 {
-		return ConsumerGroup{}, &ErrNoChannel{ChannelNames: missingChannels}
+	err = channels.Validate()
+	if err != nil {
+		return ConsumerGroup{}, err
 	}
 
 	cg := ConsumerGroup{
-		brokers:      brokers,
-		consumer:     consumer,
-		incoming:     chUpstream,
-		closer:       chCloser,
-		closed:       chClosed,
-		errors:       chErrors,
-		topic:        topic,
-		group:        group,
-		sync:         sync,
-		upstreamDone: chUpstreamDone,
-		Check:        check,
+		brokers:  brokers,
+		consumer: consumer,
+		channels: &channels,
+		topic:    topic,
+		group:    group,
+		sync:     sync,
+		Check:    check,
 	}
 
 	// listener goroutine - listen to consumer.Messages() and upstream them
@@ -218,10 +172,10 @@ func NewConsumerWithChannelsAndClusterClient(
 		logData := log.Data{"topic": topic, "group": group}
 
 		log.Event(ctx, "Started kafka consumer listener", logData)
-		defer close(cg.closed)
+		defer close(cg.channels.Closed)
 		for looping := true; looping; {
 			select {
-			case <-cg.closer:
+			case <-cg.channels.Closer:
 				looping = false
 			case msg := <-cg.consumer.Messages():
 				cg.Incoming() <- SaramaMessage{msg, cg.consumer}
@@ -229,9 +183,9 @@ func NewConsumerWithChannelsAndClusterClient(
 					// wait for msg-processed or close-consumer triggers
 					for loopingForSync := true; looping && loopingForSync; {
 						select {
-						case <-cg.upstreamDone:
+						case <-cg.channels.UpstreamDone:
 							loopingForSync = false
-						case <-cg.closer:
+						case <-cg.channels.Closer:
 							// XXX if we read closer here, this means that the release/upstreamDone blocks unless it is buffered
 							looping = false
 						}
@@ -250,9 +204,9 @@ func NewConsumerWithChannelsAndClusterClient(
 		hasBalanced := false // avoid CommitOffsets() being called before we have balanced (otherwise causes a panic)
 		for looping := true; looping; {
 			select {
-			case <-cg.closer:
+			case <-cg.channels.Closer:
 				log.Event(ctx, "Closing kafka consumer controller", logData)
-				<-cg.closed
+				<-cg.channels.Closed
 				looping = false
 			case err := <-cg.consumer.Errors():
 				log.Event(ctx, "kafka consumer-group error", log.Error(err))
