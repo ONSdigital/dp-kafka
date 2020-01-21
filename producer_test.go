@@ -26,15 +26,6 @@ func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaIn
 	return
 }
 
-// createProducerChannels creates local producer channels for testing
-func createProducerChannels() (chOutput chan []byte, chErrors chan error, chCloser, chClosed chan struct{}) {
-	chOutput = make(chan []byte)
-	chErrors = make(chan error)
-	chCloser = make(chan struct{})
-	chClosed = make(chan struct{})
-	return
-}
-
 // createMockErrorsFunc returns a mock for AsyncProducer ErrorsFunc with the provided Sarama errors Channel
 func createMockErrorsFunc(saramaErrsChan chan *sarama.ProducerError) func() <-chan *sarama.ProducerError {
 	return func() <-chan *sarama.ProducerError {
@@ -98,27 +89,17 @@ func TestProducerMissingChannels(t *testing.T) {
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: mockNewAsyncProducerEmpty,
 		}
-		chOutput, chErrors, chCloser, chClosed := createProducerChannels()
-		Convey("Missing one channel will cause ErrNoChannel", func() {
+
+		Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				kafka.ProducerChannels{
-					Errors: chErrors,
-					Closer: chCloser,
-					Closed: chClosed,
-				}, saramaCli)
+					Output: make(chan []byte),
+				},
+				saramaCli,
+			)
 			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Output"}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
-		})
-		Convey("Missing some channels will cause ErrNoChannel", func() {
-			producer, err := kafka.NewProducerWithSaramaClient(
-				ctx, testBrokers, testTopic, 123,
-				kafka.ProducerChannels{
-					Output: chOutput,
-				}, saramaCli)
-			So(producer, ShouldResemble, kafka.Producer{})
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{"Errors", "Closer", "Closed"}})
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 	})

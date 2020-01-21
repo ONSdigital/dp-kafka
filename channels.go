@@ -1,5 +1,15 @@
 package kafka
 
+// channel names
+const (
+	Errors       = "Errors"
+	Closer       = "Closer"
+	Closed       = "Closed"
+	Upstream     = "Upstream"
+	UpstreamDone = "UpstreamDone"
+	Output       = "Output"
+)
+
 // ConsumerGroupChannels represents the channels used by ConsumerGroup.
 type ConsumerGroupChannels struct {
 	Upstream     chan Message
@@ -21,19 +31,19 @@ type ProducerChannels struct {
 func (cCh *ConsumerGroupChannels) Validate() error {
 	missingChannels := []string{}
 	if cCh.Upstream == nil {
-		missingChannels = append(missingChannels, "Upstream")
+		missingChannels = append(missingChannels, Upstream)
 	}
 	if cCh.Errors == nil {
-		missingChannels = append(missingChannels, "Errors")
+		missingChannels = append(missingChannels, Errors)
 	}
 	if cCh.Closer == nil {
-		missingChannels = append(missingChannels, "Closer")
+		missingChannels = append(missingChannels, Closer)
 	}
 	if cCh.Closed == nil {
-		missingChannels = append(missingChannels, "Closed")
+		missingChannels = append(missingChannels, Closed)
 	}
 	if cCh.UpstreamDone == nil {
-		missingChannels = append(missingChannels, "UpstreamDone")
+		missingChannels = append(missingChannels, UpstreamDone)
 	}
 	if len(missingChannels) > 0 {
 		return &ErrNoChannel{ChannelNames: missingChannels}
@@ -45,16 +55,16 @@ func (cCh *ConsumerGroupChannels) Validate() error {
 func (pCh *ProducerChannels) Validate() error {
 	missingChannels := []string{}
 	if pCh.Output == nil {
-		missingChannels = append(missingChannels, "Output")
+		missingChannels = append(missingChannels, Output)
 	}
 	if pCh.Errors == nil {
-		missingChannels = append(missingChannels, "Errors")
+		missingChannels = append(missingChannels, Errors)
 	}
 	if pCh.Closer == nil {
-		missingChannels = append(missingChannels, "Closer")
+		missingChannels = append(missingChannels, Closer)
 	}
 	if pCh.Closed == nil {
-		missingChannels = append(missingChannels, "Closed")
+		missingChannels = append(missingChannels, Closed)
 	}
 	if len(missingChannels) > 0 {
 		return &ErrNoChannel{ChannelNames: missingChannels}
