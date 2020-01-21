@@ -128,7 +128,7 @@ func NewConsumerWithChannels(
 // NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithChannelsAndClusterClient(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	channels ConsumerGroupChannels, cli SaramaCluster) (ConsumerGroup, error) {
+	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -143,28 +143,32 @@ func NewConsumerWithChannelsAndClusterClient(
 
 	logData := log.Data{"topic": topic, "group": group}
 
+	// ConsumerGroup initialized with provided brokers, topic, group and sync
+	cg = ConsumerGroup{
+		brokers: brokers,
+		topic:   topic,
+		group:   group,
+		sync:    sync,
+	}
+
+	// Initial check structure
+	check := &health.Check{Name: ServiceName}
+	cg.Check = check
+
+	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
+	err = channels.Validate()
+	if err != nil {
+		return cg, err
+	}
+	cg.channels = &channels
+
+	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	consumer, err := cli.NewConsumer(brokers, group, []string{topic}, config)
 	if err != nil {
 		log.Event(ctx, "newConsumer failed", log.Error(err), logData)
-		return ConsumerGroup{}, err
+		return cg, err
 	}
-
-	check := &health.Check{}
-
-	err = channels.Validate()
-	if err != nil {
-		return ConsumerGroup{}, err
-	}
-
-	cg := ConsumerGroup{
-		brokers:  brokers,
-		consumer: consumer,
-		channels: &channels,
-		topic:    topic,
-		group:    group,
-		sync:     sync,
-		Check:    check,
-	}
+	cg.consumer = consumer
 
 	// listener goroutine - listen to consumer.Messages() and upstream them
 	// if this blocks while upstreaming a message, we can shutdown consumer via the following goroutine

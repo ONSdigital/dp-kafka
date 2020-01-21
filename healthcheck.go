@@ -19,36 +19,47 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// Checker checks health of Kafka producer and returns it inside a Check structure.
+// Checker checks health of Kafka producer and returns it inside its Check structure.
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 	err := healthcheck(ctx, p.brokers, p.topic)
+	currentTime := time.Now().UTC()
+	p.Check.LastChecked = &currentTime
 	if err != nil {
-		p.Check, err = checker(ctx, err)
-		return p.Check, nil
+		p.Check.LastFailure = &currentTime
+		p.Check.Status = getStatusFromError(err)
+		p.Check.Message = err.Error()
+		return p.Check, err
 	}
-	p.Check = getCheck(ctx, health.StatusOK, MsgHealthyProducer)
+	p.Check.LastSuccess = &currentTime
+	p.Check.Status = health.StatusOK
+	p.Check.Message = MsgHealthyProducer
 	return p.Check, nil
 }
 
-// Checker checks health of Kafka consumer-group and returns it inside a Check structure.
+// Checker checks health of Kafka consumer-group and returns it inside its Check structure.
 func (c *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
 	err := healthcheck(ctx, c.brokers, c.topic)
+	currentTime := time.Now().UTC()
+	c.Check.LastChecked = &currentTime
 	if err != nil {
-		c.Check, err = checker(ctx, err)
-		return c.Check, nil
+		c.Check.LastFailure = &currentTime
+		c.Check.Status = getStatusFromError(err)
+		c.Check.Message = err.Error()
+		return c.Check, err
 	}
-	c.Check = getCheck(ctx, health.StatusOK, MsgHealthyConsumerGroup)
+	c.Check.LastSuccess = &currentTime
+	c.Check.Status = health.StatusOK
+	c.Check.Message = MsgHealthyConsumerGroup
 	return c.Check, nil
 }
 
-// checker decides the severity and gets the corresponding Check struct for the provided error.
-// Common for providers and consumers.
-func checker(ctx context.Context, err error) (*health.Check, error) {
+// getStatusFromError decides the health status (severity) according to the provided error
+func getStatusFromError(err error) string {
 	switch err.(type) {
 	case *ErrInvalidBrokers:
-		return getCheck(ctx, health.StatusWarning, err.Error()), err
+		return health.StatusWarning
 	default:
-		return getCheck(ctx, health.StatusCritical, err.Error()), err
+		return health.StatusCritical
 	}
 }
 
@@ -97,25 +108,4 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 		return &ErrInvalidBrokers{Addrs: invalidBrokers}
 	}
 	return nil
-}
-
-// getCheck creates a Check structure and populate it according the status and message.
-func getCheck(ctx context.Context, status, message string) *health.Check {
-
-	currentTime := time.Now().UTC()
-
-	check := &health.Check{
-		Name:        ServiceName,
-		Status:      status,
-		Message:     message,
-		LastChecked: &currentTime,
-	}
-
-	if status == health.StatusOK {
-		check.LastSuccess = &currentTime
-	} else {
-		check.LastFailure = &currentTime
-	}
-
-	return check
 }

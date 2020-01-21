@@ -235,14 +235,8 @@ func main() {
 // performHealthchecks triggers healthchecks in consumer and producer, and logs the result
 func performHealthchecks(consumer kafka.ConsumerGroup, producer kafka.Producer) {
 	ctx := context.Background()
-	pCheck, pErr := producer.Checker(ctx)
-	if pErr != nil {
-		log.Event(ctx, "[KAFKA-TEST] Producer healthcheck error", log.Error(pErr))
-	}
+	pCheck, _ := producer.Checker(ctx)
 	log.Event(ctx, "[KAFKA-TEST] Producer healthcheck", log.Data{"check": pCheck})
-	cCheck, cErr := consumer.Checker(ctx)
-	if cErr != nil {
-		log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck error", log.Error(cErr))
-	}
+	cCheck, _ := consumer.Checker(ctx)
 	log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck", log.Data{"check": cCheck})
 }

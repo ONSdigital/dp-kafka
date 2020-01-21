@@ -13,7 +13,7 @@ type Producer struct {
 	producer sarama.AsyncProducer
 	brokers  []string
 	topic    string
-	channels ProducerChannels
+	channels *ProducerChannels
 	Check    *health.Check
 }
 
@@ -27,7 +27,7 @@ func (producer Producer) Errors() chan error {
 	return producer.channels.Errors
 }
 
-// Close safely closes the consumer and releases all resources.
+// Close safely closes the producer and releases all resources.
 // pass in a context with a timeout or deadline.
 // Passing a nil context will provide no timeout but is not recommended
 func (producer *Producer) Close(ctx context.Context) (err error) {
@@ -46,7 +46,7 @@ func (producer *Producer) Close(ctx context.Context) (err error) {
 		return producer.producer.Close()
 
 	case <-ctx.Done():
-		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of consumer group")
+		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of producer")
 		return ErrShutdownTimedOut
 	}
 }
@@ -62,29 +62,40 @@ func NewProducer(
 
 // NewProducerWithSaramaClient returns a new producer with a provided Sarama client
 func NewProducerWithSaramaClient(
-	ctx context.Context, brokers []string, topic string, envMax int, channels ProducerChannels, cli Sarama) (Producer, error) {
+	ctx context.Context, brokers []string, topic string, envMax int,
+	channels ProducerChannels, cli Sarama) (producer Producer, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Create Sarama AsyncProducer with MaxMessageBytes
+	// Producer initialized with provided brokers and topic
+	producer = Producer{
+		brokers: brokers,
+		topic:   topic,
+	}
+
+	// Initial Check struct
+	check := &health.Check{Name: ServiceName}
+	producer.Check = check
+
+	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
+	err = channels.Validate()
+	if err != nil {
+		return producer, err
+	}
+	producer.channels = &channels
+
+	// Create Sarama AsyncProducer with MaxMessageBytes. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	config := sarama.NewConfig()
 	if envMax > 0 {
 		config.Producer.MaxMessageBytes = envMax
 	}
-	producer, err := cli.NewAsyncProducer(brokers, config)
+	saramaProducer, err := cli.NewAsyncProducer(brokers, config)
 	if err != nil {
-		return Producer{}, err
+		return producer, err
 	}
-
-	check := &health.Check{}
-
-	// Validate provided channels
-	err = channels.Validate()
-	if err != nil {
-		return Producer{}, err
-	}
+	producer.producer = saramaProducer
 
 	// Start kafka producer with topic. Redirect errors and messages; and handle closerChannel
 	go func() {
@@ -92,11 +103,11 @@ func NewProducerWithSaramaClient(
 		log.Event(ctx, "Started kafka producer", log.Data{"topic": topic})
 		for {
 			select {
-			case err := <-producer.Errors():
+			case err := <-saramaProducer.Errors():
 				log.Event(ctx, "Producer", log.Data{"topic": topic}, log.Error(err))
 				channels.Errors <- err
 			case message := <-channels.Output:
-				producer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
+				saramaProducer.Input() <- &sarama.ProducerMessage{Topic: topic, Value: sarama.StringEncoder(message)}
 			case <-channels.Closer:
 				log.Event(ctx, "Closing kafka producer", log.Data{"topic": topic})
 				return
@@ -104,6 +115,6 @@ func NewProducerWithSaramaClient(
 		}
 	}()
 
-	// Return producer with channels and check
-	return Producer{producer, brokers, topic, channels, check}, nil
+	// Return correctly initialized producer (err might be a non-fatal error returned by sarama client creation)
+	return producer, nil
 }
