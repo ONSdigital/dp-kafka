@@ -32,7 +32,7 @@ func TestConsumerMissingChannels(t *testing.T) {
 				},
 				clusterCli,
 			)
-			So(consumer, ShouldResemble, kafka.ConsumerGroup{})
+			So(consumer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed, kafka.UpstreamDone}})
 		})
 	})

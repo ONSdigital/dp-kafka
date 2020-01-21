@@ -98,9 +98,9 @@ func TestProducerMissingChannels(t *testing.T) {
 				},
 				saramaCli,
 			)
-			So(producer, ShouldResemble, kafka.Producer{})
+			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed}})
-			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
+			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 	})
 }
