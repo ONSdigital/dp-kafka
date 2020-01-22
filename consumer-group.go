@@ -15,7 +15,7 @@ var tick = time.Millisecond * 1500
 type ConsumerGroup struct {
 	brokers  []string
 	channels *ConsumerGroupChannels
-	consumer *cluster.Consumer
+	consumer SaramaClusterConsumer
 	topic    string
 	group    string
 	sync     bool
@@ -87,6 +87,15 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	case <-cg.channels.Closer:
 	default:
 		close(cg.channels.Closer)
+	}
+
+	// If Sarama Consumer is not available, we can close 'closed' channel straight away, with select{} to avoid panic if already closed
+	if cg.consumer == nil {
+		select {
+		case <-cg.channels.Closed:
+		default:
+			close(cg.channels.Closed)
+		}
 	}
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}

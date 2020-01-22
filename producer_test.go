@@ -254,7 +254,7 @@ func TestProducerNotInitialized(t *testing.T) {
 			// TODO We should create errors if messages are sent to Output channel in an non initialized producer
 		})
 
-		Convey("Closing the producer closes Sarama producer and channels", func() {
+		Convey("Closing the producer closes the caller channels", func() {
 			producer.Close(ctx)
 			validateChannelClosed(channels.Closer)
 			validateChannelClosed(channels.Closed)

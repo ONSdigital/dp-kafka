@@ -67,8 +67,10 @@ func createProducerForTesting(brokers []string, topic string) (kafka.Producer, e
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
 func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
 	ctx := context.Background()
+	errsChan, msgChan, notiChan := createSaramaClusterChannels()
+	_, funcNewConsumer := createMockNewConsumer(errsChan, msgChan, notiChan)
 	clusterCli := &mock.SaramaClusterMock{
-		NewConsumerFunc: mockNewConsumer,
+		NewConsumerFunc: funcNewConsumer,
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
 	return kafka.NewConsumerWithChannelsAndClusterClient(

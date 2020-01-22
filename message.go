@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"github.com/Shopify/sarama"
-	"github.com/bsm/sarama-cluster"
 )
 
 // Message represents a single kafka message.
@@ -21,7 +20,7 @@ type Message interface {
 // SaramaMessage represents a Sarama specific Kafka message
 type SaramaMessage struct {
 	message  *sarama.ConsumerMessage
-	consumer *cluster.Consumer
+	consumer SaramaClusterConsumer
 }
 
 // GetData returns the message contents.

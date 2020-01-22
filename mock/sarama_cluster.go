@@ -23,7 +23,7 @@ var _ kafka.SaramaCluster = &SaramaClusterMock{}
 //
 //         // make and configure a mocked kafka.SaramaCluster
 //         mockedSaramaCluster := &SaramaClusterMock{
-//             NewConsumerFunc: func(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
+//             NewConsumerFunc: func(addrs []string, groupID string, topics []string, config *cluster.Config) (kafka.SaramaClusterConsumer, error) {
 // 	               panic("mock out the NewConsumer method")
 //             },
 //         }
@@ -34,7 +34,7 @@ var _ kafka.SaramaCluster = &SaramaClusterMock{}
 //     }
 type SaramaClusterMock struct {
 	// NewConsumerFunc mocks the NewConsumer method.
-	NewConsumerFunc func(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error)
+	NewConsumerFunc func(addrs []string, groupID string, topics []string, config *cluster.Config) (kafka.SaramaClusterConsumer, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -53,7 +53,7 @@ type SaramaClusterMock struct {
 }
 
 // NewConsumer calls NewConsumerFunc.
-func (mock *SaramaClusterMock) NewConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (*cluster.Consumer, error) {
+func (mock *SaramaClusterMock) NewConsumer(addrs []string, groupID string, topics []string, config *cluster.Config) (kafka.SaramaClusterConsumer, error) {
 	if mock.NewConsumerFunc == nil {
 		panic("SaramaClusterMock.NewConsumerFunc: method is nil but SaramaCluster.NewConsumer was just called")
 	}
