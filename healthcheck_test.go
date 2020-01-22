@@ -56,8 +56,9 @@ func closeMockBrokers(brokers []*sarama.MockBroker) {
 func createProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
 	ctx := context.Background()
 	chSaramaErr, chSaramaIn := createSaramaChannels()
+	_, funcNewAsyncProducer := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
 	saramaCli := &mock.SaramaMock{
-		NewAsyncProducerFunc: createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn),
+		NewAsyncProducerFunc: funcNewAsyncProducer,
 	}
 	channels := kafka.CreateProducerChannels()
 	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)

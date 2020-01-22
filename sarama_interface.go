@@ -10,7 +10,7 @@ type Sarama interface {
 	NewAsyncProducer(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error)
 }
 
-// AsyncProducer is a wrapper arround sarama.AsyncProducer
+// AsyncProducer is a wrapper around sarama.AsyncProducer
 type AsyncProducer = sarama.AsyncProducer
 
 // SaramaClient implements Sarama interface and wraps the real calls to Sarama library.
