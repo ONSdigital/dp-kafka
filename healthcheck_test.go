@@ -64,6 +64,16 @@ func createProducerForTesting(brokers []string, topic string) (kafka.Producer, e
 	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)
 }
 
+// createUninitializedProducerForTesting creates a producer for testing without a valid AsyncProducer
+func createUninitializedProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
+	ctx := context.Background()
+	saramaCli := &mock.SaramaMock{
+		NewAsyncProducerFunc: mockNewAsyncProducerError,
+	}
+	channels := kafka.CreateProducerChannels()
+	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)
+}
+
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
 func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
 	ctx := context.Background()
@@ -71,6 +81,17 @@ func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGro
 	_, funcNewConsumer := createMockNewConsumer(errsChan, msgChan, notiChan)
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: funcNewConsumer,
+	}
+	channels := kafka.CreateConsumerGroupChannels(true)
+	return kafka.NewConsumerWithChannelsAndClusterClient(
+		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
+}
+
+// createUninitializedConsumerForTesting creates a consumer for testing without a valid Sarama-cluster consumer
+func createUninitializedConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
+	ctx := context.Background()
+	clusterCli := &mock.SaramaClusterMock{
+		NewConsumerFunc: mockNewConsumerError,
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
 	return kafka.NewConsumerWithChannelsAndClusterClient(
@@ -89,6 +110,14 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			producer, err := createProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
 			validateSuccessfulProducerCheck(&producer)
+			So(producer.Check.LastFailure, ShouldBeNil)
+		})
+
+		Convey("Uninitialized producer with right config returns a Critical Check structure", func() {
+			producer, err := createUninitializedProducerForTesting(testBrokers, testTopic)
+			So(err, ShouldResemble, ErrSaramaNoBrokers)
+			validateCriticalProducerCheck(&producer, kafka.ErrInitSarama.Error())
+			So(producer.Check.LastSuccess, ShouldBeNil)
 		})
 
 		Convey("Producer configured with right brokers and wrong topic returns a warning Check structure", func() {
@@ -129,6 +158,14 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			consumer, err := createConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
 			validateSuccessfulConsumerGroupCheck(&consumer)
+			So(consumer.Check.LastFailure, ShouldBeNil)
+		})
+
+		Convey("Uninitialized consumer with right config returns a Critical Check structure", func() {
+			consumer, err := createUninitializedConsumerForTesting(testBrokers, testTopic)
+			So(err, ShouldResemble, ErrSaramaNoBrokers)
+			validateCriticalConsumerGroupCheck(&consumer, kafka.ErrInitSarama.Error())
+			So(consumer.Check.LastSuccess, ShouldBeNil)
 		})
 
 		Convey("Consumer configured with right brokers and wrong topic returns a warning Check structure", func() {
