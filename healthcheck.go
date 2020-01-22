@@ -21,6 +21,7 @@ const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
 // Checker checks health of Kafka producer and returns it inside its Check structure.
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
+	// Perform healthcheck against brokers
 	err := healthcheck(ctx, p.brokers, p.topic)
 	currentTime := time.Now().UTC()
 	p.Check.LastChecked = &currentTime
@@ -30,6 +31,15 @@ func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 		p.Check.Message = err.Error()
 		return p.Check, err
 	}
+	// It is possible that Sarama client is not initialized. Initialize it.
+	// Healthcheck will be critical if it cannot be initialized (as Producer cannot be used)
+	err = p.InitializeSarama(ctx)
+	if err != nil {
+		p.Check.LastFailure = &currentTime
+		p.Check.Status = health.StatusCritical
+		p.Check.Message = ErrInitSarama.Error()
+		return p.Check, err
+	}
 	p.Check.LastSuccess = &currentTime
 	p.Check.Status = health.StatusOK
 	p.Check.Message = MsgHealthyProducer
@@ -37,20 +47,29 @@ func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 }
 
 // Checker checks health of Kafka consumer-group and returns it inside its Check structure.
-func (c *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
-	err := healthcheck(ctx, c.brokers, c.topic)
+func (cg *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
+	err := healthcheck(ctx, cg.brokers, cg.topic)
 	currentTime := time.Now().UTC()
-	c.Check.LastChecked = &currentTime
+	cg.Check.LastChecked = &currentTime
 	if err != nil {
-		c.Check.LastFailure = &currentTime
-		c.Check.Status = getStatusFromError(err)
-		c.Check.Message = err.Error()
-		return c.Check, err
+		cg.Check.LastFailure = &currentTime
+		cg.Check.Status = getStatusFromError(err)
+		cg.Check.Message = err.Error()
+		return cg.Check, err
 	}
-	c.Check.LastSuccess = &currentTime
-	c.Check.Status = health.StatusOK
-	c.Check.Message = MsgHealthyConsumerGroup
-	return c.Check, nil
+	// It is possible that Sarama client is not initialized. Initialize it.
+	// Healthcheck will be critical if it cannot be initialized (as ConsumerGroup cannot be used)
+	err = cg.InitializeSarama(ctx)
+	if err != nil {
+		cg.Check.LastFailure = &currentTime
+		cg.Check.Status = health.StatusCritical
+		cg.Check.Message = ErrInitSarama.Error()
+		return cg.Check, err
+	}
+	cg.Check.LastSuccess = &currentTime
+	cg.Check.Status = health.StatusOK
+	cg.Check.Message = MsgHealthyConsumerGroup
+	return cg.Check, nil
 }
 
 // getStatusFromError decides the health status (severity) according to the provided error

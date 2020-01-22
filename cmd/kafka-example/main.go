@@ -113,7 +113,7 @@ func main() {
 				log.Event(ctx, "[KAFKA-TEST] tick")
 				if tick >= healthTickerPeriod {
 					tick = 0
-					performHealthchecks(consumer, producer)
+					performHealthchecks(&consumer, &producer)
 				}
 			case <-eventLoopContext.Done():
 				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
@@ -174,7 +174,7 @@ func main() {
 			select {
 			case consumerError := <-cgChannels.Errors:
 				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
-			case <-cgChannels.Closed:
+			case <-cgChannels.Closer:
 				return
 			}
 		}
@@ -186,7 +186,7 @@ func main() {
 			select {
 			case producerError := <-pChannels.Errors:
 				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
-			case <-pChannels.Closed:
+			case <-pChannels.Closer:
 				return
 			}
 		}
@@ -232,8 +232,8 @@ func main() {
 	os.Exit(1)
 }
 
-// performHealthchecks triggers healthchecks in consumer and producer, and logs the result
-func performHealthchecks(consumer kafka.ConsumerGroup, producer kafka.Producer) {
+// performHealthchecks triggers healthchecks in consumer and producer, and logs the result.
+func performHealthchecks(consumer *kafka.ConsumerGroup, producer *kafka.Producer) {
 	ctx := context.Background()
 	pCheck, _ := producer.Checker(ctx)
 	log.Event(ctx, "[KAFKA-TEST] Producer healthcheck", log.Data{"check": pCheck})
