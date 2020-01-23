@@ -69,7 +69,7 @@ func main() {
 
 	// Create Consumer with channels
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
-	consumer, err := kafka.NewConsumerWithChannels(
+	consumer, err := kafka.NewConsumerGroup(
 		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
 	if err != nil {
 		log.Event(ctx, "[KAFKA-TEST] Could not create consumer. Please try to reconnect later", log.Error(err))

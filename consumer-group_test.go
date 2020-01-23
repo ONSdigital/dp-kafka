@@ -71,7 +71,7 @@ func TestConsumerMissingChannels(t *testing.T) {
 		}
 
 		Convey("Providing an invalid ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", func() {
-			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
+			consumer, err := kafka.NewConsumerWithClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				kafka.ConsumerGroupChannels{
 					Upstream: make(chan kafka.Message),
@@ -101,7 +101,7 @@ func TestConsumer(t *testing.T) {
 
 		// Create ConsumerGroup with channels
 		channels := kafka.CreateConsumerGroupChannels(true)
-		consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
+		consumer, err := kafka.NewConsumerWithClusterClient(
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 
@@ -158,7 +158,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 			NewConsumerFunc: mockNewConsumerError,
 		}
 		channels := kafka.CreateConsumerGroupChannels(true)
-		consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
+		consumer, err := kafka.NewConsumerWithClusterClient(
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 

@@ -223,20 +223,8 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 	return nil
 }
 
-// NewSyncConsumer returns a new synchronous consumer group using default configuration.
-func NewSyncConsumer(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
-	channels := CreateConsumerGroupChannels(true)
-	return NewConsumerWithChannels(ctx, brokers, topic, group, offset, true, channels)
-}
-
-// NewConsumerGroup returns a new asynchronous consumer group using default configuration.
-func NewConsumerGroup(ctx context.Context, brokers []string, topic string, group string, offset int64) (ConsumerGroup, error) {
-	channels := CreateConsumerGroupChannels(false)
-	return NewConsumerWithChannels(ctx, brokers, topic, group, offset, false, channels)
-}
-
-// NewConsumerWithChannels returns a new consumer group using default configuration and provided channels
-func NewConsumerWithChannels(
+// NewConsumerGroup returns a new consumer group using default configuration and provided channels
+func NewConsumerGroup(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
 	channels ConsumerGroupChannels) (ConsumerGroup, error) {
 
@@ -244,14 +232,14 @@ func NewConsumerWithChannels(
 		ctx = context.Background()
 	}
 
-	return NewConsumerWithChannelsAndClusterClient(
+	return NewConsumerWithClusterClient(
 		ctx, brokers, topic, group, offset, sync,
 		channels, &SaramaClusterClient{},
 	)
 }
 
-// NewConsumerWithChannelsAndClusterClient returns a new consumer group with the provided sarama cluster client
-func NewConsumerWithChannelsAndClusterClient(
+// NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
+func NewConsumerWithClusterClient(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
 	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
 

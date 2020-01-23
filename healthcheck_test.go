@@ -94,7 +94,7 @@ func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGro
 		NewConsumerFunc: funcNewConsumer,
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
-	return kafka.NewConsumerWithChannelsAndClusterClient(
+	return kafka.NewConsumerWithClusterClient(
 		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
@@ -105,7 +105,7 @@ func createUninitialisedConsumerForTesting(brokers []string, topic string) (kafk
 		NewConsumerFunc: mockNewConsumerError,
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
-	return kafka.NewConsumerWithChannelsAndClusterClient(
+	return kafka.NewConsumerWithClusterClient(
 		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
