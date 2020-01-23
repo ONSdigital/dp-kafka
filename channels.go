@@ -3,6 +3,7 @@ package kafka
 // channel names
 const (
 	Errors       = "Errors"
+	Init         = "Init"
 	Closer       = "Closer"
 	Closed       = "Closed"
 	Upstream     = "Upstream"
@@ -23,6 +24,7 @@ type ConsumerGroupChannels struct {
 type ProducerChannels struct {
 	Output chan []byte
 	Errors chan error
+	Init   chan struct{}
 	Closer chan struct{}
 	Closed chan struct{}
 }
@@ -60,6 +62,9 @@ func (pCh *ProducerChannels) Validate() error {
 	if pCh.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
+	if pCh.Init == nil {
+		missingChannels = append(missingChannels, Init)
+	}
 	if pCh.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
 	}
@@ -96,6 +101,7 @@ func CreateProducerChannels() ProducerChannels {
 	return ProducerChannels{
 		Output: make(chan []byte),
 		Errors: make(chan error),
+		Init:   make(chan struct{}),
 		Closer: make(chan struct{}),
 		Closed: make(chan struct{}),
 	}

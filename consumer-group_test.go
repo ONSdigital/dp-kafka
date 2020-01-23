@@ -124,23 +124,23 @@ func TestConsumer(t *testing.T) {
 
 		Convey("StopListeningToConsumer closes closer and closed channels, without actually closing sarama-cluster consumer", func() {
 			consumer.StopListeningToConsumer(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
 		Convey("Closing the consumer closes Sarama-cluster consumer", func() {
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 1)
 		})
 
 		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func() {
 			consumer.StopListeningToConsumer(ctx)
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 1)
 		})
 
@@ -178,21 +178,21 @@ func TestConsumerNotInitialized(t *testing.T) {
 
 		Convey("StopListeningToConsumer closes closer and closed channels", func() {
 			consumer.StopListeningToConsumer(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 		})
 
 		Convey("Closing the consumer closes the caller channels", func() {
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 		})
 
 		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func() {
 			consumer.StopListeningToConsumer(ctx)
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 		})
 
 	})

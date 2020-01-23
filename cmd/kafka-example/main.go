@@ -31,7 +31,7 @@ type Config struct {
 const ticker = 1 * time.Second
 
 // Number of ticks between health checks
-const healthTickerPeriod = 5
+const healthTickerPeriod = 10
 
 func main() {
 	log.Namespace = "kafka-example"

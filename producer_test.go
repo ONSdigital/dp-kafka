@@ -110,7 +110,7 @@ func TestProducerMissingChannels(t *testing.T) {
 				saramaCli,
 			)
 			So(producer, ShouldNotBeNil)
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed}})
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Init, kafka.Closer, kafka.Closed}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
 		})
 	})
@@ -142,6 +142,10 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
+		Convey("Producer is initialized", func() {
+			validateChannelClosed(channels.Init, true)
+		})
+
 		Convey("We cannot initialize producer again", func() {
 			// InitializeSarama does not call NewAsyncProducer again
 			err = producer.InitializeSarama(ctx)
@@ -156,7 +160,7 @@ func TestProducer(t *testing.T) {
 			channels.Output <- msg.GetData()
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
-			// Validate that message was received by sarama message chain, with no error.
+			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
@@ -179,8 +183,8 @@ func TestProducer(t *testing.T) {
 
 		Convey("Closing the producer closes Sarama producer and channels", func() {
 			producer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
 		})
 
@@ -204,7 +208,7 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 }
 
 // validateChannelClosed validates that a channel is closed before a timeout expires
-func validateChannelClosed(ch chan struct{}) {
+func validateChannelClosed(ch chan struct{}, expectedClosed bool) {
 	var (
 		closed  bool = false
 		timeout bool = false
@@ -215,8 +219,8 @@ func validateChannelClosed(ch chan struct{}) {
 	case <-time.After(TIMEOUT):
 		timeout = true
 	}
-	So(timeout, ShouldBeFalse)
-	So(closed, ShouldBeTrue)
+	So(timeout, ShouldNotEqual, expectedClosed)
+	So(closed, ShouldEqual, expectedClosed)
 }
 
 // TestProducerNotInitialized validates that if sarama client cannot be initialized, we can still partially use our Producer
@@ -242,6 +246,10 @@ func TestProducerNotInitialized(t *testing.T) {
 			So(len(saramaCliWithErr.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
 
+		Convey("Producer is not initialized", func() {
+			validateChannelClosed(channels.Init, false)
+		})
+
 		Convey("We can try to initialize producer again", func() {
 			// InitializeSarama does call NewAsyncProducer again
 			err = producer.InitializeSarama(ctx)
@@ -250,14 +258,23 @@ func TestProducerNotInitialized(t *testing.T) {
 		})
 
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
-			So(true, ShouldBeTrue)
-			// TODO We should create errors if messages are sent to Output channel in an non initialized producer
+			// Send message to local kafka output chan
+			message := "HELLO"
+			msg := kafkatest.NewMessage([]byte(message))
+			channels.Output <- msg.GetData()
+			// Read and validate error
+			select {
+			case err := <-channels.Errors:
+				So(err, ShouldResemble, kafka.ErrUninitializedProducer)
+			case <-time.After(TIMEOUT):
+				So(true, ShouldBeFalse)
+			}
 		})
 
 		Convey("Closing the producer closes the caller channels", func() {
 			producer.Close(ctx)
-			validateChannelClosed(channels.Closer)
-			validateChannelClosed(channels.Closed)
+			validateChannelClosed(channels.Closer, true)
+			validateChannelClosed(channels.Closed, true)
 		})
 
 	})

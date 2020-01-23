@@ -19,9 +19,10 @@ func createConsumerChannels() (chUpstream chan kafka.Message, chCloser, chClosed
 }
 
 // createProducerChannels creates local producer channels for testing
-func createProducerChannels() (chOutput chan []byte, chErrors chan error, chCloser, chClosed chan struct{}) {
+func createProducerChannels() (chOutput chan []byte, chErrors chan error, chInit, chCloser, chClosed chan struct{}) {
 	chOutput = make(chan []byte)
 	chErrors = make(chan error)
+	chInit = make(chan struct{})
 	chCloser = make(chan struct{})
 	chClosed = make(chan struct{})
 	return
@@ -113,12 +114,13 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 func TestProducerChannelsValidate(t *testing.T) {
 
 	Convey("Given a set of producer channels", t, func() {
-		chOutput, chErrors, chCloser, chClosed := createProducerChannels()
+		chOutput, chErrors, chInit, chCloser, chClosed := createProducerChannels()
 
 		Convey("ProducerChannels with all required channels has a successful validation", func() {
 			pCh := kafka.ProducerChannels{
 				Output: chOutput,
 				Errors: chErrors,
+				Init:   chInit,
 				Closer: chCloser,
 				Closed: chClosed,
 			}
@@ -129,6 +131,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		Convey("Missing Output channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := kafka.ProducerChannels{
 				Errors: chErrors,
+				Init:   chInit,
 				Closer: chCloser,
 				Closed: chClosed,
 			}
@@ -139,6 +142,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		Convey("Missing Errors channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := kafka.ProducerChannels{
 				Output: chOutput,
+				Init:   chInit,
 				Closer: chCloser,
 				Closed: chClosed,
 			}
@@ -146,10 +150,22 @@ func TestProducerChannelsValidate(t *testing.T) {
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors}})
 		})
 
+		Convey("Missing Init channel in ProducerChannels results in an ErrNoChannel error", func() {
+			pCh := kafka.ProducerChannels{
+				Output: chOutput,
+				Errors: chErrors,
+				Closer: chCloser,
+				Closed: chClosed,
+			}
+			err := pCh.Validate()
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Init}})
+		})
+
 		Convey("Missing Closer channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := kafka.ProducerChannels{
 				Output: chOutput,
 				Errors: chErrors,
+				Init:   chInit,
 				Closed: chClosed,
 			}
 			err := pCh.Validate()
@@ -160,6 +176,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 			pCh := kafka.ProducerChannels{
 				Output: chOutput,
 				Errors: chErrors,
+				Init:   chInit,
 				Closer: chCloser,
 			}
 			err := pCh.Validate()
@@ -171,7 +188,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Output: chOutput,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed}})
+			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Init, kafka.Closer, kafka.Closed}})
 		})
 
 	})
