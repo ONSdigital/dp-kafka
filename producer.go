@@ -20,35 +20,49 @@ type Producer struct {
 }
 
 // Output is the channel to send outgoing messages to.
-func (producer *Producer) Output() chan []byte {
-	return producer.channels.Output
+func (p *Producer) Output() chan []byte {
+	if p == nil {
+		return nil
+	}
+	return p.channels.Output
 }
 
 // Errors provides errors returned from Kafka.
-func (producer *Producer) Errors() chan error {
-	return producer.channels.Errors
+func (p *Producer) Errors() chan error {
+	if p == nil {
+		return nil
+	}
+	return p.channels.Errors
+}
+
+// IsInitialised returns true only if Sarama producer has been correctly initialised.
+func (p *Producer) IsInitialised() bool {
+	if p == nil {
+		return false
+	}
+	return p.producer != nil
 }
 
 // Close safely closes the producer and releases all resources.
 // pass in a context with a timeout or deadline.
 // Passing a nil context will provide no timeout but is not recommended
-func (producer *Producer) Close(ctx context.Context) (err error) {
+func (p *Producer) Close(ctx context.Context) (err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	close(producer.channels.Closer)
+	close(p.channels.Closer)
 
-	// 'Closed' channel will be closed either by sarama client goroutine or the uninitialized goroutine.
-	logData := log.Data{"topic": producer.topic}
+	// 'Closed' channel will be closed either by sarama client goroutine or the uninitialised goroutine.
+	logData := log.Data{"topic": p.topic}
 	select {
-	case <-producer.channels.Closed:
-		close(producer.channels.Errors)
-		close(producer.channels.Output)
+	case <-p.channels.Closed:
+		close(p.channels.Errors)
+		close(p.channels.Output)
 		log.Event(ctx, "Successfully closed kafka producer")
-		if producer.producer != nil {
-			if err = producer.producer.Close(); err != nil {
+		if p.IsInitialised() {
+			if err = p.producer.Close(); err != nil {
 				log.Event(ctx, "Close failed of kafka producer", log.Error(err), logData)
 			} else {
 				log.Event(ctx, "Successfully closed kafka producer", logData)
@@ -61,11 +75,11 @@ func (producer *Producer) Close(ctx context.Context) (err error) {
 	return
 }
 
-// InitializeSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialized.
-func (producer *Producer) InitializeSarama(ctx context.Context) error {
+// InitialiseSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
+func (p *Producer) InitialiseSarama(ctx context.Context) error {
 
-	// Do nothing if producer already initialized
-	if producer.producer != nil {
+	// Do nothing if producer already initialised
+	if p.IsInitialised() {
 		return nil
 	}
 
@@ -73,21 +87,21 @@ func (producer *Producer) InitializeSarama(ctx context.Context) error {
 		ctx = context.Background()
 	}
 
-	// Initialize AsyncProducer with default config and envMax
+	// Initialise AsyncProducer with default config and envMax
 	config := sarama.NewConfig()
-	if producer.envMax > 0 {
-		config.Producer.MaxMessageBytes = producer.envMax
+	if p.envMax > 0 {
+		config.Producer.MaxMessageBytes = p.envMax
 	}
-	saramaProducer, err := producer.cli.NewAsyncProducer(producer.brokers, config)
+	saramaProducer, err := p.cli.NewAsyncProducer(p.brokers, config)
 	if err != nil {
 		return err
 	}
 
-	// On Successful initialization, close Init channel to stop uninitialized goroutine, and create initialized goroutine
-	producer.producer = saramaProducer
-	close(producer.channels.Init)
-	log.Event(ctx, "Initialized Sarama Producer", log.Data{"topic": producer.topic})
-	err = producer.createLoopInitialized(ctx)
+	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
+	p.producer = saramaProducer
+	close(p.channels.Init)
+	log.Event(ctx, "Initialised Sarama Producer", log.Data{"topic": p.topic})
+	err = p.createLoopInitialised(ctx)
 	return err
 }
 
@@ -109,7 +123,7 @@ func NewProducerWithSaramaClient(
 		ctx = context.Background()
 	}
 
-	// Producer initialized with provided brokers and topic
+	// Producer initialised with provided brokers and topic
 	producer = Producer{
 		envMax:  envMax,
 		brokers: brokers,
@@ -128,67 +142,67 @@ func NewProducerWithSaramaClient(
 	}
 	producer.channels = &channels
 
-	// Initialize Sarama producer, and return any error (which might not be considered fatal by caller)
-	err = producer.InitializeSarama(ctx)
+	// Initialise Sarama producer, and return any error (which might not be considered fatal by caller)
+	err = producer.InitialiseSarama(ctx)
 	if err != nil {
-		producer.createLoopUninitialized(ctx)
+		producer.createLoopUninitialised(ctx)
 	}
 	return producer, err
 }
 
-// createLoopUninitialized creates a goroutine to handle uninitialized producers.
+// createLoopUninitialised creates a goroutine to handle uninitialised producers.
 // It generates errors to the Errors channel when a message is intended to be sent through the Output channel.
 // If the closer channel is closed, it closes the closed channel straight away and stops.
 // If the init channel is closed, the goroutine stops because the sarama client is available.
-func (producer *Producer) createLoopUninitialized(ctx context.Context) {
+func (p *Producer) createLoopUninitialised(ctx context.Context) {
 
-	// Do nothing if producer already initialized
-	if producer.producer != nil {
+	// Do nothing if producer already initialised
+	if p.IsInitialised() {
 		return
 	}
 
 	go func() {
-		log.Event(ctx, "Started uninitialized kafka producer", log.Data{"topic": producer.topic})
+		log.Event(ctx, "Started uninitialised kafka producer", log.Data{"topic": p.topic})
 		for {
 			select {
-			case message := <-producer.channels.Output:
-				log.Event(ctx, "error sending a message", log.Data{"message": message, "topic": producer.topic}, log.Error(ErrUninitializedProducer))
-				producer.channels.Errors <- ErrUninitializedProducer
-			case <-producer.channels.Closer:
-				log.Event(ctx, "Closing uninitialized kafka producer", log.Data{"topic": producer.topic})
-				close(producer.channels.Closed)
+			case message := <-p.channels.Output:
+				log.Event(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.Error(ErrUninitialisedProducer))
+				p.channels.Errors <- ErrUninitialisedProducer
+			case <-p.channels.Closer:
+				log.Event(ctx, "Closing uninitialised kafka producer", log.Data{"topic": p.topic})
+				close(p.channels.Closed)
 				return
-			case <-producer.channels.Init:
+			case <-p.channels.Init:
 				return
 			}
 		}
 	}()
 }
 
-// createLoopInitialized creates a goroutine to handle initialized producers.
+// createLoopInitialised creates a goroutine to handle initialised producers.
 // It redirects sarama errors to caller errors channel.
 // If forwards messages from the output channel to the sarama producer input.
 // If the closer channel is closed, it ends the loop and closes Closed channel.
-func (producer *Producer) createLoopInitialized(ctx context.Context) error {
+func (p *Producer) createLoopInitialised(ctx context.Context) error {
 
 	// If sarama producer is not available, return error.
-	if producer.producer == nil {
+	if !p.IsInitialised() {
 		return ErrInitSarama
 	}
 
 	// Start kafka producer with topic. Redirect errors and messages; and handle closerChannel
 	go func() {
-		defer close(producer.channels.Closed)
-		log.Event(ctx, "Started initialized kafka producer", log.Data{"topic": producer.topic})
+		defer close(p.channels.Closed)
+		log.Event(ctx, "Started initialised kafka producer", log.Data{"topic": p.topic})
 		for {
 			select {
-			case err := <-producer.producer.Errors():
-				log.Event(ctx, "Producer", log.Data{"topic": producer.topic}, log.Error(err))
-				producer.channels.Errors <- err
-			case message := <-producer.channels.Output:
-				producer.producer.Input() <- &sarama.ProducerMessage{Topic: producer.topic, Value: sarama.StringEncoder(message)}
-			case <-producer.channels.Closer:
-				log.Event(ctx, "Closing initialized kafka producer", log.Data{"topic": producer.topic})
+			case err := <-p.producer.Errors():
+				log.Event(ctx, "Producer", log.Data{"topic": p.topic}, log.Error(err))
+				p.channels.Errors <- err
+			case message := <-p.channels.Output:
+				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)}
+			case <-p.channels.Closer:
+				log.Event(ctx, "Closing initialised kafka producer", log.Data{"topic": p.topic})
 				return
 			}
 		}

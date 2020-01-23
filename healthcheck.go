@@ -21,23 +21,13 @@ const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
 // Checker checks health of Kafka producer and returns it inside its Check structure.
 func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
-	// Perform healthcheck against brokers
-	err := healthcheck(ctx, p.brokers, p.topic)
+	err := p.healthcheck(ctx)
 	currentTime := time.Now().UTC()
 	p.Check.LastChecked = &currentTime
 	if err != nil {
 		p.Check.LastFailure = &currentTime
 		p.Check.Status = getStatusFromError(err)
 		p.Check.Message = err.Error()
-		return p.Check, err
-	}
-	// It is possible that Sarama client is not initialized. Initialize it.
-	// Healthcheck will be critical if it cannot be initialized (as Producer cannot be used)
-	err = p.InitializeSarama(ctx)
-	if err != nil {
-		p.Check.LastFailure = &currentTime
-		p.Check.Status = health.StatusCritical
-		p.Check.Message = ErrInitSarama.Error()
 		return p.Check, err
 	}
 	p.Check.LastSuccess = &currentTime
@@ -48,22 +38,13 @@ func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
 
 // Checker checks health of Kafka consumer-group and returns it inside its Check structure.
 func (cg *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
-	err := healthcheck(ctx, cg.brokers, cg.topic)
+	err := cg.healthcheck(ctx)
 	currentTime := time.Now().UTC()
 	cg.Check.LastChecked = &currentTime
 	if err != nil {
 		cg.Check.LastFailure = &currentTime
 		cg.Check.Status = getStatusFromError(err)
 		cg.Check.Message = err.Error()
-		return cg.Check, err
-	}
-	// It is possible that Sarama client is not initialized. Initialize it.
-	// Healthcheck will be critical if it cannot be initialized (as ConsumerGroup cannot be used)
-	err = cg.InitializeSarama(ctx)
-	if err != nil {
-		cg.Check.LastFailure = &currentTime
-		cg.Check.Status = health.StatusCritical
-		cg.Check.Message = ErrInitSarama.Error()
 		return cg.Check, err
 	}
 	cg.Check.LastSuccess = &currentTime
@@ -80,6 +61,36 @@ func getStatusFromError(err error) string {
 	default:
 		return health.StatusCritical
 	}
+}
+
+// healthcheck performs the healthcheck logic for a kafka producer.
+func (p *Producer) healthcheck(ctx context.Context) error {
+	err := healthcheck(ctx, p.brokers, p.topic)
+	if err != nil {
+		return err
+	}
+	// If Sarama client is not initialised, we need to initialise it
+	err = p.InitialiseSarama(ctx)
+	if err != nil {
+		log.Event(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.Error(err))
+		return ErrInitSarama
+	}
+	return nil
+}
+
+// healthcheck performs the healthcheck logic for a kafka consumer group.
+func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
+	err := healthcheck(ctx, cg.brokers, cg.topic)
+	if err != nil {
+		return err
+	}
+	// If Sarama client is not initialised, we need to initialise it
+	err = cg.InitialiseSarama(ctx)
+	if err != nil {
+		log.Event(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
+		return ErrInitSarama
+	}
+	return nil
 }
 
 // healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided

@@ -77,7 +77,7 @@ func (pCh *ProducerChannels) Validate() error {
 	return nil
 }
 
-// CreateConsumerGroupChannels initializes a ConsumerGroupChannels with new channels according to sync
+// CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels according to sync
 func CreateConsumerGroupChannels(sync bool) ConsumerGroupChannels {
 	var chUpstream chan Message
 	if sync {
@@ -96,7 +96,7 @@ func CreateConsumerGroupChannels(sync bool) ConsumerGroupChannels {
 	}
 }
 
-// CreateProducerChannels initializes a ProducerChannels with new channels.
+// CreateProducerChannels initialises a ProducerChannels with new channels.
 func CreateProducerChannels() ProducerChannels {
 	return ProducerChannels{
 		Output: make(chan []byte),

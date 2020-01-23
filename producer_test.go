@@ -92,16 +92,16 @@ func GetFromSaramaChans(
 	}
 }
 
-// TestProducerMissingChannels tests wrong producer creation because of channels not provided by caller
+// TestProducerMissingChannels checks wrong producer creation because of channels not provided by caller
 func TestProducerMissingChannels(t *testing.T) {
 
-	Convey("Given the intention to initialize a kafka Producer", t, func() {
+	Convey("Given the intention to initialise a kafka Producer", t, func() {
 		ctx := context.Background()
 		saramaCli := &mock.SaramaMock{
 			NewAsyncProducerFunc: mockNewAsyncProducerEmpty,
 		}
 
-		Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error", func() {
+		Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error and producer will not be initialised", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
 				kafka.ProducerChannels{
@@ -112,11 +112,12 @@ func TestProducerMissingChannels(t *testing.T) {
 			So(producer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Init, kafka.Closer, kafka.Closed}})
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 0)
+			So(producer.IsInitialised(), ShouldBeFalse)
 		})
 	})
 }
 
-// TestProducer tests that messages, errors, and closing events are correctly directed to the expected channels
+// TestProducer checks that messages, errors, and closing events are correctly directed to the expected channels
 func TestProducer(t *testing.T) {
 
 	Convey("Given a correct initialization of a Kafka Producer", t, func() {
@@ -132,7 +133,7 @@ func TestProducer(t *testing.T) {
 
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 
-		Convey("Producer is correctly created without error", func() {
+		Convey("Producer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
 			So(producer.Check, ShouldResemble, &expectedCheck)
@@ -140,15 +141,13 @@ func TestProducer(t *testing.T) {
 			So(producer.Errors(), ShouldEqual, channels.Errors)
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
-		})
-
-		Convey("Producer is initialized", func() {
+			So(producer.IsInitialised(), ShouldBeTrue)
 			validateChannelClosed(channels.Init, true)
 		})
 
-		Convey("We cannot initialize producer again", func() {
-			// InitializeSarama does not call NewAsyncProducer again
-			err = producer.InitializeSarama(ctx)
+		Convey("We cannot initialise producer again", func() {
+			// InitialiseSarama does not call NewAsyncProducer again
+			err = producer.InitialiseSarama(ctx)
 			So(err, ShouldBeNil)
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
@@ -194,8 +193,8 @@ func TestProducer(t *testing.T) {
 // validateChannelReceivesError validates that an error channel receives a specific error
 func validateChannelReceivesError(ch chan error, expectedErr error) {
 	var (
-		rxErr   error = nil
-		timeout bool  = false
+		rxErr   error
+		timeout bool
 	)
 	select {
 	case e := <-ch:
@@ -210,8 +209,8 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 // validateChannelClosed validates that a channel is closed before a timeout expires
 func validateChannelClosed(ch chan struct{}, expectedClosed bool) {
 	var (
-		closed  bool = false
-		timeout bool = false
+		closed  bool
+		timeout bool
 	)
 	select {
 	case <-ch:
@@ -223,10 +222,10 @@ func validateChannelClosed(ch chan struct{}, expectedClosed bool) {
 	So(closed, ShouldEqual, expectedClosed)
 }
 
-// TestProducerNotInitialized validates that if sarama client cannot be initialized, we can still partially use our Producer
-func TestProducerNotInitialized(t *testing.T) {
+// TestProducerNotInitialised checks that if sarama client cannot be initialised, we can still partially use our Producer
+func TestProducerNotInitialised(t *testing.T) {
 
-	Convey("Given that Sarama fails to create a new AsyncProducer while we initialize our Producer", t, func() {
+	Convey("Given that Sarama fails to create a new AsyncProducer while we initialise our Producer", t, func() {
 		ctx := context.Background()
 		saramaCliWithErr := &mock.SaramaMock{
 			NewAsyncProducerFunc: mockNewAsyncProducerError,
@@ -237,22 +236,20 @@ func TestProducerNotInitialized(t *testing.T) {
 
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 
-		Convey("Producer is partially created with channels and checker, returning the Sarama error", func() {
+		Convey("Producer is partially created with channels and checker, returning the Sarama error and not initialised", func() {
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(producer, ShouldNotBeNil)
 			So(producer.Check, ShouldResemble, &expectedCheck)
 			So(producer.Output(), ShouldEqual, channels.Output)
 			So(producer.Errors(), ShouldEqual, channels.Errors)
 			So(len(saramaCliWithErr.NewAsyncProducerCalls()), ShouldEqual, 1)
-		})
-
-		Convey("Producer is not initialized", func() {
+			So(producer.IsInitialised(), ShouldBeFalse)
 			validateChannelClosed(channels.Init, false)
 		})
 
-		Convey("We can try to initialize producer again", func() {
-			// InitializeSarama does call NewAsyncProducer again
-			err = producer.InitializeSarama(ctx)
+		Convey("We can try to initialise producer again", func() {
+			// InitialiseSarama does call NewAsyncProducer again
+			err = producer.InitialiseSarama(ctx)
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(len(saramaCliWithErr.NewAsyncProducerCalls()), ShouldEqual, 2)
 		})
@@ -265,7 +262,7 @@ func TestProducerNotInitialized(t *testing.T) {
 			// Read and validate error
 			select {
 			case err := <-channels.Errors:
-				So(err, ShouldResemble, kafka.ErrUninitializedProducer)
+				So(err, ShouldResemble, kafka.ErrUninitialisedProducer)
 			case <-time.After(TIMEOUT):
 				So(true, ShouldBeFalse)
 			}

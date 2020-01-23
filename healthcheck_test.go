@@ -31,6 +31,17 @@ func createSuccessfulCheck(t time.Time, msg string) health.Check {
 	}
 }
 
+// create a critical check without lastSuccess value
+func createCriticalCheck(t time.Time, msg string) health.Check {
+	return health.Check{
+		Name:        kafka.ServiceName,
+		LastFailure: &t,
+		LastChecked: &t,
+		Status:      health.StatusCritical,
+		Message:     msg,
+	}
+}
+
 // createMockBrokers creates mock brokers for testing, without providing topic metadata
 func createMockBrokers(t *testing.T) (brokers []*sarama.MockBroker) {
 	for _, addr := range testBrokers {
@@ -64,8 +75,8 @@ func createProducerForTesting(brokers []string, topic string) (kafka.Producer, e
 	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)
 }
 
-// createUninitializedProducerForTesting creates a producer for testing without a valid AsyncProducer
-func createUninitializedProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
+// createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
+func createUninitialisedProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
 	ctx := context.Background()
 	saramaCli := &mock.SaramaMock{
 		NewAsyncProducerFunc: mockNewAsyncProducerError,
@@ -87,8 +98,8 @@ func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGro
 		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
-// createUninitializedConsumerForTesting creates a consumer for testing without a valid Sarama-cluster consumer
-func createUninitializedConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
+// createUninitialisedConsumerForTesting creates a consumer for testing without a valid Sarama-cluster consumer
+func createUninitialisedConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: mockNewConsumerError,
@@ -98,7 +109,7 @@ func createUninitializedConsumerForTesting(brokers []string, topic string) (kafk
 		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
-// TestKafkaProducerHealthcheck tests that the producer healthcheck fails with expected severities and errors
+// TestKafkaProducerHealthcheck checks that the producer healthcheck fails with expected severities and errors
 func TestKafkaProducerHealthcheck(t *testing.T) {
 
 	brokers := createMockBrokers(t)
@@ -113,8 +124,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			So(producer.Check.LastFailure, ShouldBeNil)
 		})
 
-		Convey("Uninitialized producer with right config returns a Critical Check structure", func() {
-			producer, err := createUninitializedProducerForTesting(testBrokers, testTopic)
+		Convey("Uninitialised producer with right config returns a Critical Check structure", func() {
+			producer, err := createUninitialisedProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldResemble, ErrSaramaNoBrokers)
 			validateCriticalProducerCheck(&producer, kafka.ErrInitSarama.Error())
 			So(producer.Check.LastSuccess, ShouldBeNil)
@@ -146,7 +157,7 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 	})
 }
 
-// TestKafkaConsumerHealthcheck tests that the consumer healthcheck fails with expected severities and errors
+// TestKafkaConsumerHealthcheck checks that the consumer healthcheck fails with expected severities and errors
 func TestKafkaConsumerHealthcheck(t *testing.T) {
 
 	brokers := createMockBrokers(t)
@@ -161,8 +172,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			So(consumer.Check.LastFailure, ShouldBeNil)
 		})
 
-		Convey("Uninitialized consumer with right config returns a Critical Check structure", func() {
-			consumer, err := createUninitializedConsumerForTesting(testBrokers, testTopic)
+		Convey("Uninitialised consumer with right config returns a Critical Check structure", func() {
+			consumer, err := createUninitialisedConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldResemble, ErrSaramaNoBrokers)
 			validateCriticalConsumerGroupCheck(&consumer, kafka.ErrInitSarama.Error())
 			So(consumer.Check.LastSuccess, ShouldBeNil)
@@ -194,7 +205,7 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 	})
 }
 
-func TestCheckerHistory(t *testing.T) {
+func TestCheckerSuccessHistory(t *testing.T) {
 
 	Convey("Given that we have a producer and a consumer with previous successful checks", t, func() {
 
@@ -206,20 +217,54 @@ func TestCheckerHistory(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(producer.Check, ShouldResemble, expectedInitialCheck)
 
-		lastCheckTime := time.Now().UTC().Add(1 * time.Minute)
+		lastCheckTime := time.Now().UTC().Add(-1 * time.Minute)
 		previousCheckConsumer := createSuccessfulCheck(lastCheckTime, kafka.MsgHealthyConsumerGroup)
 		previousCheckProducer := createSuccessfulCheck(lastCheckTime, kafka.MsgHealthyProducer)
 		consumer.Check = &previousCheckConsumer
 		producer.Check = &previousCheckProducer
 
-		Convey("A new healthcheck keeps the non-overwritten values  for consumer", func() {
+		Convey("A new healthcheck keeps the non-overwritten values for consumer", func() {
 			validateCriticalConsumerGroupCheck(&consumer, "broker(s) not reachable at addresses: [localhost:12399]")
 			So(consumer.Check.LastSuccess, ShouldResemble, &lastCheckTime)
 		})
 
-		Convey("A new healthcheck keeps the non-overwritten values  for producer", func() {
+		Convey("A new healthcheck keeps the non-overwritten values for producer", func() {
 			validateCriticalProducerCheck(&producer, "broker(s) not reachable at addresses: [localhost:12399]")
 			So(consumer.Check.LastSuccess, ShouldResemble, &lastCheckTime)
+		})
+	})
+
+}
+
+func TestCheckerFailureHistory(t *testing.T) {
+
+	Convey("Given that we have a producer and a consumer with previous failed checks", t, func() {
+
+		brokers := createMockBrokers(t)
+		defer closeMockBrokers(brokers)
+
+		consumer, err := createConsumerForTesting(testBrokers, testTopic)
+		So(err, ShouldBeNil)
+		So(consumer.Check, ShouldResemble, expectedInitialCheck)
+
+		producer, err := createProducerForTesting(testBrokers, testTopic)
+		So(err, ShouldBeNil)
+		So(producer.Check, ShouldResemble, expectedInitialCheck)
+
+		lastCheckTime := time.Now().UTC().Add(-1 * time.Minute)
+		previousCheckConsumer := createCriticalCheck(lastCheckTime, "consumer error")
+		previousCheckProducer := createCriticalCheck(lastCheckTime, "producer error")
+		consumer.Check = &previousCheckConsumer
+		producer.Check = &previousCheckProducer
+
+		Convey("A new healthcheck keeps the non-overwritten values for consumer", func() {
+			validateSuccessfulConsumerGroupCheck(&consumer)
+			So(consumer.Check.LastFailure, ShouldResemble, &lastCheckTime)
+		})
+
+		Convey("A new healthcheck keeps the non-overwritten values for producer", func() {
+			validateSuccessfulProducerCheck(&producer)
+			So(consumer.Check.LastFailure, ShouldResemble, &lastCheckTime)
 		})
 	})
 

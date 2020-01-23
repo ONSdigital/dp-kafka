@@ -26,22 +26,42 @@ type ConsumerGroup struct {
 
 // Incoming provides a channel of incoming messages.
 func (cg *ConsumerGroup) Incoming() chan Message {
+	if cg == nil {
+		return nil
+	}
 	return cg.channels.Upstream
 }
 
 // Errors provides a channel of incoming errors.
 func (cg *ConsumerGroup) Errors() chan error {
+	if cg == nil {
+		return nil
+	}
 	return cg.channels.Errors
+}
+
+// IsInitialised returns true only if Sarama consumer has been correctly initialised.
+func (cg *ConsumerGroup) IsInitialised() bool {
+	if cg == nil {
+		return false
+	}
+	return cg.consumer != nil
 }
 
 // Release signals that upstream has completed an incoming message
 // i.e. move on to read the next message
 func (cg *ConsumerGroup) Release() {
+	if cg == nil {
+		return
+	}
 	cg.channels.UpstreamDone <- true
 }
 
 // CommitAndRelease commits the consumed message and release the consumer listener to read another message
 func (cg *ConsumerGroup) CommitAndRelease(msg Message) {
+	if cg == nil {
+		return
+	}
 	msg.Commit()
 	cg.Release()
 }
@@ -58,7 +78,7 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 
 	// If Sarama Consumer is not available, we can close 'closed' channel straight away
-	if cg.consumer == nil {
+	if !cg.IsInitialised() {
 		close(cg.channels.Closed)
 	}
 
@@ -90,7 +110,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	}
 
 	// If Sarama Consumer is not available, we can close 'closed' channel straight away, with select{} to avoid panic if already closed
-	if cg.consumer == nil {
+	if !cg.IsInitialised() {
 		select {
 		case <-cg.channels.Closed:
 		default:
@@ -103,8 +123,8 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	case <-cg.channels.Closed:
 		close(cg.channels.Errors)
 		close(cg.channels.Upstream)
-		// Close consumer only if it was initialized.
-		if cg.consumer != nil {
+		// Close consumer only if it was initialised.
+		if cg.IsInitialised() {
 			if err = cg.consumer.Close(); err != nil {
 				log.Event(ctx, "Close failed of kafka consumer group", log.Error(err), logData)
 			} else {
@@ -118,11 +138,11 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	return
 }
 
-// InitializeSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialized.
-func (cg *ConsumerGroup) InitializeSarama(ctx context.Context) error {
+// InitialiseSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
+func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 
-	// Do nothing if consumer group already initialized
-	if cg.consumer != nil {
+	// Do nothing if consumer group already initialised
+	if cg.IsInitialised() {
 		return nil
 	}
 
@@ -139,7 +159,7 @@ func (cg *ConsumerGroup) InitializeSarama(ctx context.Context) error {
 		return err
 	}
 	cg.consumer = consumer
-	log.Event(ctx, "Initialized Sarama Consumer", logData)
+	log.Event(ctx, "Initialised Sarama Consumer", logData)
 
 	// listener goroutine - listen to consumer.Messages() and upstream them
 	// if this blocks while upstreaming a message, we can shutdown consumer via the following goroutine
@@ -246,7 +266,7 @@ func NewConsumerWithChannelsAndClusterClient(
 	config.Consumer.Offsets.Initial = offset
 	config.Consumer.Offsets.Retention = 0 // indefinite retention
 
-	// ConsumerGroup initialized with provided brokers, topic, group and sync
+	// ConsumerGroup initialised with provided brokers, topic, group and sync
 	cg = ConsumerGroup{
 		brokers: brokers,
 		topic:   topic,
@@ -267,7 +287,7 @@ func NewConsumerWithChannelsAndClusterClient(
 	}
 	cg.channels = &channels
 
-	// Initialize Sarama consumer group, and return any error (which might not be considered fatal by caller)
-	err = cg.InitializeSarama(ctx)
+	// Initialise Sarama consumer group, and return any error (which might not be considered fatal by caller)
+	err = cg.InitialiseSarama(ctx)
 	return cg, err
 }

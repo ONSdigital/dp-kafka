@@ -22,7 +22,7 @@ func createSaramaClusterChannels() (errsChan chan error, msgChan chan *sarama.Co
 	return
 }
 
-// createMockNewConsumer creates an cluster Consumer mock and returns it,
+// createMockNewConsumer creates a cluster Consumer mock and returns it,
 // as well as a NewConsumerFunc that returns the same cluster Consumer mock.
 func createMockNewConsumer(
 	errsChan chan error, msgChan chan *sarama.ConsumerMessage, notiChan chan *cluster.Notification) (
@@ -64,13 +64,13 @@ func mockNewConsumerError(addrs []string, groupID string, topics []string, confi
 
 func TestConsumerMissingChannels(t *testing.T) {
 
-	Convey("Given the intention to initialize a kafka Consumer Group", t, func() {
+	Convey("Given the intention to initialise a kafka Consumer Group", t, func() {
 		ctx := context.Background()
 		clusterCli := &mock.SaramaClusterMock{
 			NewConsumerFunc: mockNewConsumerEmpty,
 		}
 
-		Convey("Providing an invalid ConsumerGroupChannels struct results in an ErrNoChannel error", func() {
+		Convey("Providing an invalid ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", func() {
 			consumer, err := kafka.NewConsumerWithChannelsAndClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
 				kafka.ConsumerGroupChannels{
@@ -81,11 +81,12 @@ func TestConsumerMissingChannels(t *testing.T) {
 			So(consumer, ShouldNotBeNil)
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors, kafka.Closer, kafka.Closed, kafka.UpstreamDone}})
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 0)
+			So(consumer.IsInitialised(), ShouldBeFalse)
 		})
 	})
 }
 
-// TestConsumer tests that messages, errors, and closing events are correctly directed to the expected channels
+// TestConsumer checks that messages, errors, and closing events are correctly directed to the expected channels
 func TestConsumer(t *testing.T) {
 
 	Convey("Given a correct initialization of a Kafka Consumer Group", t, func() {
@@ -104,7 +105,7 @@ func TestConsumer(t *testing.T) {
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 
-		Convey("Consumer is correctly created without error", func() {
+		Convey("Consumer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
 			So(consumer, ShouldNotBeNil)
 			So(consumer.Check, ShouldResemble, &expectedCheck)
@@ -112,11 +113,12 @@ func TestConsumer(t *testing.T) {
 			So(consumer.Errors(), ShouldEqual, channels.Errors)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
+			So(consumer.IsInitialised(), ShouldBeTrue)
 		})
 
-		Convey("We cannot initialize consumer again", func() {
-			// InitializeSarama does not call NewConsumerCalls again
-			err = consumer.InitializeSarama(ctx)
+		Convey("We cannot initialise consumer again", func() {
+			// InitialiseSarama does not call NewConsumerCalls again
+			err = consumer.InitialiseSarama(ctx)
 			So(err, ShouldBeNil)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
@@ -147,10 +149,10 @@ func TestConsumer(t *testing.T) {
 	})
 }
 
-// TestConsumerNotInitialized validates that if sarama cluster cannot be initialized, we can still partially use our ConsumerGroup
-func TestConsumerNotInitialized(t *testing.T) {
+// TestConsumerNotInitialised checks that if sarama cluster cannot be initialised, we can still partially use our ConsumerGroup
+func TestConsumerNotInitialised(t *testing.T) {
 
-	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialize our ConsumerGroup", t, func() {
+	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func() {
 		ctx := context.Background()
 		clusterCli := &mock.SaramaClusterMock{
 			NewConsumerFunc: mockNewConsumerError,
@@ -160,18 +162,19 @@ func TestConsumerNotInitialized(t *testing.T) {
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 		expectedCheck := health.Check{Name: kafka.ServiceName}
 
-		Convey("Consumer is partially created with channels and checker, returning the Sarama error", func() {
+		Convey("Consumer is partially created with channels and checker, returning the Sarama error, and is not initialised", func() {
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(consumer, ShouldNotBeNil)
 			So(consumer.Check, ShouldResemble, &expectedCheck)
 			So(consumer.Incoming(), ShouldEqual, channels.Upstream)
 			So(consumer.Errors(), ShouldEqual, channels.Errors)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)
+			So(consumer.IsInitialised(), ShouldBeFalse)
 		})
 
-		Convey("We can try to initialize the consumer again", func() {
-			// InitializeSarama does call NewConsumerCalls again
-			err = consumer.InitializeSarama(ctx)
+		Convey("We can try to initialise the consumer again", func() {
+			// InitialiseSarama does call NewConsumerCalls again
+			err = consumer.InitialiseSarama(ctx)
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 2)
 		})

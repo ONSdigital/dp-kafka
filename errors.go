@@ -8,11 +8,11 @@ import (
 // ErrShutdownTimedOut represents an error received due to the context deadline being exceeded
 var ErrShutdownTimedOut = errors.New("Shutdown context timed out")
 
-// ErrInitSarama is used when Sarama client cannot be initialized
-var ErrInitSarama = errors.New("Failed to initialize Sarama client")
+// ErrInitSarama is used when Sarama client cannot be initialised
+var ErrInitSarama = errors.New("Failed to initialise Sarama client")
 
-// ErrUninitializedProducer is used when a caller tries to send a message to the output channel with an uninitialized producer.
-var ErrUninitializedProducer = errors.New("Producer is not initialized")
+// ErrUninitialisedProducer is used when a caller tries to send a message to the output channel with an uninitialised producer.
+var ErrUninitialisedProducer = errors.New("Producer is not initialised")
 
 // ErrNoChannel is an Error type generated when a kafka producer or consumer is created with a missing channel
 type ErrNoChannel struct {
