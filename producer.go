@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"sync"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
@@ -10,13 +11,14 @@ import (
 
 // Producer provides a producer of Kafka messages
 type Producer struct {
-	envMax   int
-	producer sarama.AsyncProducer
-	brokers  []string
-	topic    string
-	channels *ProducerChannels
-	Check    *health.Check
-	cli      Sarama
+	envMax    int
+	producer  sarama.AsyncProducer
+	brokers   []string
+	topic     string
+	channels  *ProducerChannels
+	Check     *health.Check
+	cli       Sarama
+	mutexInit *sync.Mutex
 }
 
 // Output is the channel to send outgoing messages to.
@@ -78,6 +80,9 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 // InitialiseSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
 func (p *Producer) InitialiseSarama(ctx context.Context) error {
 
+	p.mutexInit.Lock()
+	defer p.mutexInit.Unlock()
+
 	// Do nothing if producer already initialised
 	if p.IsInitialised() {
 		return nil
@@ -125,10 +130,11 @@ func NewProducerWithSaramaClient(
 
 	// Producer initialised with provided brokers and topic
 	producer = Producer{
-		envMax:  envMax,
-		brokers: brokers,
-		topic:   topic,
-		cli:     cli,
+		envMax:    envMax,
+		brokers:   brokers,
+		topic:     topic,
+		cli:       cli,
+		mutexInit: &sync.Mutex{},
 	}
 
 	// Initial Check struct

@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -13,15 +14,16 @@ var tick = time.Millisecond * 1500
 
 // ConsumerGroup represents a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokers  []string
-	channels *ConsumerGroupChannels
-	consumer SaramaClusterConsumer
-	topic    string
-	group    string
-	sync     bool
-	Check    *health.Check
-	config   *cluster.Config
-	cli      SaramaCluster
+	brokers   []string
+	channels  *ConsumerGroupChannels
+	consumer  SaramaClusterConsumer
+	topic     string
+	group     string
+	sync      bool
+	Check     *health.Check
+	config    *cluster.Config
+	cli       SaramaCluster
+	mutexInit *sync.Mutex
 }
 
 // Incoming provides a channel of incoming messages.
@@ -141,6 +143,9 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 // InitialiseSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
 func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 
+	cg.mutexInit.Lock()
+	defer cg.mutexInit.Unlock()
+
 	// Do nothing if consumer group already initialised
 	if cg.IsInitialised() {
 		return nil
@@ -155,7 +160,6 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	consumer, err := cg.cli.NewConsumer(cg.brokers, cg.group, []string{cg.topic}, cg.config)
 	if err != nil {
-		log.Event(ctx, "Sarama newConsumer failed", log.Error(err), logData)
 		return err
 	}
 	cg.consumer = consumer
@@ -240,7 +244,7 @@ func NewConsumerGroup(
 
 // NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithClusterClient(
-	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
+	ctx context.Context, brokers []string, topic string, group string, offset int64, syncConsumer bool,
 	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
 
 	if ctx == nil {
@@ -256,12 +260,13 @@ func NewConsumerWithClusterClient(
 
 	// ConsumerGroup initialised with provided brokers, topic, group and sync
 	cg = ConsumerGroup{
-		brokers: brokers,
-		topic:   topic,
-		group:   group,
-		sync:    sync,
-		config:  config,
-		cli:     cli,
+		brokers:   brokers,
+		topic:     topic,
+		group:     group,
+		sync:      syncConsumer,
+		config:    config,
+		cli:       cli,
+		mutexInit: &sync.Mutex{},
 	}
 
 	// Initial check structure
