@@ -108,16 +108,21 @@ func main() {
 		tick := 0
 		for {
 			select {
+
 			case <-time.After(ticker):
+				// Forcing a healthcheck of kafka after a certain period time from last check (should not be used in applications
+				// as we would rely on the dp-healthcheck library for this functionality)
 				tick++
 				log.Event(ctx, "[KAFKA-TEST] tick")
 				if tick >= healthTickerPeriod {
 					tick = 0
 					performHealthchecks(&consumer, &producer)
 				}
+
 			case <-eventLoopContext.Done():
 				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
+
 			case consumedMessage := <-cgChannels.Upstream:
 				// consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incoming()
 				consumeCount++
@@ -129,25 +134,11 @@ func main() {
 				logData["messageRaw"] = consumedData
 				logData["messageLen"] = len(consumedData)
 
-				var sleep time.Duration
-				if cfg.Snooze || cfg.OverSleep {
-					// Snooze slows consumption for testing
-					sleep = 500 * time.Millisecond
-					if cfg.OverSleep {
-						// OverSleep tests taking more than shutdown timeout to process a message
-						sleep += cfg.TimeOut
-					}
-					logData["sleep"] = sleep
-				}
-
-				log.Event(ctx, "[KAFKA-TEST] Message consumed", logData)
-				if sleep > time.Duration(0) {
-					time.Sleep(sleep)
-					log.Event(ctx, "[KAFKA-TEST] done sleeping")
-				}
+				// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
+				sleepIfRequired(ctx, cfg, logData)
 
 				// send downstream
-				producer.Output() <- consumedData
+				pChannels.Output <- consumedData
 
 				if cfg.KafkaSync {
 					log.Event(ctx, "[KAFKA-TEST] pre-release")
@@ -161,8 +152,10 @@ func main() {
 					log.Event(ctx, "[KAFKA-TEST] consumed max - exiting eventLoop", nil)
 					return
 				}
+
 			case stdinLine := <-stdinChannel:
-				producer.Output() <- []byte(stdinLine)
+				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
+				pChannels.Output <- []byte(stdinLine)
 				log.Event(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}
@@ -233,6 +226,7 @@ func main() {
 }
 
 // performHealthchecks triggers healthchecks in consumer and producer, and logs the result.
+// This function was created for the purpose of this example application to simulate health checks.
 func performHealthchecks(consumer *kafka.ConsumerGroup, producer *kafka.Producer) {
 	ctx := context.Background()
 	pCheck, pErr := producer.Checker(ctx)
@@ -245,4 +239,26 @@ func performHealthchecks(consumer *kafka.ConsumerGroup, producer *kafka.Producer
 		log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck error", log.Error(cErr))
 	}
 	log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck", log.Data{"check": cCheck})
+}
+
+// sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.
+// Snooze will cause a delay of 500ms, and OverSleep will cause a delay of the timeout plus 500 ms.
+// This function is for testing purposes only and should not be used in applications.
+func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
+	var sleep time.Duration
+	if cfg.Snooze || cfg.OverSleep {
+		// Snooze slows consumption for testing
+		sleep = 500 * time.Millisecond
+		if cfg.OverSleep {
+			// OverSleep tests taking more than shutdown timeout to process a message
+			sleep += cfg.TimeOut
+		}
+		logData["sleep"] = sleep
+	}
+
+	log.Event(ctx, "[KAFKA-TEST] Message consumed", logData)
+	if sleep > time.Duration(0) {
+		time.Sleep(sleep)
+		log.Event(ctx, "[KAFKA-TEST] done sleeping")
+	}
 }

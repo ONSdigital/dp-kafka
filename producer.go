@@ -21,95 +21,6 @@ type Producer struct {
 	mutexInit *sync.Mutex
 }
 
-// Output is the channel to send outgoing messages to.
-func (p *Producer) Output() chan []byte {
-	if p == nil {
-		return nil
-	}
-	return p.channels.Output
-}
-
-// Errors provides errors returned from Kafka.
-func (p *Producer) Errors() chan error {
-	if p == nil {
-		return nil
-	}
-	return p.channels.Errors
-}
-
-// IsInitialised returns true only if Sarama producer has been correctly initialised.
-func (p *Producer) IsInitialised() bool {
-	if p == nil {
-		return false
-	}
-	return p.producer != nil
-}
-
-// Close safely closes the producer and releases all resources.
-// pass in a context with a timeout or deadline.
-// Passing a nil context will provide no timeout but is not recommended
-func (p *Producer) Close(ctx context.Context) (err error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	close(p.channels.Closer)
-
-	// 'Closed' channel will be closed either by sarama client goroutine or the uninitialised goroutine.
-	logData := log.Data{"topic": p.topic}
-	select {
-	case <-p.channels.Closed:
-		close(p.channels.Errors)
-		close(p.channels.Output)
-		log.Event(ctx, "Successfully closed kafka producer")
-		if p.IsInitialised() {
-			if err = p.producer.Close(); err != nil {
-				log.Event(ctx, "Close failed of kafka producer", log.Error(err), logData)
-			} else {
-				log.Event(ctx, "Successfully closed kafka producer", logData)
-			}
-		}
-	case <-ctx.Done():
-		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of producer")
-		return ErrShutdownTimedOut
-	}
-	return
-}
-
-// InitialiseSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
-func (p *Producer) InitialiseSarama(ctx context.Context) error {
-
-	p.mutexInit.Lock()
-	defer p.mutexInit.Unlock()
-
-	// Do nothing if producer already initialised
-	if p.IsInitialised() {
-		return nil
-	}
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	// Initialise AsyncProducer with default config and envMax
-	config := sarama.NewConfig()
-	if p.envMax > 0 {
-		config.Producer.MaxMessageBytes = p.envMax
-	}
-	saramaProducer, err := p.cli.NewAsyncProducer(p.brokers, config)
-	if err != nil {
-		return err
-	}
-
-	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
-	p.producer = saramaProducer
-	close(p.channels.Init)
-	log.Event(ctx, "Initialised Sarama Producer", log.Data{"topic": p.topic})
-	err = p.createLoopInitialised(ctx)
-	return err
-}
-
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
@@ -154,6 +65,79 @@ func NewProducerWithSaramaClient(
 		producer.createLoopUninitialised(ctx)
 	}
 	return producer, err
+}
+
+// IsInitialised returns true only if Sarama producer has been correctly initialised.
+func (p *Producer) IsInitialised() bool {
+	if p == nil {
+		return false
+	}
+	return p.producer != nil
+}
+
+// InitialiseSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
+func (p *Producer) InitialiseSarama(ctx context.Context) error {
+
+	p.mutexInit.Lock()
+	defer p.mutexInit.Unlock()
+
+	// Do nothing if producer already initialised
+	if p.IsInitialised() {
+		return nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	// Initialise AsyncProducer with default config and envMax
+	config := sarama.NewConfig()
+	if p.envMax > 0 {
+		config.Producer.MaxMessageBytes = p.envMax
+	}
+	saramaProducer, err := p.cli.NewAsyncProducer(p.brokers, config)
+	if err != nil {
+		return err
+	}
+
+	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
+	p.producer = saramaProducer
+	close(p.channels.Init)
+	log.Event(ctx, "Initialised Sarama Producer", log.Data{"topic": p.topic})
+	err = p.createLoopInitialised(ctx)
+	return err
+}
+
+// Close safely closes the producer and releases all resources.
+// pass in a context with a timeout or deadline.
+// Passing a nil context will provide no timeout and this is not recommended
+func (p *Producer) Close(ctx context.Context) (err error) {
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	close(p.channels.Closer)
+
+	// 'Closed' channel will be closed either by sarama client goroutine or the uninitialised goroutine.
+	logData := log.Data{"topic": p.topic}
+	select {
+	case <-p.channels.Closed:
+		close(p.channels.Errors)
+		close(p.channels.Output)
+		log.Event(ctx, "Successfully closed kafka producer")
+		if p.IsInitialised() {
+			if err = p.producer.Close(); err != nil {
+				log.Event(ctx, "Close failed of kafka producer", log.Error(err), logData)
+			} else {
+				log.Event(ctx, "Successfully closed kafka producer", logData)
+			}
+		}
+	case <-ctx.Done():
+		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of producer")
+		return ErrShutdownTimedOut
+	}
+	return
 }
 
 // createLoopUninitialised creates a goroutine to handle uninitialised producers.

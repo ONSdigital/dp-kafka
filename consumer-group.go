@@ -26,20 +26,62 @@ type ConsumerGroup struct {
 	mutexInit *sync.Mutex
 }
 
-// Incoming provides a channel of incoming messages.
-func (cg *ConsumerGroup) Incoming() chan Message {
-	if cg == nil {
-		return nil
+// NewConsumerGroup returns a new consumer group using default configuration and provided channels
+func NewConsumerGroup(
+	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
+	channels ConsumerGroupChannels) (ConsumerGroup, error) {
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return cg.channels.Upstream
+
+	return NewConsumerWithClusterClient(
+		ctx, brokers, topic, group, offset, sync,
+		channels, &SaramaClusterClient{},
+	)
 }
 
-// Errors provides a channel of incoming errors.
-func (cg *ConsumerGroup) Errors() chan error {
-	if cg == nil {
-		return nil
+// NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
+func NewConsumerWithClusterClient(
+	ctx context.Context, brokers []string, topic string, group string, offset int64, syncConsumer bool,
+	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return cg.channels.Errors
+
+	config := cluster.NewConfig()
+	config.Group.Return.Notifications = true
+	config.Consumer.Return.Errors = true
+	config.Consumer.MaxWaitTime = 50 * time.Millisecond
+	config.Consumer.Offsets.Initial = offset
+	config.Consumer.Offsets.Retention = 0 // indefinite retention
+
+	// ConsumerGroup initialised with provided brokers, topic, group and sync
+	cg = ConsumerGroup{
+		brokers:   brokers,
+		topic:     topic,
+		group:     group,
+		sync:      syncConsumer,
+		config:    config,
+		cli:       cli,
+		mutexInit: &sync.Mutex{},
+	}
+
+	// Initial check structure
+	check := &health.Check{Name: ServiceName}
+	cg.Check = check
+
+	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
+	err = channels.Validate()
+	if err != nil {
+		return cg, err
+	}
+	cg.channels = &channels
+
+	// Initialise Sarama consumer group, and return any error (which might not be considered fatal by caller)
+	err = cg.InitialiseSarama(ctx)
+	return cg, err
 }
 
 // IsInitialised returns true only if Sarama consumer has been correctly initialised.
@@ -48,6 +90,38 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 		return false
 	}
 	return cg.consumer != nil
+}
+
+// InitialiseSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
+func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
+
+	cg.mutexInit.Lock()
+	defer cg.mutexInit.Unlock()
+
+	// Do nothing if consumer group already initialised
+	if cg.IsInitialised() {
+		return nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	logData := log.Data{"topic": cg.topic, "group": cg.group}
+
+	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
+	consumer, err := cg.cli.NewConsumer(cg.brokers, cg.group, []string{cg.topic}, cg.config)
+	if err != nil {
+		return err
+	}
+
+	// On Successful initialization, create main and control loop goroutines
+	cg.consumer = consumer
+	log.Event(ctx, "Initialised Sarama Consumer", logData)
+	cg.createMainLoop(ctx)
+	cg.createControlLoop(ctx)
+
+	return nil
 }
 
 // Release signals that upstream has completed an incoming message
@@ -140,36 +214,13 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	return
 }
 
-// InitialiseSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
-func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
-
-	cg.mutexInit.Lock()
-	defer cg.mutexInit.Unlock()
-
-	// Do nothing if consumer group already initialised
-	if cg.IsInitialised() {
-		return nil
-	}
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	logData := log.Data{"topic": cg.topic, "group": cg.group}
-
-	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
-	consumer, err := cg.cli.NewConsumer(cg.brokers, cg.group, []string{cg.topic}, cg.config)
-	if err != nil {
-		return err
-	}
-	cg.consumer = consumer
-	log.Event(ctx, "Initialised Sarama Consumer", logData)
-
-	// listener goroutine - listen to consumer.Messages() and upstream them
-	// if this blocks while upstreaming a message, we can shutdown consumer via the following goroutine
+// createMainLoop creates a goroutine to handle initialised consumer groups.
+// It listens to consumer.Messages(), comming from Sarama, and sends them to the Upstream channel.
+// If the consumer group is configured as 'sync', we wait for the UpstreamDone (of Closer) channels.
+// If the closer channel is closed, it ends the loop and closes Closed channel.
+func (cg *ConsumerGroup) createMainLoop(ctx context.Context) {
 	go func() {
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-
 		log.Event(ctx, "Started kafka consumer listener", logData)
 		defer close(cg.channels.Closed)
 		for looping := true; looping; {
@@ -177,7 +228,7 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 			case <-cg.channels.Closer:
 				looping = false
 			case msg := <-cg.consumer.Messages():
-				cg.Incoming() <- SaramaMessage{msg, cg.consumer}
+				cg.channels.Upstream <- SaramaMessage{msg, cg.consumer}
 				if cg.sync {
 					// wait for msg-processed or close-consumer triggers
 					for loopingForSync := true; looping && loopingForSync; {
@@ -195,8 +246,14 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 		cg.consumer.CommitOffsets()
 		log.Event(ctx, "Closed kafka consumer listener", logData)
 	}()
+}
 
-	// control goroutine - allows us to close consumer even if blocked while upstreaming a message (above)
+// createControlLoop allows us to close consumer even if blocked while upstreaming a message (main loop)
+// It redirects sarama errors to caller errors channel.
+// It listens to Notifications channel, and checks if the consumer group has balanced.
+// It periodically checks if the consumer group has balanced, and in that case, it commits offsets.
+// If the closer channel is closed, it ends the loop and closes Closed channel.
+func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
 	go func() {
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
 
@@ -209,7 +266,7 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 				looping = false
 			case err := <-cg.consumer.Errors():
 				log.Event(ctx, "kafka consumer-group error", log.Error(err))
-				cg.Errors() <- err
+				cg.channels.Errors <- err
 			case <-time.After(tick):
 				if hasBalanced {
 					cg.consumer.CommitOffsets()
@@ -223,64 +280,4 @@ func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
 		}
 		log.Event(ctx, "Closed kafka consumer controller", logData)
 	}()
-
-	return nil
-}
-
-// NewConsumerGroup returns a new consumer group using default configuration and provided channels
-func NewConsumerGroup(
-	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	channels ConsumerGroupChannels) (ConsumerGroup, error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	return NewConsumerWithClusterClient(
-		ctx, brokers, topic, group, offset, sync,
-		channels, &SaramaClusterClient{},
-	)
-}
-
-// NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
-func NewConsumerWithClusterClient(
-	ctx context.Context, brokers []string, topic string, group string, offset int64, syncConsumer bool,
-	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
-	config := cluster.NewConfig()
-	config.Group.Return.Notifications = true
-	config.Consumer.Return.Errors = true
-	config.Consumer.MaxWaitTime = 50 * time.Millisecond
-	config.Consumer.Offsets.Initial = offset
-	config.Consumer.Offsets.Retention = 0 // indefinite retention
-
-	// ConsumerGroup initialised with provided brokers, topic, group and sync
-	cg = ConsumerGroup{
-		brokers:   brokers,
-		topic:     topic,
-		group:     group,
-		sync:      syncConsumer,
-		config:    config,
-		cli:       cli,
-		mutexInit: &sync.Mutex{},
-	}
-
-	// Initial check structure
-	check := &health.Check{Name: ServiceName}
-	cg.Check = check
-
-	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
-	err = channels.Validate()
-	if err != nil {
-		return cg, err
-	}
-	cg.channels = &channels
-
-	// Initialise Sarama consumer group, and return any error (which might not be considered fatal by caller)
-	err = cg.InitialiseSarama(ctx)
-	return cg, err
 }
