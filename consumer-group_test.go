@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/dp-kafka/mock"
 	"github.com/Shopify/sarama"
@@ -103,12 +102,10 @@ func TestConsumer(t *testing.T) {
 		channels := kafka.CreateConsumerGroupChannels(true)
 		consumer, err := kafka.NewConsumerWithClusterClient(
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
-		expectedCheck := health.Check{Name: kafka.ServiceName}
 
 		Convey("Consumer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
 			So(consumer, ShouldNotBeNil)
-			So(consumer.Check, ShouldResemble, &expectedCheck)
 			So(channels.Upstream, ShouldEqual, channels.Upstream)
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)
@@ -160,12 +157,10 @@ func TestConsumerNotInitialised(t *testing.T) {
 		channels := kafka.CreateConsumerGroupChannels(true)
 		consumer, err := kafka.NewConsumerWithClusterClient(
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
-		expectedCheck := health.Check{Name: kafka.ServiceName}
 
 		Convey("Consumer is partially created with channels and checker, returning the Sarama error, and is not initialised", func() {
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(consumer, ShouldNotBeNil)
-			So(consumer.Check, ShouldResemble, &expectedCheck)
 			So(channels.Upstream, ShouldEqual, channels.Upstream)
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)

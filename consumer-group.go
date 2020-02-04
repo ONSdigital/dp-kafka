@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	cluster "github.com/bsm/sarama-cluster"
 )
@@ -20,7 +19,6 @@ type ConsumerGroup struct {
 	topic     string
 	group     string
 	sync      bool
-	Check     *health.Check
 	config    *cluster.Config
 	cli       SaramaCluster
 	mutexInit *sync.Mutex
@@ -67,10 +65,6 @@ func NewConsumerWithClusterClient(
 		cli:       cli,
 		mutexInit: &sync.Mutex{},
 	}
-
-	// Initial check structure
-	check := &health.Check{Name: ServiceName}
-	cg.Check = check
 
 	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
 	err = channels.Validate()

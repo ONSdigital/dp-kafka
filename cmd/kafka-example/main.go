@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/kelseyhightower/envconfig"
@@ -29,9 +30,6 @@ type Config struct {
 
 // period of time between tickers
 const ticker = 1 * time.Second
-
-// Number of ticks between health checks
-const healthTickerPeriod = 10
 
 func main() {
 	log.Namespace = "kafka-example"
@@ -80,6 +78,44 @@ func main() {
 	signal.Notify(signals, os.Interrupt)
 	stdinChannel := make(chan string)
 
+	// Create health check
+	versionInfo, err := healthcheck.NewVersionInfo(
+		"1580818588",
+		"myGitCommit",
+		"myVersion",
+	)
+	if err != nil {
+		log.Event(ctx, "failed to create service version information", log.Error(err))
+		os.Exit(1)
+	}
+	hc := healthcheck.New(versionInfo, 1*time.Minute, 10*time.Second)
+	hc.AddCheck(kafka.ServiceName, producer.Checker)
+	hc.AddCheck(kafka.ServiceName, consumer.Checker)
+
+	// go-routine to log errors from consumer error channel
+	go func() {
+		for true {
+			select {
+			case consumerError := <-cgChannels.Errors:
+				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
+			case <-cgChannels.Closer:
+				return
+			}
+		}
+	}()
+
+	// go-routine to log errors from producer error channel
+	go func() {
+		for true {
+			select {
+			case producerError := <-pChannels.Errors:
+				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
+			case <-pChannels.Closer:
+				return
+			}
+		}
+	}()
+
 	// Create loop-control channel and context
 	eventLoopContext, eventLoopCancel := context.WithCancel(context.Background())
 	eventLoopDone := make(chan bool)
@@ -105,19 +141,11 @@ func main() {
 	// eventLoop
 	go func() {
 		defer close(eventLoopDone)
-		tick := 0
 		for {
 			select {
 
 			case <-time.After(ticker):
-				// Forcing a healthcheck of kafka after a certain period time from last check (should not be used in applications
-				// as we would rely on the dp-healthcheck library for this functionality)
-				tick++
 				log.Event(ctx, "[KAFKA-TEST] tick")
-				if tick >= healthTickerPeriod {
-					tick = 0
-					performHealthchecks(&consumer, &producer)
-				}
 
 			case <-eventLoopContext.Done():
 				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
@@ -161,29 +189,9 @@ func main() {
 		}
 	}()
 
-	// log errors from consumer error channel
-	go func() {
-		for true {
-			select {
-			case consumerError := <-cgChannels.Errors:
-				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
-			case <-cgChannels.Closer:
-				return
-			}
-		}
-	}()
-
-	// log errors from producer error channel
-	go func() {
-		for true {
-			select {
-			case producerError := <-pChannels.Errors:
-				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
-			case <-pChannels.Closer:
-				return
-			}
-		}
-	}()
+	// Start Healthcheck
+	log.Event(ctx, "[KAFKA-TEST] Starting health-check")
+	hc.Start(ctx)
 
 	// block until a fatal error, signal or eventLoopDone - then proceed to shutdown
 	select {
@@ -198,6 +206,8 @@ func main() {
 
 	// background graceful shutdown
 	go func() {
+		log.Event(ctx, "[KAFKA-TEST] Stopping health-check")
+		hc.Stop()
 		log.Event(ctx, "[KAFKA-TEST] Stopping kafka consumer listener")
 		consumer.StopListeningToConsumer(ctx)
 		log.Event(ctx, "[KAFKA-TEST] Stopped kafka consumer listener")
@@ -223,22 +233,6 @@ func main() {
 		log.Event(ctx, "[KAFKA-TEST] Done shutdown gracefully", log.Data{"context": ctx.Err()})
 	}
 	os.Exit(1)
-}
-
-// performHealthchecks triggers healthchecks in consumer and producer, and logs the result.
-// This function was created for the purpose of this example application to simulate health checks.
-func performHealthchecks(consumer *kafka.ConsumerGroup, producer *kafka.Producer) {
-	ctx := context.Background()
-	pCheck, pErr := producer.Checker(ctx)
-	if pErr != nil {
-		log.Event(ctx, "[KAFKA-TEST] Producer healthcheck error", log.Error(pErr))
-	}
-	log.Event(ctx, "[KAFKA-TEST] Producer healthcheck", log.Data{"check": pCheck})
-	cCheck, cErr := consumer.Checker(ctx)
-	if cErr != nil {
-		log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck error", log.Error(cErr))
-	}
-	log.Event(ctx, "[KAFKA-TEST] Consumer healthcheck", log.Data{"check": cCheck})
 }
 
 // sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.

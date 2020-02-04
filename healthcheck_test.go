@@ -3,7 +3,6 @@ package kafka_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	kafka "github.com/ONSdigital/dp-kafka"
@@ -14,33 +13,6 @@ import (
 
 // testBrokers is a list of broker addresses for testing
 var testBrokers = []string{"localhost:12300", "localhost:12301"}
-
-// initial check that should be created by client constructor
-var expectedInitialCheck = &health.Check{
-	Name: kafka.ServiceName,
-}
-
-// create a successful check without lastFailed value
-func createSuccessfulCheck(t time.Time, msg string) health.Check {
-	return health.Check{
-		Name:        kafka.ServiceName,
-		LastSuccess: &t,
-		LastChecked: &t,
-		Status:      health.StatusOK,
-		Message:     msg,
-	}
-}
-
-// create a critical check without lastSuccess value
-func createCriticalCheck(t time.Time, msg string) health.Check {
-	return health.Check{
-		Name:        kafka.ServiceName,
-		LastFailure: &t,
-		LastChecked: &t,
-		Status:      health.StatusCritical,
-		Message:     msg,
-	}
-}
 
 // createMockBrokers creates mock brokers for testing, without providing topic metadata
 func createMockBrokers(t *testing.T) (brokers []*sarama.MockBroker) {
@@ -117,42 +89,52 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 
 	Convey("Given that kafka brokers are available, without topic metadata", t, func() {
 
+		// CheckState for test validation
+		checkState := health.NewCheckState(kafka.ServiceName)
+
 		Convey("Producer configured with right brokers and topic returns a successful Check structure", func() {
 			producer, err := createProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
-			validateSuccessfulProducerCheck(&producer)
-			So(producer.Check.LastFailure, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusOK)
+			So(checkState.Message(), ShouldEqual, kafka.MsgHealthyProducer)
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Uninitialised producer with right config returns a Critical Check structure", func() {
 			producer, err := createUninitialisedProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldResemble, ErrSaramaNoBrokers)
-			validateCriticalProducerCheck(&producer, kafka.ErrInitSarama.Error())
-			So(producer.Check.LastSuccess, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, kafka.ErrInitSarama.Error())
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Producer configured with right brokers and wrong topic returns a warning Check structure", func() {
 			producer, err := createProducerForTesting(testBrokers, "wrongTopic")
 			So(err, ShouldBeNil)
-			So(producer.Check, ShouldResemble, expectedInitialCheck)
-			validateWarningProducerCheck(&producer, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
-			So(producer.Check.LastSuccess, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusWarning)
+			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Producer configured with different brokers and right topic returns a critical Check structure", func() {
 			producer, err := createProducerForTesting([]string{"localhost:12399"}, testTopic)
 			So(err, ShouldBeNil)
-			So(producer.Check, ShouldResemble, expectedInitialCheck)
-			validateCriticalProducerCheck(&producer, "broker(s) not reachable at addresses: [localhost:12399]")
-			So(producer.Check.LastSuccess, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "broker(s) not reachable at addresses: [localhost:12399]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Producer configured with no brokers and right topic returns a critical Check structure", func() {
 			producer, err := createProducerForTesting([]string{}, testTopic)
 			So(err, ShouldBeNil)
-			So(producer.Check, ShouldResemble, expectedInitialCheck)
-			validateCriticalProducerCheck(&producer, "No brokers defined")
-			So(producer.Check.LastSuccess, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "No brokers defined")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 	})
 }
@@ -165,179 +147,52 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 
 	Convey("Given that kafka brokers are available, without topic metadata", t, func() {
 
+		// CheckState for test validation
+		checkState := health.NewCheckState(kafka.ServiceName)
+
 		Convey("Consumer configured with right brokers and wrong topic returns an OK Check structure", func() {
 			consumer, err := createConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
-			validateSuccessfulConsumerGroupCheck(&consumer)
-			So(consumer.Check.LastFailure, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusOK)
+			So(checkState.Message(), ShouldEqual, kafka.MsgHealthyConsumerGroup)
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Uninitialised consumer with right config returns a Critical Check structure", func() {
 			consumer, err := createUninitialisedConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldResemble, ErrSaramaNoBrokers)
-			validateCriticalConsumerGroupCheck(&consumer, kafka.ErrInitSarama.Error())
-			So(consumer.Check.LastSuccess, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, kafka.ErrInitSarama.Error())
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Consumer configured with right brokers and wrong topic returns a warning Check structure", func() {
 			consumer, err := createConsumerForTesting(testBrokers, "wrongTopic")
 			So(err, ShouldBeNil)
-			So(consumer.Check, ShouldResemble, expectedInitialCheck)
-			validateWarningConsumerGroupCheck(&consumer, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
-			So(consumer.Check.LastSuccess, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusWarning)
+			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Consumer configured with different brokers and right topic returns a critical Check structure", func() {
 			consumer, err := createConsumerForTesting([]string{"localhost:12399"}, testTopic)
 			So(err, ShouldBeNil)
-			So(consumer.Check, ShouldResemble, expectedInitialCheck)
-			validateCriticalConsumerGroupCheck(&consumer, "broker(s) not reachable at addresses: [localhost:12399]")
-			So(consumer.Check.LastSuccess, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "broker(s) not reachable at addresses: [localhost:12399]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
 		Convey("Consumer configured with no brokers returns a critical Check structure", func() {
 			consumer, err := createConsumerForTesting([]string{}, testTopic)
 			So(err, ShouldBeNil)
-			So(consumer.Check, ShouldResemble, expectedInitialCheck)
-			validateCriticalConsumerGroupCheck(&consumer, "No brokers defined")
-			So(consumer.Check.LastSuccess, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "No brokers defined")
+			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 	})
-}
-
-func TestCheckerSuccessHistory(t *testing.T) {
-
-	Convey("Given that we have a producer and a consumer with previous successful checks", t, func() {
-
-		consumer, err := createConsumerForTesting([]string{"localhost:12399"}, testTopic)
-		So(err, ShouldBeNil)
-		So(consumer.Check, ShouldResemble, expectedInitialCheck)
-
-		producer, err := createProducerForTesting([]string{"localhost:12399"}, testTopic)
-		So(err, ShouldBeNil)
-		So(producer.Check, ShouldResemble, expectedInitialCheck)
-
-		lastCheckTime := time.Now().UTC().Add(-1 * time.Minute)
-		previousCheckConsumer := createSuccessfulCheck(lastCheckTime, kafka.MsgHealthyConsumerGroup)
-		previousCheckProducer := createSuccessfulCheck(lastCheckTime, kafka.MsgHealthyProducer)
-		consumer.Check = &previousCheckConsumer
-		producer.Check = &previousCheckProducer
-
-		Convey("A new healthcheck keeps the non-overwritten values for consumer", func() {
-			validateCriticalConsumerGroupCheck(&consumer, "broker(s) not reachable at addresses: [localhost:12399]")
-			So(consumer.Check.LastSuccess, ShouldResemble, &lastCheckTime)
-		})
-
-		Convey("A new healthcheck keeps the non-overwritten values for producer", func() {
-			validateCriticalProducerCheck(&producer, "broker(s) not reachable at addresses: [localhost:12399]")
-			So(consumer.Check.LastSuccess, ShouldResemble, &lastCheckTime)
-		})
-	})
-
-}
-
-func TestCheckerFailureHistory(t *testing.T) {
-
-	Convey("Given that we have a producer and a consumer with previous failed checks", t, func() {
-
-		brokers := createMockBrokers(t)
-		defer closeMockBrokers(brokers)
-
-		consumer, err := createConsumerForTesting(testBrokers, testTopic)
-		So(err, ShouldBeNil)
-		So(consumer.Check, ShouldResemble, expectedInitialCheck)
-
-		producer, err := createProducerForTesting(testBrokers, testTopic)
-		So(err, ShouldBeNil)
-		So(producer.Check, ShouldResemble, expectedInitialCheck)
-
-		lastCheckTime := time.Now().UTC().Add(-1 * time.Minute)
-		previousCheckConsumer := createCriticalCheck(lastCheckTime, "consumer error")
-		previousCheckProducer := createCriticalCheck(lastCheckTime, "producer error")
-		consumer.Check = &previousCheckConsumer
-		producer.Check = &previousCheckProducer
-
-		Convey("A new healthcheck keeps the non-overwritten values for consumer", func() {
-			validateSuccessfulConsumerGroupCheck(&consumer)
-			So(consumer.Check.LastFailure, ShouldResemble, &lastCheckTime)
-		})
-
-		Convey("A new healthcheck keeps the non-overwritten values for producer", func() {
-			validateSuccessfulProducerCheck(&producer)
-			So(consumer.Check.LastFailure, ShouldResemble, &lastCheckTime)
-		})
-	})
-
-}
-
-func validateSuccessfulProducerCheck(cli *kafka.Producer) (check *health.Check) {
-	t0 := time.Now().UTC()
-	check, err := cli.Checker(nil)
-	t1 := time.Now().UTC()
-	So(err, ShouldBeNil)
-	validateSuccessfulCheck(check, kafka.MsgHealthyProducer, t0, t1)
-	So(cli.Check, ShouldResemble, check)
-	return check
-}
-
-func validateSuccessfulConsumerGroupCheck(cli *kafka.ConsumerGroup) (check *health.Check) {
-	t0 := time.Now().UTC()
-	check, err := cli.Checker(nil)
-	t1 := time.Now().UTC()
-	So(err, ShouldBeNil)
-	validateSuccessfulCheck(check, kafka.MsgHealthyConsumerGroup, t0, t1)
-	So(cli.Check, ShouldResemble, check)
-	return check
-}
-
-func validateSuccessfulCheck(check *health.Check, msgHealthy string, t0 time.Time, t1 time.Time) {
-	So(check.Name, ShouldEqual, kafka.ServiceName)
-	So(check.Status, ShouldEqual, health.StatusOK)
-	So(check.Message, ShouldEqual, msgHealthy)
-	So(*check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
-	So(*check.LastSuccess, ShouldHappenOnOrBetween, t0, t1)
-}
-
-func validateWarningProducerCheck(cli *kafka.Producer, expectedMessage string) (check *health.Check, err error) {
-	t0 := time.Now().UTC()
-	check, err = cli.Checker(nil)
-	t1 := time.Now().UTC()
-	validateUnsuccessfulCheck(check, expectedMessage, health.StatusWarning, t0, t1)
-	So(cli.Check, ShouldResemble, check)
-	return check, err
-}
-
-func validateWarningConsumerGroupCheck(cli *kafka.ConsumerGroup, expectedMessage string) (check *health.Check, err error) {
-	t0 := time.Now().UTC()
-	check, err = cli.Checker(nil)
-	t1 := time.Now().UTC()
-	validateUnsuccessfulCheck(check, expectedMessage, health.StatusWarning, t0, t1)
-	So(cli.Check, ShouldResemble, check)
-	return check, err
-}
-
-func validateCriticalProducerCheck(cli *kafka.Producer, expectedMessage string) (check *health.Check, err error) {
-	t0 := time.Now().UTC()
-	check, err = cli.Checker(nil)
-	t1 := time.Now().UTC()
-	validateUnsuccessfulCheck(check, expectedMessage, health.StatusCritical, t0, t1)
-	So(cli.Check, ShouldResemble, check)
-	return check, err
-}
-
-func validateCriticalConsumerGroupCheck(cli *kafka.ConsumerGroup, expectedMessage string) (check *health.Check, err error) {
-	t0 := time.Now().UTC()
-	check, err = cli.Checker(nil)
-	t1 := time.Now().UTC()
-	validateUnsuccessfulCheck(check, expectedMessage, health.StatusCritical, t0, t1)
-	So(cli.Check, ShouldEqual, check)
-	return check, err
-}
-
-func validateUnsuccessfulCheck(check *health.Check, expectedMessage string, expectedSeverity string, t0 time.Time, t1 time.Time) {
-	So(check.Name, ShouldEqual, kafka.ServiceName)
-	So(check.Status, ShouldEqual, expectedSeverity)
-	So(check.Message, ShouldEqual, expectedMessage)
-	So(*check.LastChecked, ShouldHappenOnOrBetween, t0, t1)
-	So(*check.LastFailure, ShouldHappenOnOrBetween, t0, t1)
 }

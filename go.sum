@@ -1,5 +1,7 @@
 github.com/ONSdigital/dp-healthcheck v0.0.0-20200115183048-4eeccfeaf78a h1:8VMB6ABLt8dNSM6iFPy+QrJigirl9Dafv/CvyNbu9Ps=
 github.com/ONSdigital/dp-healthcheck v0.0.0-20200115183048-4eeccfeaf78a/go.mod h1:zighxZ/0m5u7zo0eAr8XFlA+Dz2ic7A1vna6YXvhCjQ=
+github.com/ONSdigital/dp-healthcheck v0.0.0-20200131122546-9db6d3f0494e h1:H2KVzsFp5oTbqjPXDlTHOB/LvYy2I6Mc8eSTLrmZkXs=
+github.com/ONSdigital/dp-healthcheck v0.0.0-20200131122546-9db6d3f0494e/go.mod h1:zighxZ/0m5u7zo0eAr8XFlA+Dz2ic7A1vna6YXvhCjQ=
 github.com/ONSdigital/dp-rchttp v0.0.0-20190919143000-bb5699e6fd59 h1:B4IEjh0R3/WYT2INXfMt/4gUtk8SSaMKaojbCMGkBHo=
 github.com/ONSdigital/dp-rchttp v0.0.0-20190919143000-bb5699e6fd59/go.mod h1:KkW68U3FPuivW4ogi9L8CPKNj9ZxGko4qcUY7KoAAkQ=
 github.com/ONSdigital/go-ns v0.0.0-20191104121206-f144c4ec2e58 h1:XHnzoC7TxueLAfkBpblPiwaIxjngGv1VNVZhvE4jY6w=

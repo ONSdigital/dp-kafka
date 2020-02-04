@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	kafka "github.com/ONSdigital/dp-kafka"
 	"github.com/ONSdigital/dp-kafka/kafkatest"
 	"github.com/ONSdigital/dp-kafka/mock"
@@ -131,12 +130,9 @@ func TestProducer(t *testing.T) {
 		producer, err := kafka.NewProducerWithSaramaClient(
 			ctx, testBrokers, testTopic, 123, channels, saramaCli)
 
-		expectedCheck := health.Check{Name: kafka.ServiceName}
-
 		Convey("Producer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
-			So(producer.Check, ShouldResemble, &expectedCheck)
 			So(channels.Output, ShouldEqual, channels.Output)
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
@@ -234,12 +230,9 @@ func TestProducerNotInitialised(t *testing.T) {
 		producer, err := kafka.NewProducerWithSaramaClient(
 			ctx, testBrokers, testTopic, 123, channels, saramaCliWithErr)
 
-		expectedCheck := health.Check{Name: kafka.ServiceName}
-
 		Convey("Producer is partially created with channels and checker, returning the Sarama error and not initialised", func() {
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(producer, ShouldNotBeNil)
-			So(producer.Check, ShouldResemble, &expectedCheck)
 			So(channels.Output, ShouldEqual, channels.Output)
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(len(saramaCliWithErr.NewAsyncProducerCalls()), ShouldEqual, 1)

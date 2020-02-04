@@ -3,7 +3,6 @@ package kafka
 import (
 	"context"
 	"errors"
-	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
@@ -19,38 +18,26 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// Checker checks health of Kafka producer and returns it inside its Check structure.
-func (p *Producer) Checker(ctx context.Context) (*health.Check, error) {
+// Checker checks health of Kafka producer and updates the provided CheckState accordingly
+func (p *Producer) Checker(ctx context.Context, state *health.CheckState) error {
 	err := p.healthcheck(ctx)
-	currentTime := time.Now().UTC()
-	p.Check.LastChecked = &currentTime
 	if err != nil {
-		p.Check.LastFailure = &currentTime
-		p.Check.Status = getStatusFromError(err)
-		p.Check.Message = err.Error()
-		return p.Check, err
+		state.Update(getStatusFromError(err), err.Error(), 0)
+		return nil
 	}
-	p.Check.LastSuccess = &currentTime
-	p.Check.Status = health.StatusOK
-	p.Check.Message = MsgHealthyProducer
-	return p.Check, nil
+	state.Update(health.StatusOK, MsgHealthyProducer, 0)
+	return nil
 }
 
-// Checker checks health of Kafka consumer-group and returns it inside its Check structure.
-func (cg *ConsumerGroup) Checker(ctx context.Context) (*health.Check, error) {
+// Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
+func (cg *ConsumerGroup) Checker(ctx context.Context, state *health.CheckState) error {
 	err := cg.healthcheck(ctx)
-	currentTime := time.Now().UTC()
-	cg.Check.LastChecked = &currentTime
 	if err != nil {
-		cg.Check.LastFailure = &currentTime
-		cg.Check.Status = getStatusFromError(err)
-		cg.Check.Message = err.Error()
-		return cg.Check, err
+		state.Update(getStatusFromError(err), err.Error(), 0)
+		return nil
 	}
-	cg.Check.LastSuccess = &currentTime
-	cg.Check.Status = health.StatusOK
-	cg.Check.Message = MsgHealthyConsumerGroup
-	return cg.Check, nil
+	state.Update(health.StatusOK, MsgHealthyConsumerGroup, 0)
+	return nil
 }
 
 // getStatusFromError decides the health status (severity) according to the provided error

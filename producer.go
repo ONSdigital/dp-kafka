@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 )
@@ -16,7 +15,6 @@ type Producer struct {
 	brokers   []string
 	topic     string
 	channels  *ProducerChannels
-	Check     *health.Check
 	cli       Sarama
 	mutexInit *sync.Mutex
 }
@@ -47,10 +45,6 @@ func NewProducerWithSaramaClient(
 		cli:       cli,
 		mutexInit: &sync.Mutex{},
 	}
-
-	// Initial Check struct
-	check := &health.Check{Name: ServiceName}
-	producer.Check = check
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
 	err = channels.Validate()

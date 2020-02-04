@@ -51,14 +51,14 @@ For graceful handling of Closing consumers, it is advised to use the `StopListen
 
 ## Health-check
 
-The health status of a consumer or producer can be obtained by calling `Checker` method, which returns a Check structure with the information:
+The health status of a consumer or producer can be obtained by calling `Checker` method, which updates the provided CheckState structure with the relevant information:
 ```
 check, err = cli.Checker(ctx)
 ```
 
-- If a broker cannot be reached, a CRITICAL check is returned. 
-- If all brokers can be reached, but a broker does not provide the expected topic metadata, a WARNING check is returned.
-- If all brokers can be reached and return the expected topic metadata, we try to initialise the consumer/producer. If it was already initialised, or the initialisation is successful, an OK check is returned.
+- If a broker cannot be reached, the Status is set to CRITICAL. 
+- If all brokers can be reached, but a broker does not provide the expected topic metadata, the Status is set to WARNING.
+- If all brokers can be reached and return the expected topic metadata, we try to initialise the consumer/producer. If it was already initialised, or the initialisation is successful, the Status is set to OK.
 
 ## Example
 
