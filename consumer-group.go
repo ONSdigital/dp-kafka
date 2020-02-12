@@ -78,6 +78,14 @@ func NewConsumerWithClusterClient(
 	return cg, err
 }
 
+// Channels returns the ConsumerGroup channels for this consumer group
+func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
+	if cg == nil {
+		return nil
+	}
+	return cg.channels
+}
+
 // IsInitialised returns true only if Sarama consumer has been correctly initialised.
 func (cg *ConsumerGroup) IsInitialised() bool {
 	if cg == nil {

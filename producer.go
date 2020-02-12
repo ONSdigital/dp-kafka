@@ -61,6 +61,14 @@ func NewProducerWithSaramaClient(
 	return producer, err
 }
 
+// Channels returns the Producer channels for this producer
+func (p *Producer) Channels() *ProducerChannels {
+	if p == nil {
+		return nil
+	}
+	return p.Channels()
+}
+
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
 func (p *Producer) IsInitialised() bool {
 	if p == nil {
