@@ -1,32 +1,20 @@
 package kafkatest
 
-// MessageProducer provides a mock that allows injection of the required output channel.
-type MessageProducer struct {
-	outputChannel chan []byte
-	closerChannel chan bool
-	errorsChannel chan error
-}
+import kafka "github.com/ONSdigital/dp-kafka"
 
-//
-func NewMessageProducer(outputChannel chan []byte, closerChannel chan bool, errorsChannel chan error) *MessageProducer {
+// NewMessageProducer creates a testing producer with new producerChannels
+func NewMessageProducer() *MessageProducer {
 	return &MessageProducer{
-		closerChannel: closerChannel,
-		outputChannel: outputChannel,
-		errorsChannel: errorsChannel,
+		pChannels: kafka.CreateProducerChannels(),
 	}
 }
 
-// Output returns the injected output channel for testing.
-func (messageProducer MessageProducer) Output() chan []byte {
-	return messageProducer.outputChannel
+// MessageProducer provides a mock that allows injection of the required output channel.
+type MessageProducer struct {
+	pChannels kafka.ProducerChannels
 }
 
-// Closer returns the injected closer channel for testing.
-func (messageProducer MessageProducer) Closer() chan bool {
-	return messageProducer.closerChannel
-}
-
-// Errors returns the injected errors channel for testing.
-func (messageProducer MessageProducer) Errors() chan error {
-	return messageProducer.errorsChannel
+// Channels returns the stored channels
+func (messageProducer *MessageProducer) Channels() *kafka.ProducerChannels {
+	return &messageProducer.pChannels
 }

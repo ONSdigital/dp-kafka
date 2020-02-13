@@ -4,32 +4,25 @@ import (
 	kafka "github.com/ONSdigital/dp-kafka"
 )
 
-// NewMessageConsumer creates a consumer using the given channel.
-func NewMessageConsumer(messages chan kafka.Message) *MessageConsumer {
+// NewMessageConsumer creates a testing consumer with new consumerChannels
+func NewMessageConsumer() *MessageConsumer {
 	return &MessageConsumer{
-		messages: messages,
-		closer:   nil,
+		cgChannels: kafka.CreateConsumerGroupChannels(true),
 	}
 }
 
 // MessageConsumer is a mock that provides the stored schema channel.
 type MessageConsumer struct {
-	messages chan kafka.Message
-	closer   chan bool
+	cgChannels kafka.ConsumerGroupChannels
 }
 
-// Incoming returns the stored schema channel.
-func (consumer *MessageConsumer) Incoming() chan kafka.Message {
-	return consumer.messages
+// Channels returns the stored channels
+func (consumer *MessageConsumer) Channels() *kafka.ConsumerGroupChannels {
+	return &consumer.cgChannels
 }
 
 // CommitAndRelease commits the message, releases the listener to consume next
 func (consumer *MessageConsumer) CommitAndRelease(m kafka.Message) {
 	m.Commit()
 	return
-}
-
-// Closer returns the stored closer channel.
-func (consumer *MessageConsumer) Closer() chan bool {
-	return consumer.closer
 }
