@@ -230,8 +230,8 @@ func TestProducerNotInitialised(t *testing.T) {
 		producer, err := kafka.NewProducerWithSaramaClient(
 			ctx, testBrokers, testTopic, 123, channels, saramaCliWithErr)
 
-		Convey("Producer is partially created with channels and checker, returning the Sarama error and not initialised", func() {
-			So(err, ShouldEqual, ErrSaramaNoBrokers)
+		Convey("Producer is partially created with channels and checker and is not initialised", func() {
+			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
 			So(channels.Output, ShouldEqual, channels.Output)
 			So(channels.Errors, ShouldEqual, channels.Errors)

@@ -53,12 +53,13 @@ func NewProducerWithSaramaClient(
 	}
 	producer.channels = &channels
 
-	// Initialise Sarama producer, and return any error (which might not be considered fatal by caller)
+	// Initialise producer, and log any error
 	err = producer.Initialise(ctx)
 	if err != nil {
+		log.Event(ctx, "Initialisation error (non-fatal)", log.Error(err))
 		producer.createLoopUninitialised(ctx)
 	}
-	return producer, err
+	return producer, nil
 }
 
 // Channels returns the Producer channels for this producer

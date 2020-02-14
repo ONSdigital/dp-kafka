@@ -158,8 +158,8 @@ func TestConsumerNotInitialised(t *testing.T) {
 		consumer, err := kafka.NewConsumerWithClusterClient(
 			ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 
-		Convey("Consumer is partially created with channels and checker, returning the Sarama error, and is not initialised", func() {
-			So(err, ShouldEqual, ErrSaramaNoBrokers)
+		Convey("Consumer is partially created with channels and checker, but it is not initialised", func() {
+			So(err, ShouldBeNil)
 			So(consumer, ShouldNotBeNil)
 			So(channels.Upstream, ShouldEqual, channels.Upstream)
 			So(channels.Errors, ShouldEqual, channels.Errors)
@@ -168,7 +168,6 @@ func TestConsumerNotInitialised(t *testing.T) {
 		})
 
 		Convey("We can try to initialise the consumer again", func() {
-			// Initialise does call NewConsumerCalls again
 			err = consumer.Initialise(ctx)
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 2)

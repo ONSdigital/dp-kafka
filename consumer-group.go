@@ -73,9 +73,12 @@ func NewConsumerWithClusterClient(
 	}
 	cg.channels = &channels
 
-	// Initialise Sarama consumer group, and return any error (which might not be considered fatal by caller)
+	// Initialise consumer group, and log any error
 	err = cg.Initialise(ctx)
-	return cg, err
+	if err != nil {
+		log.Event(ctx, "Initialisation error (non-fatal)", log.Error(err))
+	}
+	return cg, nil
 }
 
 // Channels returns the ConsumerGroup channels for this consumer group

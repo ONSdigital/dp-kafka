@@ -103,7 +103,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 
 		Convey("Uninitialised producer with right config returns a Critical Check structure", func() {
 			producer, err := createUninitialisedProducerForTesting(testBrokers, testTopic)
-			So(err, ShouldResemble, ErrSaramaNoBrokers)
+			So(err, ShouldBeNil)
+			So(producer.IsInitialised(), ShouldBeFalse)
 			producer.Checker(context.Background(), checkState)
 			So(checkState.Status(), ShouldEqual, health.StatusCritical)
 			So(checkState.Message(), ShouldEqual, kafka.ErrInitSarama.Error())
@@ -161,7 +162,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 
 		Convey("Uninitialised consumer with right config returns a Critical Check structure", func() {
 			consumer, err := createUninitialisedConsumerForTesting(testBrokers, testTopic)
-			So(err, ShouldResemble, ErrSaramaNoBrokers)
+			So(err, ShouldBeNil)
+			So(consumer.IsInitialised(), ShouldBeFalse)
 			consumer.Checker(context.Background(), checkState)
 			So(checkState.Status(), ShouldEqual, health.StatusCritical)
 			So(checkState.Message(), ShouldEqual, kafka.ErrInitSarama.Error())

@@ -9,7 +9,7 @@ import (
 var ErrShutdownTimedOut = errors.New("Shutdown context timed out")
 
 // ErrInitSarama is used when Sarama client cannot be initialised
-var ErrInitSarama = errors.New("Failed to initialise Sarama client")
+var ErrInitSarama = errors.New("Failed to initialise client")
 
 // ErrUninitialisedProducer is used when a caller tries to send a message to the output channel with an uninitialised producer.
 var ErrUninitialisedProducer = errors.New("Producer is not initialised")
