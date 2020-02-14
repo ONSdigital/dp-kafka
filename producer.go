@@ -54,7 +54,7 @@ func NewProducerWithSaramaClient(
 	producer.channels = &channels
 
 	// Initialise Sarama producer, and return any error (which might not be considered fatal by caller)
-	err = producer.InitialiseSarama(ctx)
+	err = producer.Initialise(ctx)
 	if err != nil {
 		producer.createLoopUninitialised(ctx)
 	}
@@ -77,8 +77,8 @@ func (p *Producer) IsInitialised() bool {
 	return p.producer != nil
 }
 
-// InitialiseSarama creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
-func (p *Producer) InitialiseSarama(ctx context.Context) error {
+// Initialise creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
+func (p *Producer) Initialise(ctx context.Context) error {
 
 	p.mutexInit.Lock()
 	defer p.mutexInit.Unlock()

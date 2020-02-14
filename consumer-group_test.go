@@ -114,8 +114,8 @@ func TestConsumer(t *testing.T) {
 		})
 
 		Convey("We cannot initialise consumer again", func() {
-			// InitialiseSarama does not call NewConsumerCalls again
-			err = consumer.InitialiseSarama(ctx)
+			// Initialise does not call NewConsumerCalls again
+			err = consumer.Initialise(ctx)
 			So(err, ShouldBeNil)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 1)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
@@ -168,8 +168,8 @@ func TestConsumerNotInitialised(t *testing.T) {
 		})
 
 		Convey("We can try to initialise the consumer again", func() {
-			// InitialiseSarama does call NewConsumerCalls again
-			err = consumer.InitialiseSarama(ctx)
+			// Initialise does call NewConsumerCalls again
+			err = consumer.Initialise(ctx)
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 2)
 		})

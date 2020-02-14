@@ -57,7 +57,7 @@ func (p *Producer) healthcheck(ctx context.Context) error {
 		return err
 	}
 	// If Sarama client is not initialised, we need to initialise it
-	err = p.InitialiseSarama(ctx)
+	err = p.Initialise(ctx)
 	if err != nil {
 		log.Event(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.Error(err))
 		return ErrInitSarama
@@ -72,7 +72,7 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 		return err
 	}
 	// If Sarama client is not initialised, we need to initialise it
-	err = cg.InitialiseSarama(ctx)
+	err = cg.Initialise(ctx)
 	if err != nil {
 		log.Event(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
 		return ErrInitSarama

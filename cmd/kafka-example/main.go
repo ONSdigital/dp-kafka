@@ -92,29 +92,9 @@ func main() {
 	hc.AddCheck(kafka.ServiceName, producer.Checker)
 	hc.AddCheck(kafka.ServiceName, consumer.Checker)
 
-	// go-routine to log errors from consumer error channel
-	go func() {
-		for true {
-			select {
-			case consumerError := <-cgChannels.Errors:
-				log.Event(ctx, "[KAFKA-TEST] Consumer error", log.Error(consumerError))
-			case <-cgChannels.Closer:
-				return
-			}
-		}
-	}()
-
-	// go-routine to log errors from producer error channel
-	go func() {
-		for true {
-			select {
-			case producerError := <-pChannels.Errors:
-				log.Event(ctx, "[KAFKA-TEST] Producer error", log.Error(producerError))
-			case <-pChannels.Closer:
-				return
-			}
-		}
-	}()
+	// go-routines to log errors from error channels
+	cgChannels.LogErrors(ctx, "[KAFKA-TEST] Consumer error")
+	pChannels.LogErrors(ctx, "[KAFKA-TEST] Producer error")
 
 	// Create loop-control channel and context
 	eventLoopContext, eventLoopCancel := context.WithCancel(context.Background())

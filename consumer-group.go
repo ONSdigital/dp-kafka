@@ -74,7 +74,7 @@ func NewConsumerWithClusterClient(
 	cg.channels = &channels
 
 	// Initialise Sarama consumer group, and return any error (which might not be considered fatal by caller)
-	err = cg.InitialiseSarama(ctx)
+	err = cg.Initialise(ctx)
 	return cg, err
 }
 
@@ -94,8 +94,8 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 	return cg.consumer != nil
 }
 
-// InitialiseSarama creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
-func (cg *ConsumerGroup) InitialiseSarama(ctx context.Context) error {
+// Initialise creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
+func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 
 	cg.mutexInit.Lock()
 	defer cg.mutexInit.Unlock()

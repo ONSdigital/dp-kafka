@@ -142,8 +142,8 @@ func TestProducer(t *testing.T) {
 		})
 
 		Convey("We cannot initialise producer again", func() {
-			// InitialiseSarama does not call NewAsyncProducer again
-			err = producer.InitialiseSarama(ctx)
+			// Initialise does not call NewAsyncProducer again
+			err = producer.Initialise(ctx)
 			So(err, ShouldBeNil)
 			So(len(saramaCli.NewAsyncProducerCalls()), ShouldEqual, 1)
 		})
@@ -241,8 +241,8 @@ func TestProducerNotInitialised(t *testing.T) {
 		})
 
 		Convey("We can try to initialise producer again", func() {
-			// InitialiseSarama does call NewAsyncProducer again
-			err = producer.InitialiseSarama(ctx)
+			// Initialise does call NewAsyncProducer again
+			err = producer.Initialise(ctx)
 			So(err, ShouldEqual, ErrSaramaNoBrokers)
 			So(len(saramaCliWithErr.NewAsyncProducerCalls()), ShouldEqual, 2)
 		})
