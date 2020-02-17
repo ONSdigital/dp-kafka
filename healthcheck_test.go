@@ -36,7 +36,7 @@ func closeMockBrokers(brokers []*sarama.MockBroker) {
 }
 
 // createProducerForTesting creates a producer with a mock Sarama library for testing
-func createProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
+func createProducerForTesting(brokers []string, topic string) (*kafka.Producer, error) {
 	ctx := context.Background()
 	chSaramaErr, chSaramaIn := createSaramaChannels()
 	_, funcNewAsyncProducer := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
@@ -48,7 +48,7 @@ func createProducerForTesting(brokers []string, topic string) (kafka.Producer, e
 }
 
 // createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
-func createUninitialisedProducerForTesting(brokers []string, topic string) (kafka.Producer, error) {
+func createUninitialisedProducerForTesting(brokers []string, topic string) (*kafka.Producer, error) {
 	ctx := context.Background()
 	saramaCli := &mock.SaramaMock{
 		NewAsyncProducerFunc: mockNewAsyncProducerError,
@@ -58,7 +58,7 @@ func createUninitialisedProducerForTesting(brokers []string, topic string) (kafk
 }
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
-func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
+func createConsumerForTesting(brokers []string, topic string) (*kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	errsChan, msgChan, notiChan := createSaramaClusterChannels()
 	_, funcNewConsumer := createMockNewConsumer(errsChan, msgChan, notiChan)
@@ -71,7 +71,7 @@ func createConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGro
 }
 
 // createUninitialisedConsumerForTesting creates a consumer for testing without a valid Sarama-cluster consumer
-func createUninitialisedConsumerForTesting(brokers []string, topic string) (kafka.ConsumerGroup, error) {
+func createUninitialisedConsumerForTesting(brokers []string, topic string) (*kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: mockNewConsumerError,

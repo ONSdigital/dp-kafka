@@ -22,7 +22,7 @@ type Producer struct {
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
-	ctx context.Context, brokers []string, topic string, envMax int, channels ProducerChannels) (Producer, error) {
+	ctx context.Context, brokers []string, topic string, envMax int, channels ProducerChannels) (*Producer, error) {
 	return NewProducerWithSaramaClient(
 		ctx, brokers, topic, envMax, channels, &SaramaClient{},
 	)
@@ -31,14 +31,14 @@ func NewProducer(
 // NewProducerWithSaramaClient returns a new producer with a provided Sarama client
 func NewProducerWithSaramaClient(
 	ctx context.Context, brokers []string, topic string, envMax int,
-	channels ProducerChannels, cli Sarama) (producer Producer, err error) {
+	channels ProducerChannels, cli Sarama) (producer *Producer, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	// Producer initialised with provided brokers and topic
-	producer = Producer{
+	producer = &Producer{
 		envMax:    envMax,
 		brokers:   brokers,
 		topic:     topic,

@@ -27,7 +27,7 @@ type ConsumerGroup struct {
 // NewConsumerGroup returns a new consumer group using default configuration and provided channels
 func NewConsumerGroup(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
-	channels ConsumerGroupChannels) (ConsumerGroup, error) {
+	channels ConsumerGroupChannels) (*ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -42,7 +42,7 @@ func NewConsumerGroup(
 // NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithClusterClient(
 	ctx context.Context, brokers []string, topic string, group string, offset int64, syncConsumer bool,
-	channels ConsumerGroupChannels, cli SaramaCluster) (cg ConsumerGroup, err error) {
+	channels ConsumerGroupChannels, cli SaramaCluster) (cg *ConsumerGroup, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -56,7 +56,7 @@ func NewConsumerWithClusterClient(
 	config.Consumer.Offsets.Retention = 0 // indefinite retention
 
 	// ConsumerGroup initialised with provided brokers, topic, group and sync
-	cg = ConsumerGroup{
+	cg = &ConsumerGroup{
 		brokers:   brokers,
 		topic:     topic,
 		group:     group,

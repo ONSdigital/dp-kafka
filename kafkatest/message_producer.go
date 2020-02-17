@@ -4,9 +4,12 @@ import kafka "github.com/ONSdigital/dp-kafka"
 
 // NewMessageProducer creates a testing producer with new producerChannels
 func NewMessageProducer() *MessageProducer {
-	return &MessageProducer{
-		pChannels: kafka.CreateProducerChannels(),
-	}
+	return NewMessageProducerWithChannels(kafka.CreateProducerChannels())
+}
+
+// NewMessageProducerWithChannels creates a testing producer with the provided producerChannels
+func NewMessageProducerWithChannels(pChannels kafka.ProducerChannels) *MessageProducer {
+	return &MessageProducer{pChannels}
 }
 
 // MessageProducer provides a mock that allows injection of the required output channel.

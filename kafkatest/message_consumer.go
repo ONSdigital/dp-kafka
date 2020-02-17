@@ -4,11 +4,14 @@ import (
 	kafka "github.com/ONSdigital/dp-kafka"
 )
 
-// NewMessageConsumer creates a testing consumer with new consumerChannels
+// NewMessageConsumer creates a testing consumer with new consumerGroupChannels
 func NewMessageConsumer() *MessageConsumer {
-	return &MessageConsumer{
-		cgChannels: kafka.CreateConsumerGroupChannels(true),
-	}
+	return NewMessageConsumerWithChannels(kafka.CreateConsumerGroupChannels(true))
+}
+
+// NewMessageConsumerWithChannels creates a testing consumer with the provided consumerGroupChannels
+func NewMessageConsumerWithChannels(cgChannels kafka.ConsumerGroupChannels) *MessageConsumer {
+	return &MessageConsumer{cgChannels}
 }
 
 // MessageConsumer is a mock that provides the stored schema channel.
