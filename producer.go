@@ -67,7 +67,7 @@ func (p *Producer) Channels() *ProducerChannels {
 	if p == nil {
 		return nil
 	}
-	return p.Channels()
+	return p.channels
 }
 
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
