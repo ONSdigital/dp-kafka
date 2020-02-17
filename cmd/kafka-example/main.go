@@ -62,7 +62,11 @@ func main() {
 	producer, err := kafka.NewProducer(
 		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
 	if err != nil {
-		log.Event(ctx, "[KAFKA-TEST] Could not create producer. Please, try to reconnect later", log.Error(err))
+		log.Event(ctx, "[KAFKA-TEST] Fatal error creating producer.", log.Error(err))
+		os.Exit(1)
+	}
+	if !producer.IsInitialised() {
+		log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Please, try to initialise it later.")
 	}
 
 	// Create Consumer with channels
@@ -70,7 +74,11 @@ func main() {
 	consumer, err := kafka.NewConsumerGroup(
 		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
 	if err != nil {
-		log.Event(ctx, "[KAFKA-TEST] Could not create consumer. Please try to reconnect later", log.Error(err))
+		log.Event(ctx, "[KAFKA-TEST] Fatal error creating consumer.", log.Error(err))
+		os.Exit(1)
+	}
+	if !producer.IsInitialised() {
+		log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Please, try to initialise it later.")
 	}
 
 	// Create signals and stdin channels
@@ -101,6 +109,7 @@ func main() {
 	eventLoopDone := make(chan bool)
 	consumeCount := 0
 
+	// stdin reader loop
 	go func(ch chan string) {
 		reader := bufio.NewReader(os.Stdin)
 		for {

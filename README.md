@@ -35,7 +35,7 @@ The constructor tires to initialise the producer/consumer by creating the underl
 
 ### Initialisation
 
-A producer/consumer might have not been successfully initialised at creation time. If this is the case, you can always try to initialise it by calling `Initialise`. To validate the initialisation state, please call `IsInitialised`.
+A producer/consumer might not have been successfully initialised at creation time. If this is the case, you can always try to initialise it by calling `Initialise`. To validate the initialisation state, please call `IsInitialised`.
 
 If a producer/consumer is not initialised, it cannot contact the kafka broker.
 

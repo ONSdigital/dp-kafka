@@ -36,21 +36,21 @@ type ProducerChannels struct {
 }
 
 // Validate returns ErrNoChannel if any consumer channel is nil
-func (cCh *ConsumerGroupChannels) Validate() error {
+func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	missingChannels := []string{}
-	if cCh.Upstream == nil {
+	if consumerChannels.Upstream == nil {
 		missingChannels = append(missingChannels, Upstream)
 	}
-	if cCh.Errors == nil {
+	if consumerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if cCh.Closer == nil {
+	if consumerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
 	}
-	if cCh.Closed == nil {
+	if consumerChannels.Closed == nil {
 		missingChannels = append(missingChannels, Closed)
 	}
-	if cCh.UpstreamDone == nil {
+	if consumerChannels.UpstreamDone == nil {
 		missingChannels = append(missingChannels, UpstreamDone)
 	}
 	if len(missingChannels) > 0 {
@@ -61,13 +61,13 @@ func (cCh *ConsumerGroupChannels) Validate() error {
 
 // LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
 // Provided context and errMsg will be used in the log Event.
-func (cCh *ConsumerGroupChannels) LogErrors(ctx context.Context, errMsg string) {
+func (consumerChannels *ConsumerGroupChannels) LogErrors(ctx context.Context, errMsg string) {
 	go func() {
-		for true {
+		for {
 			select {
-			case err := <-cCh.Errors:
+			case err := <-consumerChannels.Errors:
 				log.Event(ctx, errMsg, log.Error(err))
-			case <-cCh.Closer:
+			case <-consumerChannels.Closer:
 				return
 			}
 		}
@@ -75,21 +75,21 @@ func (cCh *ConsumerGroupChannels) LogErrors(ctx context.Context, errMsg string) 
 }
 
 // Validate returns ErrNoChannel if any producer channel is nil
-func (pCh *ProducerChannels) Validate() error {
+func (producerChannels *ProducerChannels) Validate() error {
 	missingChannels := []string{}
-	if pCh.Output == nil {
+	if producerChannels.Output == nil {
 		missingChannels = append(missingChannels, Output)
 	}
-	if pCh.Errors == nil {
+	if producerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if pCh.Init == nil {
+	if producerChannels.Init == nil {
 		missingChannels = append(missingChannels, Init)
 	}
-	if pCh.Closer == nil {
+	if producerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
 	}
-	if pCh.Closed == nil {
+	if producerChannels.Closed == nil {
 		missingChannels = append(missingChannels, Closed)
 	}
 	if len(missingChannels) > 0 {
@@ -100,13 +100,13 @@ func (pCh *ProducerChannels) Validate() error {
 
 // LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
 // Provided context and errMsg will be used in the log Event.
-func (pCh *ProducerChannels) LogErrors(ctx context.Context, errMsg string) {
+func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg string) {
 	go func() {
-		for true {
+		for {
 			select {
-			case err := <-pCh.Errors:
+			case err := <-producerChannels.Errors:
 				log.Event(ctx, errMsg, log.Error(err))
-			case <-pCh.Closer:
+			case <-producerChannels.Closer:
 				return
 			}
 		}
