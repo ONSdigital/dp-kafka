@@ -43,6 +43,16 @@ An uninitialised kafka producer cannot send messages, and any attempt to do so w
 
 An uninitialised kafka consumer group will not receive any message.
 
+When a producer/consumer is successfully initialised, it will close teh channel `Init`. You can trigger some event on kafka initialisation by waiting for the channel to be closed. For example:
+```
+	go func() {
+		<-channels.Init
+		doKafkaStuff()
+	}()
+```
+
+Waiting for this channel is a convenient hook, but not a necessary requirement. The other channels will send/receive data when Sarama is initialised in any case.
+
 ### Closing
 
 Producers can be closed calling the `Close` method.

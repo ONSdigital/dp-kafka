@@ -21,6 +21,7 @@ const (
 type ConsumerGroupChannels struct {
 	Upstream     chan Message
 	Errors       chan error
+	Init         chan struct{}
 	Closer       chan struct{}
 	Closed       chan struct{}
 	UpstreamDone chan bool
@@ -43,6 +44,9 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	}
 	if consumerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
+	}
+	if consumerChannels.Init == nil {
+		missingChannels = append(missingChannels, Init)
 	}
 	if consumerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
@@ -126,6 +130,7 @@ func CreateConsumerGroupChannels(sync bool) ConsumerGroupChannels {
 	return ConsumerGroupChannels{
 		Upstream:     chUpstream,
 		Errors:       make(chan error),
+		Init:         make(chan struct{}),
 		Closer:       make(chan struct{}),
 		Closed:       make(chan struct{}),
 		UpstreamDone: make(chan bool, 1),

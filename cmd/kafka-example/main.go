@@ -127,6 +127,18 @@ func main() {
 		close(ch)
 	}(stdinChannel)
 
+	// log when consumer is initialised. In a real system we might want to do something in this event
+	go func() {
+		<-cgChannels.Init
+		log.Event(ctx, "[KAFKA-TEST] Consumer group has been successfully initialised")
+	}()
+
+	// log when producer is initialised. In a real system we might want to do something in this event
+	go func() {
+		<-pChannels.Init
+		log.Event(ctx, "[KAFKA-TEST] Producer has been successfully initialised")
+	}()
+
 	// eventLoop
 	go func() {
 		defer close(eventLoopDone)

@@ -105,10 +105,10 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
-	close(p.channels.Init)
 	log.Event(ctx, "Initialised Sarama Producer", log.Data{"topic": p.topic})
-	err = p.createLoopInitialised(ctx)
-	return err
+	p.createLoopInitialised(ctx)
+	close(p.channels.Init)
+	return nil
 }
 
 // Close safely closes the producer and releases all resources.

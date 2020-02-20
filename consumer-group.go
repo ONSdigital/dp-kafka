@@ -120,11 +120,12 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 		return err
 	}
 
-	// On Successful initialization, create main and control loop goroutines
+	// On Successful initialization, create main and control loop goroutines and close Init channel
 	cg.consumer = consumer
 	log.Event(ctx, "Initialised Sarama Consumer", logData)
 	cg.createMainLoop(ctx)
 	cg.createControlLoop(ctx)
+	close(cg.channels.Init)
 
 	return nil
 }
