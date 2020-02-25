@@ -151,7 +151,7 @@ func TestProducer(t *testing.T) {
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			msg := kafkatest.NewMessage([]byte(message))
+			msg := kafkatest.NewMessage([]byte(message), 1)
 			channels.Output <- msg.GetData()
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -250,7 +250,7 @@ func TestProducerNotInitialised(t *testing.T) {
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			msg := kafkatest.NewMessage([]byte(message))
+			msg := kafkatest.NewMessage([]byte(message), 1)
 			channels.Output <- msg.GetData()
 			// Read and validate error
 			select {
