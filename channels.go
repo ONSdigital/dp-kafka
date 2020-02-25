@@ -70,7 +70,7 @@ func (consumerChannels *ConsumerGroupChannels) LogErrors(ctx context.Context, er
 		for {
 			select {
 			case err := <-consumerChannels.Errors:
-				log.Event(ctx, errMsg, log.Error(err))
+				log.Event(ctx, errMsg, log.ERROR, log.Error(err))
 			case <-consumerChannels.Closer:
 				return
 			}
@@ -109,7 +109,7 @@ func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg 
 		for {
 			select {
 			case err := <-producerChannels.Errors:
-				log.Event(ctx, errMsg, log.Error(err))
+				log.Event(ctx, errMsg, log.ERROR, log.Error(err))
 			case <-producerChannels.Closer:
 				return
 			}

@@ -52,7 +52,7 @@ func main() {
 
 	ctx := context.Background()
 
-	log.Event(ctx, "[KAFKA-TEST] Starting (consumer sent to stdout, stdin sent to producer)",
+	log.Event(ctx, "[KAFKA-TEST] Starting (consumer sent to stdout, stdin sent to producer)", log.INFO,
 		log.Data{"consumed_group": cfg.ConsumedGroup, "consumed_topic": cfg.ConsumedTopic, "produced_topic": cfg.ProducedTopic})
 
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
@@ -62,11 +62,11 @@ func main() {
 	producer, err := kafka.NewProducer(
 		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
 	if err != nil {
-		log.Event(ctx, "[KAFKA-TEST] Fatal error creating producer.", log.Error(err))
+		log.Event(ctx, "[KAFKA-TEST] Fatal error creating producer.", log.FATAL, log.Error(err))
 		os.Exit(1)
 	}
 	if !producer.IsInitialised() {
-		log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Please, try to initialise it later.")
+		log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Please, try to initialise it later.", log.WARN)
 	}
 
 	// Create Consumer with channels
@@ -74,11 +74,11 @@ func main() {
 	consumer, err := kafka.NewConsumerGroup(
 		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
 	if err != nil {
-		log.Event(ctx, "[KAFKA-TEST] Fatal error creating consumer.", log.Error(err))
+		log.Event(ctx, "[KAFKA-TEST] Fatal error creating consumer.", log.FATAL, log.Error(err))
 		os.Exit(1)
 	}
 	if !producer.IsInitialised() {
-		log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Please, try to initialise it later.")
+		log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Please, try to initialise it later.", log.WARN)
 	}
 
 	// Create signals and stdin channels
@@ -93,7 +93,7 @@ func main() {
 		"myVersion",
 	)
 	if err != nil {
-		log.Event(ctx, "failed to create service version information", log.Error(err))
+		log.Event(ctx, "failed to create service version information", log.FATAL, log.Error(err))
 		os.Exit(1)
 	}
 	hc := healthcheck.New(versionInfo, 1*time.Minute, 10*time.Second)
@@ -130,13 +130,13 @@ func main() {
 	// log when consumer is initialised. In a real system we might want to do something in this event
 	go func() {
 		<-cgChannels.Init
-		log.Event(ctx, "[KAFKA-TEST] Consumer group has been successfully initialised")
+		log.Event(ctx, "[KAFKA-TEST] Consumer group has been successfully initialised", log.INFO)
 	}()
 
 	// log when producer is initialised. In a real system we might want to do something in this event
 	go func() {
 		<-pChannels.Init
-		log.Event(ctx, "[KAFKA-TEST] Producer has been successfully initialised")
+		log.Event(ctx, "[KAFKA-TEST] Producer has been successfully initialised", log.INFO)
 	}()
 
 	// eventLoop
@@ -146,17 +146,17 @@ func main() {
 			select {
 
 			case <-time.After(ticker):
-				log.Event(ctx, "[KAFKA-TEST] tick")
+				log.Event(ctx, "[KAFKA-TEST] tick", log.INFO)
 
 			case <-eventLoopContext.Done():
-				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
+				log.Event(ctx, "[KAFKA-TEST] Event loop context done", log.INFO, log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
 
 			case consumedMessage := <-cgChannels.Upstream:
 				// consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incoming()
 				consumeCount++
 				logData := log.Data{"consumeCount": consumeCount, "consumeMax": cfg.ConsumeMax, "messageOffset": consumedMessage.Offset()}
-				log.Event(ctx, "[KAFKA-TEST] Received message", logData)
+				log.Event(ctx, "[KAFKA-TEST] Received message", log.INFO, logData)
 
 				consumedData := consumedMessage.GetData()
 				logData["messageString"] = string(consumedData)
@@ -170,36 +170,36 @@ func main() {
 				pChannels.Output <- consumedData
 
 				if cfg.KafkaSync {
-					log.Event(ctx, "[KAFKA-TEST] pre-release")
+					log.Event(ctx, "[KAFKA-TEST] pre-release", log.INFO)
 					consumer.CommitAndRelease(consumedMessage)
 				} else {
-					log.Event(ctx, "[KAFKA-TEST] pre-commit")
+					log.Event(ctx, "[KAFKA-TEST] pre-commit", log.INFO)
 					consumedMessage.Commit()
 				}
-				log.Event(ctx, "[KAFKA-TEST] committed message", log.Data{"messageOffset": consumedMessage.Offset()})
+				log.Event(ctx, "[KAFKA-TEST] committed message", log.INFO, log.Data{"messageOffset": consumedMessage.Offset()})
 				if consumeCount == cfg.ConsumeMax {
-					log.Event(ctx, "[KAFKA-TEST] consumed max - exiting eventLoop", nil)
+					log.Event(ctx, "[KAFKA-TEST] consumed max - exiting eventLoop", log.INFO)
 					return
 				}
 
 			case stdinLine := <-stdinChannel:
 				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
 				pChannels.Output <- []byte(stdinLine)
-				log.Event(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
+				log.Event(ctx, "[KAFKA-TEST] Message output", log.INFO, log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}
 	}()
 
 	// Start Healthcheck
-	log.Event(ctx, "[KAFKA-TEST] Starting health-check")
+	log.Event(ctx, "[KAFKA-TEST] Starting health-check", log.INFO)
 	hc.Start(ctx)
 
 	// block until a fatal error, signal or eventLoopDone - then proceed to shutdown
 	select {
 	case <-eventLoopDone:
-		log.Event(ctx, "[KAFKA-TEST] Quitting after event loop aborted")
+		log.Event(ctx, "[KAFKA-TEST] Quitting after event loop aborted", log.INFO)
 	case sig := <-signals:
-		log.Event(ctx, "[KAFKA-TEST] Quitting after OS signal", log.Data{"signal": sig})
+		log.Event(ctx, "[KAFKA-TEST] Quitting after OS signal", log.INFO, log.Data{"signal": sig})
 	}
 
 	// give the app `Timeout` seconds to close gracefully before killing it.
@@ -207,31 +207,31 @@ func main() {
 
 	// background graceful shutdown
 	go func() {
-		log.Event(ctx, "[KAFKA-TEST] Stopping health-check")
+		log.Event(ctx, "[KAFKA-TEST] Stopping health-check", log.INFO)
 		hc.Stop()
-		log.Event(ctx, "[KAFKA-TEST] Stopping kafka consumer listener")
+		log.Event(ctx, "[KAFKA-TEST] Stopping kafka consumer listener", log.INFO)
 		consumer.StopListeningToConsumer(ctx)
-		log.Event(ctx, "[KAFKA-TEST] Stopped kafka consumer listener")
+		log.Event(ctx, "[KAFKA-TEST] Stopped kafka consumer listener", log.INFO)
 		eventLoopCancel()
 		// wait for eventLoopDone: all in-flight messages have been processed
 		<-eventLoopDone
-		log.Event(ctx, "[KAFKA-TEST] Closing kafka producer")
+		log.Event(ctx, "[KAFKA-TEST] Closing kafka producer", log.INFO)
 		producer.Close(ctx)
-		log.Event(ctx, "[KAFKA-TEST] Closed kafka producer")
-		log.Event(ctx, "[KAFKA-TEST] Closing kafka consumer")
+		log.Event(ctx, "[KAFKA-TEST] Closed kafka producer", log.INFO)
+		log.Event(ctx, "[KAFKA-TEST] Closing kafka consumer", log.INFO)
 		consumer.Close(ctx)
-		log.Event(ctx, "[KAFKA-TEST] Closed kafka consumer")
+		log.Event(ctx, "[KAFKA-TEST] Closed kafka consumer", log.INFO)
 
-		log.Event(ctx, "[KAFKA-TEST] Done shutdown - cancelling timeout context")
+		log.Event(ctx, "[KAFKA-TEST] Done shutdown - cancelling timeout context", log.INFO)
 		cancel() // stop timer
 	}()
 
 	// wait for timeout or success (via cancel)
 	<-ctx.Done()
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Event(ctx, "[KAFKA-TEST]", log.Error(ctx.Err()))
+		log.Event(ctx, "[KAFKA-TEST]", log.WARN, log.Error(ctx.Err()))
 	} else {
-		log.Event(ctx, "[KAFKA-TEST] Done shutdown gracefully", log.Data{"context": ctx.Err()})
+		log.Event(ctx, "[KAFKA-TEST] Done shutdown gracefully", log.INFO, log.Data{"context": ctx.Err()})
 	}
 	os.Exit(1)
 }
@@ -251,9 +251,9 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 		logData["sleep"] = sleep
 	}
 
-	log.Event(ctx, "[KAFKA-TEST] Message consumed", logData)
+	log.Event(ctx, "[KAFKA-TEST] Message consumed", log.INFO, logData)
 	if sleep > time.Duration(0) {
 		time.Sleep(sleep)
-		log.Event(ctx, "[KAFKA-TEST] done sleeping")
+		log.Event(ctx, "[KAFKA-TEST] done sleeping", log.INFO)
 	}
 }

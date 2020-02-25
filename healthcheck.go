@@ -59,7 +59,7 @@ func (p *Producer) healthcheck(ctx context.Context) error {
 	// If Sarama client is not initialised, we need to initialise it
 	err = p.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.Error(err))
+		log.Event(ctx, "error initialising sarama producer", log.WARN, log.Data{"topic": p.topic}, log.Error(err))
 		return ErrInitSarama
 	}
 	return nil
@@ -74,7 +74,7 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 	// If Sarama client is not initialised, we need to initialise it
 	err = cg.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
+		log.Event(ctx, "error initialising sarama consumer-group", log.WARN, log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
 		return ErrInitSarama
 	}
 	return nil
@@ -97,7 +97,7 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 		err := broker.Open(nil)
 		if err != nil {
 			unreachBrokers = append(unreachBrokers, addr)
-			log.Event(ctx, "failed to open connection to broker", log.Data{"address": addr}, log.Error(err))
+			log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
 			continue
 		}
 		defer broker.Close()
@@ -106,13 +106,13 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 		resp, err := broker.GetMetadata(&request)
 		if err != nil {
 			unreachBrokers = append(unreachBrokers, addr)
-			log.Event(ctx, "failed to obtain metadata from broker", log.Data{"address": addr, "topic": topic}, log.Error(err))
+			log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": addr, "topic": topic}, log.Error(err))
 			continue
 		}
 		// Validate metadata response is as expected
 		if len(resp.Topics) == 0 {
 			invalidBrokers = append(invalidBrokers, addr)
-			log.Event(ctx, "topic metadata not found in broker", log.Data{"address": addr, "topic": topic})
+			log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": addr, "topic": topic})
 			continue
 		}
 	}

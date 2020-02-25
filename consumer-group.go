@@ -76,7 +76,7 @@ func NewConsumerWithClusterClient(
 	// Initialise consumer group, and log any error
 	err = cg.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "Initialisation error (non-fatal)", log.Error(err))
+		log.Event(ctx, "Initialisation error (non-fatal)", log.WARN, log.Error(err))
 	}
 	return cg, nil
 }
@@ -122,7 +122,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 
 	// On Successful initialization, create main and control loop goroutines and close Init channel
 	cg.consumer = consumer
-	log.Event(ctx, "Initialised Sarama Consumer", logData)
+	log.Event(ctx, "Initialised Sarama Consumer", log.INFO, logData)
 	cg.createMainLoop(ctx)
 	cg.createControlLoop(ctx)
 	close(cg.channels.Init)
@@ -167,10 +167,10 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 	// If Sarama Consumer is available, we wait for it to close 'closed' channel, or ctx timeout.
 	select {
 	case <-cg.channels.Closed:
-		log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", logData)
+		log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", log.INFO, logData)
 	case <-ctx.Done():
 		err = ctx.Err()
-		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.Error(err), logData)
+		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.WARN, log.Error(err), logData)
 	}
 	return
 }
@@ -208,14 +208,14 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		// Close consumer only if it was initialised.
 		if cg.IsInitialised() {
 			if err = cg.consumer.Close(); err != nil {
-				log.Event(ctx, "Close failed of kafka consumer group", log.Error(err), logData)
+				log.Event(ctx, "Close failed of kafka consumer group", log.ERROR, log.Error(err), logData)
 			} else {
-				log.Event(ctx, "Successfully closed kafka consumer group", logData)
+				log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
 			}
 		}
 	case <-ctx.Done():
 		err = ctx.Err()
-		log.Event(ctx, "Close abandoned: context done", log.Error(err), logData)
+		log.Event(ctx, "Close abandoned: context done", log.WARN, log.Error(err), logData)
 	}
 	return
 }
@@ -227,7 +227,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 func (cg *ConsumerGroup) createMainLoop(ctx context.Context) {
 	go func() {
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-		log.Event(ctx, "Started kafka consumer listener", logData)
+		log.Event(ctx, "Started kafka consumer listener", log.INFO, logData)
 		defer close(cg.channels.Closed)
 		for looping := true; looping; {
 			select {
@@ -250,7 +250,7 @@ func (cg *ConsumerGroup) createMainLoop(ctx context.Context) {
 			}
 		}
 		cg.consumer.CommitOffsets()
-		log.Event(ctx, "Closed kafka consumer listener", logData)
+		log.Event(ctx, "Closed kafka consumer listener", log.INFO, logData)
 	}()
 }
 
@@ -267,11 +267,11 @@ func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
 		for looping := true; looping; {
 			select {
 			case <-cg.channels.Closer:
-				log.Event(ctx, "Closing kafka consumer controller", logData)
+				log.Event(ctx, "Closing kafka consumer controller", log.INFO, logData)
 				<-cg.channels.Closed
 				looping = false
 			case err := <-cg.consumer.Errors():
-				log.Event(ctx, "kafka consumer-group error", log.Error(err))
+				log.Event(ctx, "kafka consumer-group error", log.ERROR, log.Error(err))
 				cg.channels.Errors <- err
 			case <-time.After(tick):
 				if hasBalanced {
@@ -280,10 +280,10 @@ func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
 			case n, more := <-cg.consumer.Notifications():
 				if more {
 					hasBalanced = true
-					log.Event(ctx, "Rebalancing group", log.Data{"topic": cg.topic, "group": cg.group, "partitions": n.Current[cg.topic]})
+					log.Event(ctx, "Rebalancing group", log.INFO, log.Data{"topic": cg.topic, "group": cg.group, "partitions": n.Current[cg.topic]})
 				}
 			}
 		}
-		log.Event(ctx, "Closed kafka consumer controller", logData)
+		log.Event(ctx, "Closed kafka consumer controller", log.INFO, logData)
 	}()
 }
