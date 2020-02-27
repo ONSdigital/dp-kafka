@@ -43,7 +43,7 @@ An uninitialised kafka producer cannot send messages, and any attempt to do so w
 
 An uninitialised kafka consumer group will not receive any message.
 
-When a producer/consumer is successfully initialised, it will close teh channel `Init`. You can trigger some event on kafka initialisation by waiting for the channel to be closed. For example:
+When a producer/consumer is successfully initialised, it will close the channel `Init`. You can trigger some event on kafka initialisation by waiting for the channel to be closed. For example:
 ```
 	go func() {
 		<-channels.Init
