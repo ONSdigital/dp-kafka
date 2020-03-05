@@ -208,7 +208,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		// Close consumer only if it was initialised.
 		if cg.IsInitialised() {
 			if err = cg.consumer.Close(); err != nil {
-				log.Event(ctx, "Close failed of kafka consumer group", log.ERROR, log.Error(err), logData)
+				log.Event(ctx, "Close failed of kafka consumer group", log.WARN, log.Error(err), logData)
 			} else {
 				log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
 			}
@@ -268,7 +268,9 @@ func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
 			select {
 			case <-cg.channels.Closer:
 				log.Event(ctx, "Closing kafka consumer controller", log.INFO, logData)
-				<-cg.channels.Closed
+				looping = false
+			case <-cg.channels.Closed:
+				log.Event(ctx, "Closed kafka consumer controller", log.INFO, logData)
 				looping = false
 			case err := <-cg.consumer.Errors():
 				log.Event(ctx, "kafka consumer-group error", log.ERROR, log.Error(err))
