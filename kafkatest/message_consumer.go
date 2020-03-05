@@ -1,45 +1,104 @@
 package kafkatest
 
 import (
+	"context"
+
 	kafka "github.com/ONSdigital/dp-kafka"
 )
 
-// NewMessageConsumer creates a testing consumer with new consumerGroupChannels
-func NewMessageConsumer() *MessageConsumer {
-	return NewMessageConsumerWithChannels(kafka.CreateConsumerGroupChannels(true))
+// MessageConsumer is an extension of the moq ConsumerGroup, with channels
+// and implementation of required functions to emulate a fully functional Kafka ConsumerGroup
+type MessageConsumer struct {
+	cgInternal
+	ConsumerGroupMock
+}
+
+// cgInternal is an internal struct to keep track of the state and channels,
+// which also provides the mock methods.
+type cgInternal struct {
+	cgChannels    *kafka.ConsumerGroupChannels
+	isInitialised bool
+}
+
+// NewMessageConsumer creates a testing consumer with new consumerGroupChannels.
+// initialiseAtCreationTime determines if the consumer is initialised or not when it's created
+func NewMessageConsumer(initialiseAtCreationTime bool) *MessageConsumer {
+	cgChannels := kafka.CreateConsumerGroupChannels(true)
+	return NewMessageConsumerWithChannels(&cgChannels, initialiseAtCreationTime)
 }
 
 // NewMessageConsumerWithChannels creates a testing consumer with the provided consumerGroupChannels
-func NewMessageConsumerWithChannels(cgChannels kafka.ConsumerGroupChannels) *MessageConsumer {
-	return &MessageConsumer{cgChannels, 0, 0}
+// initialiseAtCreationTime determines if the consumer is initialised or not when it's created
+func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, initialiseAtCreationTime bool) *MessageConsumer {
+
+	internal := cgInternal{
+		isInitialised: false,
+		cgChannels:    cgChannels,
+	}
+	if initialiseAtCreationTime {
+		internal.isInitialised = true
+	}
+
+	return &MessageConsumer{
+		internal,
+		ConsumerGroupMock{
+			ChannelsFunc:                internal.channelsFunc,
+			IsInitialisedFunc:           internal.isInitialisedFunc,
+			InitialiseFunc:              internal.initialiseFunc,
+			ReleaseFunc:                 internal.releaseFunc,
+			CommitAndReleaseFunc:        internal.commitAndReleaseFunc,
+			StopListeningToConsumerFunc: internal.stopListeningToConsumerFunc,
+			CloseFunc:                   internal.closeFunc,
+		},
+	}
 }
 
-// MessageConsumer is a mock that provides the stored schema channel.
-type MessageConsumer struct {
-	cgChannels            kafka.ConsumerGroupChannels
-	channelsCalls         int
-	commitAndReleaseCalls int
+func (internal *cgInternal) initialiseFunc(ctx context.Context) error {
+	if internal.isInitialised {
+		return nil
+	}
+	internal.isInitialised = true
+	close(internal.cgChannels.Init)
+	return nil
 }
 
-// Channels returns the stored channels
-func (consumer *MessageConsumer) Channels() *kafka.ConsumerGroupChannels {
-	consumer.channelsCalls++
-	return &consumer.cgChannels
+func (internal *cgInternal) isInitialisedFunc() bool {
+	return internal.isInitialised
 }
 
-// ChannelsCalls returns the number of calls to Channels()
-func (consumer *MessageConsumer) ChannelsCalls() int {
-	return consumer.channelsCalls
+func (internal *cgInternal) channelsFunc() *kafka.ConsumerGroupChannels {
+	return internal.cgChannels
 }
 
-// CommitAndRelease commits the message, releases the listener to consume next, notifying the UpstreamDone chanel
-func (consumer *MessageConsumer) CommitAndRelease(m kafka.Message) {
-	consumer.commitAndReleaseCalls++
-	m.Commit()
-	consumer.cgChannels.UpstreamDone <- true
+func (internal *cgInternal) releaseFunc() {
+	internal.cgChannels.UpstreamDone <- true
 }
 
-// CommitAndReleaseCalls returns the number of calls to CommitAndRelease()
-func (consumer *MessageConsumer) CommitAndReleaseCalls() int {
-	return consumer.commitAndReleaseCalls
+func (internal *cgInternal) commitAndReleaseFunc(msg kafka.Message) {
+	msg.Commit()
+	internal.cgChannels.UpstreamDone <- true
+}
+
+func (internal *cgInternal) stopListeningToConsumerFunc(ctx context.Context) error {
+	close(internal.cgChannels.Closer)
+	close(internal.cgChannels.Closed)
+	return nil
+}
+
+func (internal *cgInternal) closeFunc(ctx context.Context) error {
+	select {
+	case <-internal.cgChannels.Closer:
+	default:
+		close(internal.cgChannels.Closer)
+	}
+
+	select {
+	case <-internal.cgChannels.Closed:
+	default:
+		close(internal.cgChannels.Closed)
+	}
+
+	close(internal.cgChannels.Errors)
+	close(internal.cgChannels.Upstream)
+	return nil
 }
