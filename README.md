@@ -76,4 +76,4 @@ See the [example source file](cmd/kafka-example/main.go) for a typical usage.
 
 ## Testing
 
-Some mocks are provided, so that you can test your code interactions with this librar. [More details here.](kafkatest.README.md)
+Some mocks are provided, so that you can test your code interactions with this library. [More details here.](kafkatest/README.md)
