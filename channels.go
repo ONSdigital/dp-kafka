@@ -118,7 +118,7 @@ func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg 
 }
 
 // CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels according to sync
-func CreateConsumerGroupChannels(sync bool) ConsumerGroupChannels {
+func CreateConsumerGroupChannels(sync bool) *ConsumerGroupChannels {
 	var chUpstream chan Message
 	if sync {
 		// Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
@@ -127,7 +127,7 @@ func CreateConsumerGroupChannels(sync bool) ConsumerGroupChannels {
 		// not sync -> upstream channel un-buffered
 		chUpstream = make(chan Message)
 	}
-	return ConsumerGroupChannels{
+	return &ConsumerGroupChannels{
 		Upstream:     chUpstream,
 		Errors:       make(chan error),
 		Init:         make(chan struct{}),
