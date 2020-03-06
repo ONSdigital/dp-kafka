@@ -72,7 +72,7 @@ func TestConsumerMissingChannels(t *testing.T) {
 		Convey("Providing an invalid ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", func() {
 			consumer, err := kafka.NewConsumerWithClusterClient(
 				ctx, testBrokers, testTopic, testGroup, kafka.OffsetNewest, true,
-				kafka.ConsumerGroupChannels{
+				&kafka.ConsumerGroupChannels{
 					Upstream: make(chan kafka.Message),
 				},
 				clusterCli,

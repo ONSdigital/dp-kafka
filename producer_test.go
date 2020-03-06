@@ -103,7 +103,7 @@ func TestProducerMissingChannels(t *testing.T) {
 		Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error and producer will not be initialised", func() {
 			producer, err := kafka.NewProducerWithSaramaClient(
 				ctx, testBrokers, testTopic, 123,
-				kafka.ProducerChannels{
+				&kafka.ProducerChannels{
 					Output: make(chan []byte),
 				},
 				saramaCli,
