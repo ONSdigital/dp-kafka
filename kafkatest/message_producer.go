@@ -24,7 +24,7 @@ type pInternal struct {
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
 func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
 	pChannels := kafka.CreateProducerChannels()
-	return NewMessageProducerWithChannels(&pChannels, isInitialisedAtCreationTime)
+	return NewMessageProducerWithChannels(pChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageProducerWithChannels creates a testing producer with the provided producerChannels.
