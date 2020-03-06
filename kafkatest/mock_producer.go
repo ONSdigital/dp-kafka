@@ -10,22 +10,22 @@ import (
 )
 
 var (
-	lockProducerMockChannels      sync.RWMutex
-	lockProducerMockClose         sync.RWMutex
-	lockProducerMockInitialise    sync.RWMutex
-	lockProducerMockIsInitialised sync.RWMutex
+	lockIProducerMockChannels      sync.RWMutex
+	lockIProducerMockClose         sync.RWMutex
+	lockIProducerMockInitialise    sync.RWMutex
+	lockIProducerMockIsInitialised sync.RWMutex
 )
 
-// Ensure, that ProducerMock does implement Producer.
+// Ensure, that IProducerMock does implement kafka.IProducer.
 // If this is not the case, regenerate this file with moq.
-var _ Producer = &ProducerMock{}
+var _ kafka.IProducer = &IProducerMock{}
 
-// ProducerMock is a mock implementation of Producer.
+// IProducerMock is a mock implementation of kafka.IProducer.
 //
-//     func TestSomethingThatUsesProducer(t *testing.T) {
+//     func TestSomethingThatUsesIProducer(t *testing.T) {
 //
-//         // make and configure a mocked Producer
-//         mockedProducer := &ProducerMock{
+//         // make and configure a mocked kafka.IProducer
+//         mockedIProducer := &IProducerMock{
 //             ChannelsFunc: func() *kafka.ProducerChannels {
 // 	               panic("mock out the Channels method")
 //             },
@@ -40,11 +40,11 @@ var _ Producer = &ProducerMock{}
 //             },
 //         }
 //
-//         // use mockedProducer in code that requires Producer
+//         // use mockedIProducer in code that requires kafka.IProducer
 //         // and then make assertions.
 //
 //     }
-type ProducerMock struct {
+type IProducerMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ProducerChannels
 
@@ -79,115 +79,115 @@ type ProducerMock struct {
 }
 
 // Channels calls ChannelsFunc.
-func (mock *ProducerMock) Channels() *kafka.ProducerChannels {
+func (mock *IProducerMock) Channels() *kafka.ProducerChannels {
 	if mock.ChannelsFunc == nil {
-		panic("ProducerMock.ChannelsFunc: method is nil but Producer.Channels was just called")
+		panic("IProducerMock.ChannelsFunc: method is nil but IProducer.Channels was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockProducerMockChannels.Lock()
+	lockIProducerMockChannels.Lock()
 	mock.calls.Channels = append(mock.calls.Channels, callInfo)
-	lockProducerMockChannels.Unlock()
+	lockIProducerMockChannels.Unlock()
 	return mock.ChannelsFunc()
 }
 
 // ChannelsCalls gets all the calls that were made to Channels.
 // Check the length with:
-//     len(mockedProducer.ChannelsCalls())
-func (mock *ProducerMock) ChannelsCalls() []struct {
+//     len(mockedIProducer.ChannelsCalls())
+func (mock *IProducerMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockProducerMockChannels.RLock()
+	lockIProducerMockChannels.RLock()
 	calls = mock.calls.Channels
-	lockProducerMockChannels.RUnlock()
+	lockIProducerMockChannels.RUnlock()
 	return calls
 }
 
 // Close calls CloseFunc.
-func (mock *ProducerMock) Close(ctx context.Context) error {
+func (mock *IProducerMock) Close(ctx context.Context) error {
 	if mock.CloseFunc == nil {
-		panic("ProducerMock.CloseFunc: method is nil but Producer.Close was just called")
+		panic("IProducerMock.CloseFunc: method is nil but IProducer.Close was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockProducerMockClose.Lock()
+	lockIProducerMockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockProducerMockClose.Unlock()
+	lockIProducerMockClose.Unlock()
 	return mock.CloseFunc(ctx)
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedProducer.CloseCalls())
-func (mock *ProducerMock) CloseCalls() []struct {
+//     len(mockedIProducer.CloseCalls())
+func (mock *IProducerMock) CloseCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockProducerMockClose.RLock()
+	lockIProducerMockClose.RLock()
 	calls = mock.calls.Close
-	lockProducerMockClose.RUnlock()
+	lockIProducerMockClose.RUnlock()
 	return calls
 }
 
 // Initialise calls InitialiseFunc.
-func (mock *ProducerMock) Initialise(ctx context.Context) error {
+func (mock *IProducerMock) Initialise(ctx context.Context) error {
 	if mock.InitialiseFunc == nil {
-		panic("ProducerMock.InitialiseFunc: method is nil but Producer.Initialise was just called")
+		panic("IProducerMock.InitialiseFunc: method is nil but IProducer.Initialise was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockProducerMockInitialise.Lock()
+	lockIProducerMockInitialise.Lock()
 	mock.calls.Initialise = append(mock.calls.Initialise, callInfo)
-	lockProducerMockInitialise.Unlock()
+	lockIProducerMockInitialise.Unlock()
 	return mock.InitialiseFunc(ctx)
 }
 
 // InitialiseCalls gets all the calls that were made to Initialise.
 // Check the length with:
-//     len(mockedProducer.InitialiseCalls())
-func (mock *ProducerMock) InitialiseCalls() []struct {
+//     len(mockedIProducer.InitialiseCalls())
+func (mock *IProducerMock) InitialiseCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockProducerMockInitialise.RLock()
+	lockIProducerMockInitialise.RLock()
 	calls = mock.calls.Initialise
-	lockProducerMockInitialise.RUnlock()
+	lockIProducerMockInitialise.RUnlock()
 	return calls
 }
 
 // IsInitialised calls IsInitialisedFunc.
-func (mock *ProducerMock) IsInitialised() bool {
+func (mock *IProducerMock) IsInitialised() bool {
 	if mock.IsInitialisedFunc == nil {
-		panic("ProducerMock.IsInitialisedFunc: method is nil but Producer.IsInitialised was just called")
+		panic("IProducerMock.IsInitialisedFunc: method is nil but IProducer.IsInitialised was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockProducerMockIsInitialised.Lock()
+	lockIProducerMockIsInitialised.Lock()
 	mock.calls.IsInitialised = append(mock.calls.IsInitialised, callInfo)
-	lockProducerMockIsInitialised.Unlock()
+	lockIProducerMockIsInitialised.Unlock()
 	return mock.IsInitialisedFunc()
 }
 
 // IsInitialisedCalls gets all the calls that were made to IsInitialised.
 // Check the length with:
-//     len(mockedProducer.IsInitialisedCalls())
-func (mock *ProducerMock) IsInitialisedCalls() []struct {
+//     len(mockedIProducer.IsInitialisedCalls())
+func (mock *IProducerMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockProducerMockIsInitialised.RLock()
+	lockIProducerMockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
-	lockProducerMockIsInitialised.RUnlock()
+	lockIProducerMockIsInitialised.RUnlock()
 	return calls
 }

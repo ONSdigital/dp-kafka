@@ -8,7 +8,17 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// Producer provides a producer of Kafka messages
+//go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
+
+// IProducer is an interface representing a Kafka Producer
+type IProducer interface {
+	Channels() *ProducerChannels
+	IsInitialised() bool
+	Initialise(ctx context.Context) error
+	Close(ctx context.Context) (err error)
+}
+
+// Producer is a producer of Kafka messages
 type Producer struct {
 	envMax    int
 	producer  sarama.AsyncProducer

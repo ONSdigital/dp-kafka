@@ -9,8 +9,8 @@ import (
 // MessageProducer is an extension of the moq Producer, with channels
 // and implementation of required functions to emulate a fully functional kafka Producer.
 type MessageProducer struct {
-	pInternal
-	ProducerMock
+	*pInternal
+	*IProducerMock
 }
 
 // pInternal is an internal struct to keep track of the state and channels,
@@ -31,7 +31,7 @@ func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
 func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
 
-	internal := pInternal{
+	internal := &pInternal{
 		isInitialised: false,
 		pChannels:     pChannels,
 	}
@@ -41,7 +41,7 @@ func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitial
 
 	return &MessageProducer{
 		internal,
-		ProducerMock{
+		&IProducerMock{
 			InitialiseFunc:    internal.initialiseFunc,
 			IsInitialisedFunc: internal.isInitialisedFunc,
 			ChannelsFunc:      internal.channelsFunc,

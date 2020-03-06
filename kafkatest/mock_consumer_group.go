@@ -10,25 +10,25 @@ import (
 )
 
 var (
-	lockConsumerGroupMockChannels                sync.RWMutex
-	lockConsumerGroupMockClose                   sync.RWMutex
-	lockConsumerGroupMockCommitAndRelease        sync.RWMutex
-	lockConsumerGroupMockInitialise              sync.RWMutex
-	lockConsumerGroupMockIsInitialised           sync.RWMutex
-	lockConsumerGroupMockRelease                 sync.RWMutex
-	lockConsumerGroupMockStopListeningToConsumer sync.RWMutex
+	lockIConsumerGroupMockChannels                sync.RWMutex
+	lockIConsumerGroupMockClose                   sync.RWMutex
+	lockIConsumerGroupMockCommitAndRelease        sync.RWMutex
+	lockIConsumerGroupMockInitialise              sync.RWMutex
+	lockIConsumerGroupMockIsInitialised           sync.RWMutex
+	lockIConsumerGroupMockRelease                 sync.RWMutex
+	lockIConsumerGroupMockStopListeningToConsumer sync.RWMutex
 )
 
-// Ensure, that ConsumerGroupMock does implement ConsumerGroup.
+// Ensure, that IConsumerGroupMock does implement kafka.IConsumerGroup.
 // If this is not the case, regenerate this file with moq.
-var _ ConsumerGroup = &ConsumerGroupMock{}
+var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 
-// ConsumerGroupMock is a mock implementation of ConsumerGroup.
+// IConsumerGroupMock is a mock implementation of kafka.IConsumerGroup.
 //
-//     func TestSomethingThatUsesConsumerGroup(t *testing.T) {
+//     func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked ConsumerGroup
-//         mockedConsumerGroup := &ConsumerGroupMock{
+//         // make and configure a mocked kafka.IConsumerGroup
+//         mockedIConsumerGroup := &IConsumerGroupMock{
 //             ChannelsFunc: func() *kafka.ConsumerGroupChannels {
 // 	               panic("mock out the Channels method")
 //             },
@@ -52,11 +52,11 @@ var _ ConsumerGroup = &ConsumerGroupMock{}
 //             },
 //         }
 //
-//         // use mockedConsumerGroup in code that requires ConsumerGroup
+//         // use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
 //         // and then make assertions.
 //
 //     }
-type ConsumerGroupMock struct {
+type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ConsumerGroupChannels
 
@@ -113,203 +113,203 @@ type ConsumerGroupMock struct {
 }
 
 // Channels calls ChannelsFunc.
-func (mock *ConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
+func (mock *IConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
 	if mock.ChannelsFunc == nil {
-		panic("ConsumerGroupMock.ChannelsFunc: method is nil but ConsumerGroup.Channels was just called")
+		panic("IConsumerGroupMock.ChannelsFunc: method is nil but IConsumerGroup.Channels was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockConsumerGroupMockChannels.Lock()
+	lockIConsumerGroupMockChannels.Lock()
 	mock.calls.Channels = append(mock.calls.Channels, callInfo)
-	lockConsumerGroupMockChannels.Unlock()
+	lockIConsumerGroupMockChannels.Unlock()
 	return mock.ChannelsFunc()
 }
 
 // ChannelsCalls gets all the calls that were made to Channels.
 // Check the length with:
-//     len(mockedConsumerGroup.ChannelsCalls())
-func (mock *ConsumerGroupMock) ChannelsCalls() []struct {
+//     len(mockedIConsumerGroup.ChannelsCalls())
+func (mock *IConsumerGroupMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockConsumerGroupMockChannels.RLock()
+	lockIConsumerGroupMockChannels.RLock()
 	calls = mock.calls.Channels
-	lockConsumerGroupMockChannels.RUnlock()
+	lockIConsumerGroupMockChannels.RUnlock()
 	return calls
 }
 
 // Close calls CloseFunc.
-func (mock *ConsumerGroupMock) Close(ctx context.Context) error {
+func (mock *IConsumerGroupMock) Close(ctx context.Context) error {
 	if mock.CloseFunc == nil {
-		panic("ConsumerGroupMock.CloseFunc: method is nil but ConsumerGroup.Close was just called")
+		panic("IConsumerGroupMock.CloseFunc: method is nil but IConsumerGroup.Close was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockConsumerGroupMockClose.Lock()
+	lockIConsumerGroupMockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockConsumerGroupMockClose.Unlock()
+	lockIConsumerGroupMockClose.Unlock()
 	return mock.CloseFunc(ctx)
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedConsumerGroup.CloseCalls())
-func (mock *ConsumerGroupMock) CloseCalls() []struct {
+//     len(mockedIConsumerGroup.CloseCalls())
+func (mock *IConsumerGroupMock) CloseCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockConsumerGroupMockClose.RLock()
+	lockIConsumerGroupMockClose.RLock()
 	calls = mock.calls.Close
-	lockConsumerGroupMockClose.RUnlock()
+	lockIConsumerGroupMockClose.RUnlock()
 	return calls
 }
 
 // CommitAndRelease calls CommitAndReleaseFunc.
-func (mock *ConsumerGroupMock) CommitAndRelease(msg kafka.Message) {
+func (mock *IConsumerGroupMock) CommitAndRelease(msg kafka.Message) {
 	if mock.CommitAndReleaseFunc == nil {
-		panic("ConsumerGroupMock.CommitAndReleaseFunc: method is nil but ConsumerGroup.CommitAndRelease was just called")
+		panic("IConsumerGroupMock.CommitAndReleaseFunc: method is nil but IConsumerGroup.CommitAndRelease was just called")
 	}
 	callInfo := struct {
 		Msg kafka.Message
 	}{
 		Msg: msg,
 	}
-	lockConsumerGroupMockCommitAndRelease.Lock()
+	lockIConsumerGroupMockCommitAndRelease.Lock()
 	mock.calls.CommitAndRelease = append(mock.calls.CommitAndRelease, callInfo)
-	lockConsumerGroupMockCommitAndRelease.Unlock()
+	lockIConsumerGroupMockCommitAndRelease.Unlock()
 	mock.CommitAndReleaseFunc(msg)
 }
 
 // CommitAndReleaseCalls gets all the calls that were made to CommitAndRelease.
 // Check the length with:
-//     len(mockedConsumerGroup.CommitAndReleaseCalls())
-func (mock *ConsumerGroupMock) CommitAndReleaseCalls() []struct {
+//     len(mockedIConsumerGroup.CommitAndReleaseCalls())
+func (mock *IConsumerGroupMock) CommitAndReleaseCalls() []struct {
 	Msg kafka.Message
 } {
 	var calls []struct {
 		Msg kafka.Message
 	}
-	lockConsumerGroupMockCommitAndRelease.RLock()
+	lockIConsumerGroupMockCommitAndRelease.RLock()
 	calls = mock.calls.CommitAndRelease
-	lockConsumerGroupMockCommitAndRelease.RUnlock()
+	lockIConsumerGroupMockCommitAndRelease.RUnlock()
 	return calls
 }
 
 // Initialise calls InitialiseFunc.
-func (mock *ConsumerGroupMock) Initialise(ctx context.Context) error {
+func (mock *IConsumerGroupMock) Initialise(ctx context.Context) error {
 	if mock.InitialiseFunc == nil {
-		panic("ConsumerGroupMock.InitialiseFunc: method is nil but ConsumerGroup.Initialise was just called")
+		panic("IConsumerGroupMock.InitialiseFunc: method is nil but IConsumerGroup.Initialise was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockConsumerGroupMockInitialise.Lock()
+	lockIConsumerGroupMockInitialise.Lock()
 	mock.calls.Initialise = append(mock.calls.Initialise, callInfo)
-	lockConsumerGroupMockInitialise.Unlock()
+	lockIConsumerGroupMockInitialise.Unlock()
 	return mock.InitialiseFunc(ctx)
 }
 
 // InitialiseCalls gets all the calls that were made to Initialise.
 // Check the length with:
-//     len(mockedConsumerGroup.InitialiseCalls())
-func (mock *ConsumerGroupMock) InitialiseCalls() []struct {
+//     len(mockedIConsumerGroup.InitialiseCalls())
+func (mock *IConsumerGroupMock) InitialiseCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockConsumerGroupMockInitialise.RLock()
+	lockIConsumerGroupMockInitialise.RLock()
 	calls = mock.calls.Initialise
-	lockConsumerGroupMockInitialise.RUnlock()
+	lockIConsumerGroupMockInitialise.RUnlock()
 	return calls
 }
 
 // IsInitialised calls IsInitialisedFunc.
-func (mock *ConsumerGroupMock) IsInitialised() bool {
+func (mock *IConsumerGroupMock) IsInitialised() bool {
 	if mock.IsInitialisedFunc == nil {
-		panic("ConsumerGroupMock.IsInitialisedFunc: method is nil but ConsumerGroup.IsInitialised was just called")
+		panic("IConsumerGroupMock.IsInitialisedFunc: method is nil but IConsumerGroup.IsInitialised was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockConsumerGroupMockIsInitialised.Lock()
+	lockIConsumerGroupMockIsInitialised.Lock()
 	mock.calls.IsInitialised = append(mock.calls.IsInitialised, callInfo)
-	lockConsumerGroupMockIsInitialised.Unlock()
+	lockIConsumerGroupMockIsInitialised.Unlock()
 	return mock.IsInitialisedFunc()
 }
 
 // IsInitialisedCalls gets all the calls that were made to IsInitialised.
 // Check the length with:
-//     len(mockedConsumerGroup.IsInitialisedCalls())
-func (mock *ConsumerGroupMock) IsInitialisedCalls() []struct {
+//     len(mockedIConsumerGroup.IsInitialisedCalls())
+func (mock *IConsumerGroupMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockConsumerGroupMockIsInitialised.RLock()
+	lockIConsumerGroupMockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
-	lockConsumerGroupMockIsInitialised.RUnlock()
+	lockIConsumerGroupMockIsInitialised.RUnlock()
 	return calls
 }
 
 // Release calls ReleaseFunc.
-func (mock *ConsumerGroupMock) Release() {
+func (mock *IConsumerGroupMock) Release() {
 	if mock.ReleaseFunc == nil {
-		panic("ConsumerGroupMock.ReleaseFunc: method is nil but ConsumerGroup.Release was just called")
+		panic("IConsumerGroupMock.ReleaseFunc: method is nil but IConsumerGroup.Release was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockConsumerGroupMockRelease.Lock()
+	lockIConsumerGroupMockRelease.Lock()
 	mock.calls.Release = append(mock.calls.Release, callInfo)
-	lockConsumerGroupMockRelease.Unlock()
+	lockIConsumerGroupMockRelease.Unlock()
 	mock.ReleaseFunc()
 }
 
 // ReleaseCalls gets all the calls that were made to Release.
 // Check the length with:
-//     len(mockedConsumerGroup.ReleaseCalls())
-func (mock *ConsumerGroupMock) ReleaseCalls() []struct {
+//     len(mockedIConsumerGroup.ReleaseCalls())
+func (mock *IConsumerGroupMock) ReleaseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockConsumerGroupMockRelease.RLock()
+	lockIConsumerGroupMockRelease.RLock()
 	calls = mock.calls.Release
-	lockConsumerGroupMockRelease.RUnlock()
+	lockIConsumerGroupMockRelease.RUnlock()
 	return calls
 }
 
 // StopListeningToConsumer calls StopListeningToConsumerFunc.
-func (mock *ConsumerGroupMock) StopListeningToConsumer(ctx context.Context) error {
+func (mock *IConsumerGroupMock) StopListeningToConsumer(ctx context.Context) error {
 	if mock.StopListeningToConsumerFunc == nil {
-		panic("ConsumerGroupMock.StopListeningToConsumerFunc: method is nil but ConsumerGroup.StopListeningToConsumer was just called")
+		panic("IConsumerGroupMock.StopListeningToConsumerFunc: method is nil but IConsumerGroup.StopListeningToConsumer was just called")
 	}
 	callInfo := struct {
 		Ctx context.Context
 	}{
 		Ctx: ctx,
 	}
-	lockConsumerGroupMockStopListeningToConsumer.Lock()
+	lockIConsumerGroupMockStopListeningToConsumer.Lock()
 	mock.calls.StopListeningToConsumer = append(mock.calls.StopListeningToConsumer, callInfo)
-	lockConsumerGroupMockStopListeningToConsumer.Unlock()
+	lockIConsumerGroupMockStopListeningToConsumer.Unlock()
 	return mock.StopListeningToConsumerFunc(ctx)
 }
 
 // StopListeningToConsumerCalls gets all the calls that were made to StopListeningToConsumer.
 // Check the length with:
-//     len(mockedConsumerGroup.StopListeningToConsumerCalls())
-func (mock *ConsumerGroupMock) StopListeningToConsumerCalls() []struct {
+//     len(mockedIConsumerGroup.StopListeningToConsumerCalls())
+func (mock *IConsumerGroupMock) StopListeningToConsumerCalls() []struct {
 	Ctx context.Context
 } {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockConsumerGroupMockStopListeningToConsumer.RLock()
+	lockIConsumerGroupMockStopListeningToConsumer.RLock()
 	calls = mock.calls.StopListeningToConsumer
-	lockConsumerGroupMockStopListeningToConsumer.RUnlock()
+	lockIConsumerGroupMockStopListeningToConsumer.RUnlock()
 	return calls
 }

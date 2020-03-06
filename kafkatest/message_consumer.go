@@ -9,8 +9,8 @@ import (
 // MessageConsumer is an extension of the moq ConsumerGroup, with channels
 // and implementation of required functions to emulate a fully functional Kafka ConsumerGroup
 type MessageConsumer struct {
-	cgInternal
-	ConsumerGroupMock
+	*cgInternal
+	*IConsumerGroupMock
 }
 
 // cgInternal is an internal struct to keep track of the state and channels,
@@ -31,7 +31,7 @@ func NewMessageConsumer(isInitialisedAtCreationTime bool) *MessageConsumer {
 // isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
 func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isInitialisedAtCreationTime bool) *MessageConsumer {
 
-	internal := cgInternal{
+	internal := &cgInternal{
 		isInitialised: false,
 		cgChannels:    cgChannels,
 	}
@@ -41,7 +41,7 @@ func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isI
 
 	return &MessageConsumer{
 		internal,
-		ConsumerGroupMock{
+		&IConsumerGroupMock{
 			ChannelsFunc:                internal.channelsFunc,
 			IsInitialisedFunc:           internal.isInitialisedFunc,
 			InitialiseFunc:              internal.initialiseFunc,

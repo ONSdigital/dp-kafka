@@ -11,7 +11,20 @@ import (
 
 var tick = time.Millisecond * 1500
 
-// ConsumerGroup represents a Kafka consumer group instance.
+//go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
+
+// IConsumerGroup is an interface representing a Kafka Consumer Group.
+type IConsumerGroup interface {
+	Channels() *ConsumerGroupChannels
+	IsInitialised() bool
+	Initialise(ctx context.Context) error
+	Release()
+	CommitAndRelease(msg Message)
+	StopListeningToConsumer(ctx context.Context) (err error)
+	Close(ctx context.Context) (err error)
+}
+
+// ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
 	brokers   []string
 	channels  *ConsumerGroupChannels

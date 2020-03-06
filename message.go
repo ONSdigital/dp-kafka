@@ -4,6 +4,8 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+//go:generate moq -out ./kafkatest/mock_message.go -pkg kafkatest . Message
+
 // Message represents a single kafka message.
 type Message interface {
 

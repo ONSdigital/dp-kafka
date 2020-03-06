@@ -8,74 +8,58 @@ import (
 
 var _ kafka.Message = (*Message)(nil)
 
+// mInternal is an internal struct to keep track of the message mock state
+type mInternal struct {
+	data      []byte
+	committed bool
+	offset    int64
+	mu        sync.Mutex
+}
+
 // Message allows a mock message to return the configured data, and capture whether commit has been called.
 type Message struct {
-	data           []byte
-	committed      bool
-	offset         int64
-	mu             sync.Mutex
-	getDataCalls   int
-	commitCalls    int
-	committedCalls int
-	offsetCalls    int
+	*mInternal
+	*MessageMock
 }
 
 // NewMessage returns a new mock message containing the given data.
 func NewMessage(data []byte, offset int64) *Message {
+	internal := &mInternal{
+		data:      data,
+		committed: false,
+		offset:    offset,
+		mu:        sync.Mutex{},
+	}
 	return &Message{
-		data:           data,
-		offset:         offset,
-		getDataCalls:   0,
-		commitCalls:    0,
-		committedCalls: 0,
-		offsetCalls:    0,
+		internal,
+		&MessageMock{
+			GetDataFunc: internal.getDataFunc,
+			CommitFunc:  internal.commitFunc,
+			OffsetFunc:  internal.offsetFunc,
+		},
 	}
 }
 
-// GetData returns the data that was added to the struct.
-func (m *Message) GetData() []byte {
-	m.getDataCalls++
-	return m.data
+// getDataFunc returns the data that was added to the struct.
+func (internal *mInternal) getDataFunc() []byte {
+	return internal.data
 }
 
-// GetDataCalls returns the number of calls to GetData()
-func (m *Message) GetDataCalls() int {
-	return m.getDataCalls
+// commitFunc captures the fact that the method was called.
+func (internal *mInternal) commitFunc() {
+	internal.mu.Lock()
+	defer internal.mu.Unlock()
+	internal.committed = true
 }
 
-// Commit captures the fact that the method was called.
-func (m *Message) Commit() {
-	m.mu.Lock()
-	m.commitCalls++
-	m.committed = true
-	m.mu.Unlock()
+// committedFunc returns true if commit was called on this message.
+func (internal *mInternal) committedFunc() bool {
+	internal.mu.Lock()
+	defer internal.mu.Unlock()
+	return internal.committed
 }
 
-// CommitCalls returns the number of calls to Commit()
-func (m *Message) CommitCalls() int {
-	return m.commitCalls
-}
-
-// Committed returns true if commit was called on this message.
-func (m *Message) Committed() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.committedCalls++
-	return m.committed
-}
-
-// CommittedCalls returns the number of calls to Committed()
-func (m *Message) CommittedCalls() int {
-	return m.committedCalls
-}
-
-// Offset returns the message offset
-func (m *Message) Offset() int64 {
-	m.offsetCalls++
-	return m.offset
-}
-
-// OffsetCalls returns the number of calls to Offset()
-func (m *Message) OffsetCalls() int {
-	return m.offsetCalls
+// offsetFunc returns the message offset
+func (internal *mInternal) offsetFunc() int64 {
+	return internal.offset
 }
