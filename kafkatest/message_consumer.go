@@ -21,21 +21,21 @@ type cgInternal struct {
 }
 
 // NewMessageConsumer creates a testing consumer with new consumerGroupChannels.
-// initialiseAtCreationTime determines if the consumer is initialised or not when it's created
-func NewMessageConsumer(initialiseAtCreationTime bool) *MessageConsumer {
+// isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
+func NewMessageConsumer(isInitialisedAtCreationTime bool) *MessageConsumer {
 	cgChannels := kafka.CreateConsumerGroupChannels(true)
-	return NewMessageConsumerWithChannels(&cgChannels, initialiseAtCreationTime)
+	return NewMessageConsumerWithChannels(&cgChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageConsumerWithChannels creates a testing consumer with the provided consumerGroupChannels
-// initialiseAtCreationTime determines if the consumer is initialised or not when it's created
-func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, initialiseAtCreationTime bool) *MessageConsumer {
+// isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
+func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isInitialisedAtCreationTime bool) *MessageConsumer {
 
 	internal := cgInternal{
 		isInitialised: false,
 		cgChannels:    cgChannels,
 	}
-	if initialiseAtCreationTime {
+	if isInitialisedAtCreationTime {
 		internal.isInitialised = true
 	}
 

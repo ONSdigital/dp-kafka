@@ -21,21 +21,21 @@ type pInternal struct {
 }
 
 // NewMessageProducer creates a testing producer with new producerChannels.
-// initialiseAtCreationTime determines if the producer is initialised or not when it's created
-func NewMessageProducer(initialiseAtCreationTime bool) *MessageProducer {
+// isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
+func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
 	pChannels := kafka.CreateProducerChannels()
-	return NewMessageProducerWithChannels(&pChannels, initialiseAtCreationTime)
+	return NewMessageProducerWithChannels(&pChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageProducerWithChannels creates a testing producer with the provided producerChannels.
-// initialiseAtCreationTime determines if the producer is initialised or not when it's created
-func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, initialiseAtCreationTime bool) *MessageProducer {
+// isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
+func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
 
 	internal := pInternal{
 		isInitialised: false,
 		pChannels:     pChannels,
 	}
-	if initialiseAtCreationTime {
+	if isInitialisedAtCreationTime {
 		internal.isInitialised = true
 	}
 
