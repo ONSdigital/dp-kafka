@@ -53,6 +53,14 @@ func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isI
 	}
 }
 
+// UpstreamMessages is an auxiliary function for testing, which sends the provided messages one by one to the Upstream channel, waiting for 'UpstreamDone' between them.
+func (internal *cgInternal) UpstreamMessages(messages []kafka.Message) {
+	for _, message := range messages {
+		internal.cgChannels.Upstream <- message
+		<-internal.cgChannels.UpstreamDone
+	}
+}
+
 func (internal *cgInternal) initialiseFunc(ctx context.Context) error {
 	if internal.isInitialised {
 		return nil
