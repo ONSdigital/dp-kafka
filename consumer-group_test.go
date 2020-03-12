@@ -121,14 +121,14 @@ func TestConsumer(t *testing.T) {
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
-		Convey("StopListeningToConsumer closes closer and closed channels, without actually closing sarama-cluster consumer", func() {
+		Convey("StopListeningToConsumer closes closer channels, without actually closing sarama-cluster consumer", func() {
 			consumer.StopListeningToConsumer(ctx)
 			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(channels.Closed, false)
 			So(len(clusterConsumerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
-		Convey("Closing the consumer closes Sarama-cluster consumer", func() {
+		Convey("Closing the consumer closes Sarama-cluster consumer and closed channel", func() {
 			consumer.Close(ctx)
 			validateChannelClosed(channels.Closer, true)
 			validateChannelClosed(channels.Closed, true)
@@ -173,10 +173,10 @@ func TestConsumerNotInitialised(t *testing.T) {
 			So(len(clusterCli.NewConsumerCalls()), ShouldEqual, 2)
 		})
 
-		Convey("StopListeningToConsumer closes closer and closed channels", func() {
+		Convey("StopListeningToConsumer closes closer channel only", func() {
 			consumer.StopListeningToConsumer(ctx)
 			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(channels.Closed, false)
 		})
 
 		Convey("Closing the consumer closes the caller channels", func() {

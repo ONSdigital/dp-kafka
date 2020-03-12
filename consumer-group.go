@@ -26,15 +26,16 @@ type IConsumerGroup interface {
 
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokers   []string
-	channels  *ConsumerGroupChannels
-	consumer  SaramaClusterConsumer
-	topic     string
-	group     string
-	sync      bool
-	config    *cluster.Config
-	cli       SaramaCluster
-	mutexInit *sync.Mutex
+	brokers  []string
+	channels *ConsumerGroupChannels
+	consumer SaramaClusterConsumer
+	topic    string
+	group    string
+	sync     bool
+	config   *cluster.Config
+	cli      SaramaCluster
+	mutex    *sync.Mutex
+	wgClose  *sync.WaitGroup
 }
 
 // NewConsumerGroup returns a new consumer group using default configuration and provided channels
@@ -70,13 +71,14 @@ func NewConsumerWithClusterClient(
 
 	// ConsumerGroup initialised with provided brokers, topic, group and sync
 	cg = &ConsumerGroup{
-		brokers:   brokers,
-		topic:     topic,
-		group:     group,
-		sync:      syncConsumer,
-		config:    config,
-		cli:       cli,
-		mutexInit: &sync.Mutex{},
+		brokers: brokers,
+		topic:   topic,
+		group:   group,
+		sync:    syncConsumer,
+		config:  config,
+		cli:     cli,
+		mutex:   &sync.Mutex{},
+		wgClose: &sync.WaitGroup{},
 	}
 
 	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
@@ -113,8 +115,8 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 // Initialise creates a new Sarama Consumer and the channel redirection, only if it was not already initialised.
 func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 
-	cg.mutexInit.Lock()
-	defer cg.mutexInit.Unlock()
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
 
 	// Do nothing if consumer group already initialised
 	if cg.IsInitialised() {
@@ -164,28 +166,32 @@ func (cg *ConsumerGroup) CommitAndRelease(msg Message) {
 // StopListeningToConsumer stops any more messages being consumed off kafka topic
 func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error) {
 
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	close(cg.channels.Closer)
+	// close(closer) to indicate that the closing process has started
+	// the select{} avoids panic if already closed
+	select {
+	case <-cg.channels.Closer:
+	default:
+		close(cg.channels.Closer)
+	}
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 
-	// If Sarama Consumer is not available, we can close 'closed' channel straight away
-	if !cg.IsInitialised() {
-		close(cg.channels.Closed)
+	// Wait for the go-routines (if-any) finish their work
+	didTimeout := waitWithTimeout(ctx, cg.wgClose)
+	if didTimeout {
+		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.WARN, log.Error(err), logData)
+		return ctx.Err()
 	}
 
-	// If Sarama Consumer is available, we wait for it to close 'closed' channel, or ctx timeout.
-	select {
-	case <-cg.channels.Closed:
-		log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", log.INFO, logData)
-	case <-ctx.Done():
-		err = ctx.Err()
-		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.WARN, log.Error(err), logData)
-	}
-	return
+	log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", log.INFO, logData)
+	return nil
 }
 
 // Close safely closes the consumer and releases all resources.
@@ -197,40 +203,28 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		ctx = context.Background()
 	}
 
-	// close(closer) - the select{} avoids panic if already closed (by StopListeningToConsumer)
-	select {
-	case <-cg.channels.Closer:
-	default:
-		close(cg.channels.Closer)
-	}
-
-	// If Sarama Consumer is not available, we can close 'closed' channel straight away, with select{} to avoid panic if already closed
-	if !cg.IsInitialised() {
-		select {
-		case <-cg.channels.Closed:
-		default:
-			close(cg.channels.Closed)
-		}
+	// StopListeningToConsumer will end the go-routines(if any) by closing the 'Closer' channel
+	err = cg.StopListeningToConsumer(ctx)
+	if err != nil {
+		return err
 	}
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
-	select {
-	case <-cg.channels.Closed:
-		close(cg.channels.Errors)
-		close(cg.channels.Upstream)
-		// Close consumer only if it was initialised.
-		if cg.IsInitialised() {
-			if err = cg.consumer.Close(); err != nil {
-				log.Event(ctx, "Close failed of kafka consumer group", log.WARN, log.Error(err), logData)
-			} else {
-				log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
-			}
+
+	close(cg.channels.Errors)
+	close(cg.channels.Upstream)
+
+	// Close consumer only if it was initialised.
+	if cg.IsInitialised() {
+		if err = cg.consumer.Close(); err != nil {
+			log.Event(ctx, "Close failed of kafka consumer group", log.WARN, log.Error(err), logData)
+			return err
 		}
-	case <-ctx.Done():
-		err = ctx.Err()
-		log.Event(ctx, "Close abandoned: context done", log.WARN, log.Error(err), logData)
 	}
-	return
+
+	log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
+	close(cg.channels.Closed)
+	return nil
 }
 
 // createMainLoop creates a goroutine to handle initialised consumer groups.
@@ -238,10 +232,11 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 // If the consumer group is configured as 'sync', we wait for the UpstreamDone (of Closer) channels.
 // If the closer channel is closed, it ends the loop and closes Closed channel.
 func (cg *ConsumerGroup) createMainLoop(ctx context.Context) {
+	cg.wgClose.Add(1)
 	go func() {
+		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
 		log.Event(ctx, "Started kafka consumer listener", log.INFO, logData)
-		defer close(cg.channels.Closed)
 		for looping := true; looping; {
 			select {
 			case <-cg.channels.Closer:
@@ -273,17 +268,15 @@ func (cg *ConsumerGroup) createMainLoop(ctx context.Context) {
 // It periodically checks if the consumer group has balanced, and in that case, it commits offsets.
 // If the closer channel is closed, it ends the loop and closes Closed channel.
 func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
+	cg.wgClose.Add(1)
 	go func() {
+		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-
 		hasBalanced := false // avoid CommitOffsets() being called before we have balanced (otherwise causes a panic)
 		for looping := true; looping; {
 			select {
 			case <-cg.channels.Closer:
 				log.Event(ctx, "Closing kafka consumer controller", log.INFO, logData)
-				looping = false
-			case <-cg.channels.Closed:
-				log.Event(ctx, "Closed kafka consumer controller", log.INFO, logData)
 				looping = false
 			case err := <-cg.consumer.Errors():
 				log.Event(ctx, "kafka consumer-group error", log.ERROR, log.Error(err))
@@ -301,4 +294,20 @@ func (cg *ConsumerGroup) createControlLoop(ctx context.Context) {
 		}
 		log.Event(ctx, "Closed kafka consumer controller", log.INFO, logData)
 	}()
+}
+
+// waitWithTimeout blocks until all go-routines tracked by a WaitGroup are done, or until the timeout defined in a context expires.
+// It returns true only if the context timeout expired
+func waitWithTimeout(ctx context.Context, wg *sync.WaitGroup) bool {
+	chWaiting := make(chan struct{})
+	go func() {
+		defer close(chWaiting)
+		wg.Wait()
+	}()
+	select {
+	case <-chWaiting:
+		return false
+	case <-ctx.Done():
+		return true
+	}
 }

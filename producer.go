@@ -20,13 +20,14 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	envMax    int
-	producer  sarama.AsyncProducer
-	brokers   []string
-	topic     string
-	channels  *ProducerChannels
-	cli       Sarama
-	mutexInit *sync.Mutex
+	envMax   int
+	producer sarama.AsyncProducer
+	brokers  []string
+	topic    string
+	channels *ProducerChannels
+	cli      Sarama
+	mutex    *sync.Mutex
+	wgClose  *sync.WaitGroup
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
@@ -49,11 +50,12 @@ func NewProducerWithSaramaClient(
 
 	// Producer initialised with provided brokers and topic
 	producer = &Producer{
-		envMax:    envMax,
-		brokers:   brokers,
-		topic:     topic,
-		cli:       cli,
-		mutexInit: &sync.Mutex{},
+		envMax:  envMax,
+		brokers: brokers,
+		topic:   topic,
+		cli:     cli,
+		mutex:   &sync.Mutex{},
+		wgClose: &sync.WaitGroup{},
 	}
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
@@ -91,8 +93,8 @@ func (p *Producer) IsInitialised() bool {
 // Initialise creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
 func (p *Producer) Initialise(ctx context.Context) error {
 
-	p.mutexInit.Lock()
-	defer p.mutexInit.Unlock()
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	// Do nothing if producer already initialised
 	if p.IsInitialised() {
@@ -130,27 +132,30 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 		ctx = context.Background()
 	}
 
+	// closing the Closer channel will end the go-routines(if any)
 	close(p.channels.Closer)
 
-	// 'Closed' channel will be closed either by sarama client goroutine or the uninitialised goroutine.
-	logData := log.Data{"topic": p.topic}
-	select {
-	case <-p.channels.Closed:
-		close(p.channels.Errors)
-		close(p.channels.Output)
-		log.Event(ctx, "Successfully closed kafka producer", log.INFO)
-		if p.IsInitialised() {
-			if err = p.producer.Close(); err != nil {
-				log.Event(ctx, "Close failed of kafka producer", log.ERROR, log.Error(err), logData)
-			} else {
-				log.Event(ctx, "Successfully closed kafka producer", log.INFO, logData)
-			}
-		}
-	case <-ctx.Done():
+	didTimeout := waitWithTimeout(ctx, p.wgClose)
+	if didTimeout {
 		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of producer", log.WARN)
 		return ErrShutdownTimedOut
 	}
-	return
+
+	logData := log.Data{"topic": p.topic}
+
+	close(p.channels.Errors)
+	close(p.channels.Output)
+
+	// Close producer only if it was initialised
+	if p.IsInitialised() {
+		if err = p.producer.Close(); err != nil {
+			log.Event(ctx, "Close failed of kafka producer", log.ERROR, log.Error(err), logData)
+			return err
+		}
+	}
+	log.Event(ctx, "Successfully closed kafka producer", log.INFO, logData)
+	close(p.channels.Closed)
+	return nil
 }
 
 // createLoopUninitialised creates a goroutine to handle uninitialised producers.
@@ -164,7 +169,9 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		return
 	}
 
+	p.wgClose.Add(1)
 	go func() {
+		defer p.wgClose.Done()
 		log.Event(ctx, "Started uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 		for {
 			select {
@@ -173,7 +180,6 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				p.channels.Errors <- ErrUninitialisedProducer
 			case <-p.channels.Closer:
 				log.Event(ctx, "Closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
-				close(p.channels.Closed)
 				return
 			case <-p.channels.Init:
 				return
@@ -194,8 +200,9 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 	}
 
 	// Start kafka producer with topic. Redirect errors and messages; and handle closerChannel
+	p.wgClose.Add(1)
 	go func() {
-		defer close(p.channels.Closed)
+		defer p.wgClose.Done()
 		log.Event(ctx, "Started initialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 		for {
 			select {
