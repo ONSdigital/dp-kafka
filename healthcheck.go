@@ -85,44 +85,64 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 // - ErrBrokersNotReachable if a broker cannot be contacted.
 // - ErrInvalidBrokers if topic metadata is not returned by a broker.
 func healthcheck(ctx context.Context, brokers []string, topic string) error {
-	// Validate connections to brokers
-	unreachBrokers := []string{}
+
+	// Vars to keep track of validation state
+	unreachableBrokers := []string{}
 	invalidBrokers := []string{}
 	if len(brokers) == 0 {
 		return errors.New("No brokers defined")
 	}
+
+	// Validate all brokers
 	for _, addr := range brokers {
-		broker := sarama.NewBroker(addr)
-		// Open a connection to broker (will not fail if cannot establish)
-		err := broker.Open(nil)
-		if err != nil {
-			unreachBrokers = append(unreachBrokers, addr)
-			log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		reachable, valid := validateBroker(ctx, addr, topic)
+		if !reachable {
+			unreachableBrokers = append(unreachableBrokers, addr)
 			continue
 		}
-		defer broker.Close()
-		// Metadata request (will fail if connection cannot be established)
-		request := sarama.MetadataRequest{Topics: []string{topic}}
-		resp, err := broker.GetMetadata(&request)
-		if err != nil {
-			unreachBrokers = append(unreachBrokers, addr)
-			log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": addr, "topic": topic}, log.Error(err))
-			continue
-		}
-		// Validate metadata response is as expected
-		if len(resp.Topics) == 0 {
+		if !valid {
 			invalidBrokers = append(invalidBrokers, addr)
-			log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": addr, "topic": topic})
-			continue
 		}
 	}
+
 	// If any connection is not established, the healthcheck will fail
-	if len(unreachBrokers) > 0 {
-		return &ErrBrokersNotReachable{Addrs: unreachBrokers}
+	if len(unreachableBrokers) > 0 {
+		return &ErrBrokersNotReachable{Addrs: unreachableBrokers}
 	}
+
 	// If any broker returned invalid metadata response, the healthcheck will fail
 	if len(invalidBrokers) > 0 {
 		return &ErrInvalidBrokers{Addrs: invalidBrokers}
 	}
+
 	return nil
+}
+
+func validateBroker(ctx context.Context, addr, topic string) (reachable, valid bool) {
+	broker := sarama.NewBroker(addr)
+
+	// Open a connection to broker (will not fail if cannot establish)
+	err := broker.Open(nil)
+	if err != nil {
+		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		return false, false
+	}
+	defer broker.Close()
+
+	// Metadata request (will fail if connection cannot be established)
+	request := sarama.MetadataRequest{Topics: []string{topic}}
+	resp, err := broker.GetMetadata(&request)
+	if err != nil {
+		log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": addr, "topic": topic}, log.Error(err))
+		return false, false
+	}
+
+	// Validate metadata response is as expected
+	if len(resp.Topics) == 0 {
+		log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": addr, "topic": topic})
+		return true, false
+	}
+
+	// Broker is reachable and topic is in its metadata
+	return true, true
 }
