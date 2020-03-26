@@ -122,10 +122,21 @@ func validateBroker(ctx context.Context, addr, topic string) (reachable, valid b
 	broker := sarama.NewBroker(addr)
 
 	// Open a connection to broker (will not fail if cannot establish)
-	err := broker.Open(nil)
+	err := broker.Open(sarama.NewConfig())
 	defer broker.Close()
 	if err != nil {
 		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		return false, false
+	}
+
+	// Connect to broker - this will block until the connection is fully established, or until it fails
+	isConnected, err := broker.Connected()
+	if err != nil {
+		log.Event(ctx, "failed to connect to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		return false, false
+	}
+	if !isConnected {
+		log.Event(ctx, "not connected to broker", log.WARN, log.Data{"address": addr})
 		return false, false
 	}
 
