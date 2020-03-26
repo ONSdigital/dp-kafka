@@ -84,7 +84,7 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 // brokers and asking for topic metadata. Possible errors:
 // - ErrBrokersNotReachable if a broker cannot be contacted.
 // - ErrInvalidBrokers if topic metadata is not returned by a broker.
-func healthcheck(ctx context.Context, brokers []string, topic string) error {
+func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string) error {
 
 	// Vars to keep track of validation state
 	unreachableBrokers := []string{}
@@ -94,14 +94,14 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 	}
 
 	// Validate all brokers
-	for _, addr := range brokers {
-		reachable, valid := validateBroker(ctx, addr, topic)
+	for _, broker := range brokers {
+		reachable, valid := validateBroker(ctx, broker, topic)
 		if !reachable {
-			unreachableBrokers = append(unreachableBrokers, addr)
+			unreachableBrokers = append(unreachableBrokers, broker.Addr())
 			continue
 		}
 		if !valid {
-			invalidBrokers = append(invalidBrokers, addr)
+			invalidBrokers = append(invalidBrokers, broker.Addr())
 		}
 	}
 
@@ -118,25 +118,24 @@ func healthcheck(ctx context.Context, brokers []string, topic string) error {
 	return nil
 }
 
-func validateBroker(ctx context.Context, addr, topic string) (reachable, valid bool) {
-	broker := sarama.NewBroker(addr)
+func validateBroker(ctx context.Context, broker *sarama.Broker, topic string) (reachable, valid bool) {
 
 	// Open a connection to broker (will not fail if cannot establish)
 	err := broker.Open(sarama.NewConfig())
 	defer broker.Close()
 	if err != nil {
-		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
 		return false, false
 	}
 
 	// Connect to broker - this will block until the connection is fully established, or until it fails
 	isConnected, err := broker.Connected()
 	if err != nil {
-		log.Event(ctx, "failed to connect to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
+		log.Event(ctx, "failed to connect to broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
 		return false, false
 	}
 	if !isConnected {
-		log.Event(ctx, "not connected to broker", log.WARN, log.Data{"address": addr})
+		log.Event(ctx, "not connected to broker", log.WARN, log.Data{"address": broker.Addr()})
 		return false, false
 	}
 
@@ -144,13 +143,13 @@ func validateBroker(ctx context.Context, addr, topic string) (reachable, valid b
 	request := sarama.MetadataRequest{Topics: []string{topic}}
 	resp, err := broker.GetMetadata(&request)
 	if err != nil {
-		log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": addr, "topic": topic}, log.Error(err))
+		log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": broker.Addr(), "topic": topic}, log.Error(err))
 		return false, false
 	}
 
 	// Validate metadata response is as expected
 	if len(resp.Topics) == 0 {
-		log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": addr, "topic": topic})
+		log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": broker.Addr(), "topic": topic})
 		return true, false
 	}
 

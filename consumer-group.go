@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/log.go/log"
+	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
 )
 
@@ -26,21 +27,22 @@ type IConsumerGroup interface {
 
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokers  []string
-	channels *ConsumerGroupChannels
-	consumer SaramaClusterConsumer
-	topic    string
-	group    string
-	sync     bool
-	config   *cluster.Config
-	cli      SaramaCluster
-	mutex    *sync.Mutex
-	wgClose  *sync.WaitGroup
+	brokerAddrs []string
+	brokers     []*sarama.Broker
+	channels    *ConsumerGroupChannels
+	consumer    SaramaClusterConsumer
+	topic       string
+	group       string
+	sync        bool
+	config      *cluster.Config
+	cli         SaramaCluster
+	mutex       *sync.Mutex
+	wgClose     *sync.WaitGroup
 }
 
 // NewConsumerGroup returns a new consumer group using default configuration and provided channels
 func NewConsumerGroup(
-	ctx context.Context, brokers []string, topic string, group string, offset int64, sync bool,
+	ctx context.Context, brokerAddrs []string, topic string, group string, offset int64, sync bool,
 	channels *ConsumerGroupChannels) (*ConsumerGroup, error) {
 
 	if ctx == nil {
@@ -48,14 +50,14 @@ func NewConsumerGroup(
 	}
 
 	return NewConsumerWithClusterClient(
-		ctx, brokers, topic, group, offset, sync,
+		ctx, brokerAddrs, topic, group, offset, sync,
 		channels, &SaramaClusterClient{},
 	)
 }
 
 // NewConsumerWithClusterClient returns a new consumer group with the provided sarama cluster client
 func NewConsumerWithClusterClient(
-	ctx context.Context, brokers []string, topic string, group string, offset int64, syncConsumer bool,
+	ctx context.Context, brokerAddrs []string, topic string, group string, offset int64, syncConsumer bool,
 	channels *ConsumerGroupChannels, cli SaramaCluster) (cg *ConsumerGroup, err error) {
 
 	if ctx == nil {
@@ -69,16 +71,17 @@ func NewConsumerWithClusterClient(
 	config.Consumer.Offsets.Initial = offset
 	config.Consumer.Offsets.Retention = 0 // indefinite retention
 
-	// ConsumerGroup initialised with provided brokers, topic, group and sync
+	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg = &ConsumerGroup{
-		brokers: brokers,
-		topic:   topic,
-		group:   group,
-		sync:    syncConsumer,
-		config:  config,
-		cli:     cli,
-		mutex:   &sync.Mutex{},
-		wgClose: &sync.WaitGroup{},
+		brokerAddrs: brokerAddrs,
+		brokers:     []*sarama.Broker{},
+		topic:       topic,
+		group:       group,
+		sync:        syncConsumer,
+		config:      config,
+		cli:         cli,
+		mutex:       &sync.Mutex{},
+		wgClose:     &sync.WaitGroup{},
 	}
 
 	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
@@ -87,6 +90,11 @@ func NewConsumerWithClusterClient(
 		return cg, err
 	}
 	cg.channels = channels
+
+	// Create broker objects
+	for _, addr := range brokerAddrs {
+		cg.brokers = append(cg.brokers, sarama.NewBroker(addr))
+	}
 
 	// Initialise consumer group, and log any error
 	err = cg.Initialise(ctx)
@@ -130,7 +138,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
-	consumer, err := cg.cli.NewConsumer(cg.brokers, cg.group, []string{cg.topic}, cg.config)
+	consumer, err := cg.cli.NewConsumer(cg.brokerAddrs, cg.group, []string{cg.topic}, cg.config)
 	if err != nil {
 		return err
 	}

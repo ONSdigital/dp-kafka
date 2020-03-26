@@ -20,28 +20,29 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	envMax   int
-	producer sarama.AsyncProducer
-	brokers  []string
-	topic    string
-	channels *ProducerChannels
-	cli      Sarama
-	mutex    *sync.Mutex
-	wgClose  *sync.WaitGroup
+	envMax      int
+	producer    sarama.AsyncProducer
+	brokerAddrs []string
+	brokers     []*sarama.Broker
+	topic       string
+	channels    *ProducerChannels
+	cli         Sarama
+	mutex       *sync.Mutex
+	wgClose     *sync.WaitGroup
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
-	ctx context.Context, brokers []string, topic string, envMax int, channels *ProducerChannels) (*Producer, error) {
+	ctx context.Context, brokerAddrs []string, topic string, envMax int, channels *ProducerChannels) (*Producer, error) {
 	return NewProducerWithSaramaClient(
-		ctx, brokers, topic, envMax, channels, &SaramaClient{},
+		ctx, brokerAddrs, topic, envMax, channels, &SaramaClient{},
 	)
 }
 
 // NewProducerWithSaramaClient returns a new producer with a provided Sarama client
 func NewProducerWithSaramaClient(
-	ctx context.Context, brokers []string, topic string, envMax int,
+	ctx context.Context, brokerAddrs []string, topic string, envMax int,
 	channels *ProducerChannels, cli Sarama) (producer *Producer, err error) {
 
 	if ctx == nil {
@@ -50,12 +51,12 @@ func NewProducerWithSaramaClient(
 
 	// Producer initialised with provided brokers and topic
 	producer = &Producer{
-		envMax:  envMax,
-		brokers: brokers,
-		topic:   topic,
-		cli:     cli,
-		mutex:   &sync.Mutex{},
-		wgClose: &sync.WaitGroup{},
+		envMax:      envMax,
+		brokerAddrs: brokerAddrs,
+		topic:       topic,
+		cli:         cli,
+		mutex:       &sync.Mutex{},
+		wgClose:     &sync.WaitGroup{},
 	}
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
@@ -64,6 +65,11 @@ func NewProducerWithSaramaClient(
 		return producer, err
 	}
 	producer.channels = channels
+
+	// Create broker objects
+	for _, addr := range brokerAddrs {
+		producer.brokers = append(producer.brokers, sarama.NewBroker(addr))
+	}
 
 	// Initialise producer, and log any error
 	err = producer.Initialise(ctx)
@@ -110,7 +116,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	if p.envMax > 0 {
 		config.Producer.MaxMessageBytes = p.envMax
 	}
-	saramaProducer, err := p.cli.NewAsyncProducer(p.brokers, config)
+	saramaProducer, err := p.cli.NewAsyncProducer(p.brokerAddrs, config)
 	if err != nil {
 		return err
 	}

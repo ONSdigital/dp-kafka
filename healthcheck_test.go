@@ -36,7 +36,7 @@ func closeMockBrokers(brokers []*sarama.MockBroker) {
 }
 
 // createProducerForTesting creates a producer with a mock Sarama library for testing
-func createProducerForTesting(brokers []string, topic string) (*kafka.Producer, error) {
+func createProducerForTesting(brokerAddrs []string, topic string) (*kafka.Producer, error) {
 	ctx := context.Background()
 	chSaramaErr, chSaramaIn := createSaramaChannels()
 	_, funcNewAsyncProducer := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
@@ -44,21 +44,21 @@ func createProducerForTesting(brokers []string, topic string) (*kafka.Producer, 
 		NewAsyncProducerFunc: funcNewAsyncProducer,
 	}
 	channels := kafka.CreateProducerChannels()
-	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)
+	return kafka.NewProducerWithSaramaClient(ctx, brokerAddrs, topic, 123, channels, saramaCli)
 }
 
 // createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
-func createUninitialisedProducerForTesting(brokers []string, topic string) (*kafka.Producer, error) {
+func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (*kafka.Producer, error) {
 	ctx := context.Background()
 	saramaCli := &mock.SaramaMock{
 		NewAsyncProducerFunc: mockNewAsyncProducerError,
 	}
 	channels := kafka.CreateProducerChannels()
-	return kafka.NewProducerWithSaramaClient(ctx, brokers, topic, 123, channels, saramaCli)
+	return kafka.NewProducerWithSaramaClient(ctx, brokerAddrs, topic, 123, channels, saramaCli)
 }
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
-func createConsumerForTesting(brokers []string, topic string) (*kafka.ConsumerGroup, error) {
+func createConsumerForTesting(brokerAddrs []string, topic string) (*kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	errsChan, msgChan, notiChan := createSaramaClusterChannels()
 	_, funcNewConsumer := createMockNewConsumer(errsChan, msgChan, notiChan)
@@ -67,18 +67,18 @@ func createConsumerForTesting(brokers []string, topic string) (*kafka.ConsumerGr
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
 	return kafka.NewConsumerWithClusterClient(
-		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
+		ctx, brokerAddrs, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
 // createUninitialisedConsumerForTesting creates a consumer for testing without a valid Sarama-cluster consumer
-func createUninitialisedConsumerForTesting(brokers []string, topic string) (*kafka.ConsumerGroup, error) {
+func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (*kafka.ConsumerGroup, error) {
 	ctx := context.Background()
 	clusterCli := &mock.SaramaClusterMock{
 		NewConsumerFunc: mockNewConsumerError,
 	}
 	channels := kafka.CreateConsumerGroupChannels(true)
 	return kafka.NewConsumerWithClusterClient(
-		ctx, brokers, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
+		ctx, brokerAddrs, topic, testGroup, kafka.OffsetNewest, true, channels, clusterCli)
 }
 
 // TestKafkaProducerHealthcheck checks that the producer healthcheck fails with expected severities and errors
