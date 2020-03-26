@@ -123,11 +123,11 @@ func validateBroker(ctx context.Context, addr, topic string) (reachable, valid b
 
 	// Open a connection to broker (will not fail if cannot establish)
 	err := broker.Open(nil)
+	defer broker.Close()
 	if err != nil {
 		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": addr}, log.Error(err))
 		return false, false
 	}
-	defer broker.Close()
 
 	// Metadata request (will fail if connection cannot be established)
 	request := sarama.MetadataRequest{Topics: []string{topic}}
