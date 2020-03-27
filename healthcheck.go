@@ -118,25 +118,22 @@ func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string) er
 	return nil
 }
 
+// validateBroker checks that the provider broker is reachable and the topic is in its metadata.
 func validateBroker(ctx context.Context, broker *sarama.Broker, topic string) (reachable, valid bool) {
 
-	// Open a connection to broker (will not fail if cannot establish)
-	err := broker.Open(sarama.NewConfig())
-	defer broker.Close()
-	if err != nil {
-		log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
-		return false, false
-	}
+	// check if broker is connected
+	isConnected, _ := broker.Connected()
 
-	// Connect to broker - this will block until the connection is fully established, or until it fails
-	isConnected, err := broker.Connected()
-	if err != nil {
-		log.Event(ctx, "failed to connect to broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
-		return false, false
-	}
+	// try to connect if it is not connected
 	if !isConnected {
-		log.Event(ctx, "not connected to broker", log.WARN, log.Data{"address": broker.Addr()})
-		return false, false
+		log.Event(ctx, "broker not connected. Opening now", log.INFO, log.Data{"address": broker.Addr()})
+		// Open a connection to broker (will not fail if cannot establish)
+		err := broker.Open(sarama.NewConfig())
+		defer broker.Close()
+		if err != nil {
+			log.Event(ctx, "failed to open connection to broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
+			return false, false
+		}
 	}
 
 	// Metadata request (will fail if connection cannot be established)
