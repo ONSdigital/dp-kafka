@@ -159,6 +159,12 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 			return err
 		}
 	}
+
+	// Close all brokers connections (used by healthcheck)
+	for _, broker := range p.brokers {
+		broker.Close()
+	}
+
 	log.Event(ctx, "Successfully closed kafka producer", log.INFO, logData)
 	close(p.channels.Closed)
 	return nil

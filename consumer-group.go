@@ -230,6 +230,11 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		}
 	}
 
+	// Close all brokers connections (used by healthcheck)
+	for _, broker := range cg.brokers {
+		broker.Close()
+	}
+
 	log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
 	close(cg.channels.Closed)
 	return nil
