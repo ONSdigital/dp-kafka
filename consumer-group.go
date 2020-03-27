@@ -8,6 +8,7 @@ import (
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
+	"github.com/rcrowley/go-metrics"
 )
 
 var tick = time.Millisecond * 1500
@@ -90,6 +91,9 @@ func NewConsumerWithClusterClient(
 		return cg, err
 	}
 	cg.channels = channels
+
+	// disable metrics to prevent memory leak on broker.Open()
+	metrics.UseNilMetrics = true
 
 	// Create broker objects
 	for _, addr := range brokerAddrs {

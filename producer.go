@@ -6,6 +6,7 @@ import (
 
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
+	"github.com/rcrowley/go-metrics"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
@@ -65,6 +66,9 @@ func NewProducerWithSaramaClient(
 		return producer, err
 	}
 	producer.channels = channels
+
+	// disable metrics to prevent memory leak on broker.Open()
+	metrics.UseNilMetrics = true
 
 	// Create broker objects
 	for _, addr := range brokerAddrs {
