@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
@@ -16,6 +17,7 @@ type IProducer interface {
 	Channels() *ProducerChannels
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
+	Checker(ctx context.Context, state *health.CheckState) error
 	Close(ctx context.Context) (err error)
 }
 

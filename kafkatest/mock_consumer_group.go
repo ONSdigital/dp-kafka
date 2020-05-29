@@ -5,12 +5,14 @@ package kafkatest
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka"
 	"sync"
 )
 
 var (
 	lockIConsumerGroupMockChannels                sync.RWMutex
+	lockIConsumerGroupMockChecker                 sync.RWMutex
 	lockIConsumerGroupMockClose                   sync.RWMutex
 	lockIConsumerGroupMockCommitAndRelease        sync.RWMutex
 	lockIConsumerGroupMockInitialise              sync.RWMutex
@@ -31,6 +33,9 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 //         mockedIConsumerGroup := &IConsumerGroupMock{
 //             ChannelsFunc: func() *kafka.ConsumerGroupChannels {
 // 	               panic("mock out the Channels method")
+//             },
+//             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
+// 	               panic("mock out the Checker method")
 //             },
 //             CloseFunc: func(ctx context.Context) error {
 // 	               panic("mock out the Close method")
@@ -60,6 +65,9 @@ type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ConsumerGroupChannels
 
+	// CheckerFunc mocks the Checker method.
+	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
+
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
 
@@ -82,6 +90,13 @@ type IConsumerGroupMock struct {
 	calls struct {
 		// Channels holds details about calls to the Channels method.
 		Channels []struct {
+		}
+		// Checker holds details about calls to the Checker method.
+		Checker []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// State is the state argument value.
+			State *healthcheck.CheckState
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
@@ -135,6 +150,41 @@ func (mock *IConsumerGroupMock) ChannelsCalls() []struct {
 	lockIConsumerGroupMockChannels.RLock()
 	calls = mock.calls.Channels
 	lockIConsumerGroupMockChannels.RUnlock()
+	return calls
+}
+
+// Checker calls CheckerFunc.
+func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+	if mock.CheckerFunc == nil {
+		panic("IConsumerGroupMock.CheckerFunc: method is nil but IConsumerGroup.Checker was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		State *healthcheck.CheckState
+	}{
+		Ctx:   ctx,
+		State: state,
+	}
+	lockIConsumerGroupMockChecker.Lock()
+	mock.calls.Checker = append(mock.calls.Checker, callInfo)
+	lockIConsumerGroupMockChecker.Unlock()
+	return mock.CheckerFunc(ctx, state)
+}
+
+// CheckerCalls gets all the calls that were made to Checker.
+// Check the length with:
+//     len(mockedIConsumerGroup.CheckerCalls())
+func (mock *IConsumerGroupMock) CheckerCalls() []struct {
+	Ctx   context.Context
+	State *healthcheck.CheckState
+} {
+	var calls []struct {
+		Ctx   context.Context
+		State *healthcheck.CheckState
+	}
+	lockIConsumerGroupMockChecker.RLock()
+	calls = mock.calls.Checker
+	lockIConsumerGroupMockChecker.RUnlock()
 	return calls
 }
 

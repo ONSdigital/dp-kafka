@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
 	cluster "github.com/bsm/sarama-cluster"
@@ -23,6 +24,7 @@ type IConsumerGroup interface {
 	Release()
 	CommitAndRelease(msg Message)
 	StopListeningToConsumer(ctx context.Context) (err error)
+	Checker(ctx context.Context, state *health.CheckState) error
 	Close(ctx context.Context) (err error)
 }
 

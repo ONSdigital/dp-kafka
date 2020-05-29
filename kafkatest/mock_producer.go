@@ -5,12 +5,14 @@ package kafkatest
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka"
 	"sync"
 )
 
 var (
 	lockIProducerMockChannels      sync.RWMutex
+	lockIProducerMockChecker       sync.RWMutex
 	lockIProducerMockClose         sync.RWMutex
 	lockIProducerMockInitialise    sync.RWMutex
 	lockIProducerMockIsInitialised sync.RWMutex
@@ -28,6 +30,9 @@ var _ kafka.IProducer = &IProducerMock{}
 //         mockedIProducer := &IProducerMock{
 //             ChannelsFunc: func() *kafka.ProducerChannels {
 // 	               panic("mock out the Channels method")
+//             },
+//             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
+// 	               panic("mock out the Checker method")
 //             },
 //             CloseFunc: func(ctx context.Context) error {
 // 	               panic("mock out the Close method")
@@ -48,6 +53,9 @@ type IProducerMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ProducerChannels
 
+	// CheckerFunc mocks the Checker method.
+	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
+
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
 
@@ -61,6 +69,13 @@ type IProducerMock struct {
 	calls struct {
 		// Channels holds details about calls to the Channels method.
 		Channels []struct {
+		}
+		// Checker holds details about calls to the Checker method.
+		Checker []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// State is the state argument value.
+			State *healthcheck.CheckState
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
@@ -101,6 +116,41 @@ func (mock *IProducerMock) ChannelsCalls() []struct {
 	lockIProducerMockChannels.RLock()
 	calls = mock.calls.Channels
 	lockIProducerMockChannels.RUnlock()
+	return calls
+}
+
+// Checker calls CheckerFunc.
+func (mock *IProducerMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+	if mock.CheckerFunc == nil {
+		panic("IProducerMock.CheckerFunc: method is nil but IProducer.Checker was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		State *healthcheck.CheckState
+	}{
+		Ctx:   ctx,
+		State: state,
+	}
+	lockIProducerMockChecker.Lock()
+	mock.calls.Checker = append(mock.calls.Checker, callInfo)
+	lockIProducerMockChecker.Unlock()
+	return mock.CheckerFunc(ctx, state)
+}
+
+// CheckerCalls gets all the calls that were made to Checker.
+// Check the length with:
+//     len(mockedIProducer.CheckerCalls())
+func (mock *IProducerMock) CheckerCalls() []struct {
+	Ctx   context.Context
+	State *healthcheck.CheckState
+} {
+	var calls []struct {
+		Ctx   context.Context
+		State *healthcheck.CheckState
+	}
+	lockIProducerMockChecker.RLock()
+	calls = mock.calls.Checker
+	lockIProducerMockChecker.RUnlock()
 	return calls
 }
 
