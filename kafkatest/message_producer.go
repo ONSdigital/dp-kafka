@@ -55,7 +55,7 @@ func (internal *pInternal) initialiseFunc(ctx context.Context) error {
 		return nil
 	}
 	internal.isInitialised = true
-	close(internal.pChannels.Init)
+	close(internal.pChannels.Ready)
 	return nil
 }
 

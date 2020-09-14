@@ -131,7 +131,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	p.producer = saramaProducer
 	log.Event(ctx, "Initialised Sarama Producer", log.INFO, log.Data{"topic": p.topic})
 	p.createLoopInitialised(ctx)
-	close(p.channels.Init)
+	close(p.channels.Ready)
 	return nil
 }
 
@@ -199,7 +199,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case <-p.channels.Closer:
 				log.Event(ctx, "Closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 				return
-			case <-p.channels.Init:
+			case <-p.channels.Ready:
 				return
 			}
 		}

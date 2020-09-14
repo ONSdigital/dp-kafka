@@ -21,8 +21,8 @@ type Message interface {
 
 // SaramaMessage represents a Sarama specific Kafka message
 type SaramaMessage struct {
-	message  *sarama.ConsumerMessage
-	consumer SaramaClusterConsumer
+	message *sarama.ConsumerMessage
+	session sarama.ConsumerGroupSession
 }
 
 // GetData returns the message contents.
@@ -37,5 +37,5 @@ func (M SaramaMessage) Offset() int64 {
 
 // Commit the message's offset.
 func (M SaramaMessage) Commit() {
-	M.consumer.MarkOffset(M.message, "metadata")
+	M.session.MarkMessage(M.message, "metadata")
 }

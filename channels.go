@@ -9,7 +9,7 @@ import (
 // channel names
 const (
 	Errors       = "Errors"
-	Init         = "Init"
+	Ready        = "Ready"
 	Closer       = "Closer"
 	Closed       = "Closed"
 	Upstream     = "Upstream"
@@ -21,7 +21,7 @@ const (
 type ConsumerGroupChannels struct {
 	Upstream     chan Message
 	Errors       chan error
-	Init         chan struct{}
+	Ready        chan struct{}
 	Closer       chan struct{}
 	Closed       chan struct{}
 	UpstreamDone chan bool
@@ -31,7 +31,7 @@ type ConsumerGroupChannels struct {
 type ProducerChannels struct {
 	Output chan []byte
 	Errors chan error
-	Init   chan struct{}
+	Ready  chan struct{}
 	Closer chan struct{}
 	Closed chan struct{}
 }
@@ -45,8 +45,8 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	if consumerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if consumerChannels.Init == nil {
-		missingChannels = append(missingChannels, Init)
+	if consumerChannels.Ready == nil {
+		missingChannels = append(missingChannels, Ready)
 	}
 	if consumerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
@@ -87,8 +87,8 @@ func (producerChannels *ProducerChannels) Validate() error {
 	if producerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if producerChannels.Init == nil {
-		missingChannels = append(missingChannels, Init)
+	if producerChannels.Ready == nil {
+		missingChannels = append(missingChannels, Ready)
 	}
 	if producerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
@@ -130,7 +130,7 @@ func CreateConsumerGroupChannels(sync bool) *ConsumerGroupChannels {
 	return &ConsumerGroupChannels{
 		Upstream:     chUpstream,
 		Errors:       make(chan error),
-		Init:         make(chan struct{}),
+		Ready:        make(chan struct{}),
 		Closer:       make(chan struct{}),
 		Closed:       make(chan struct{}),
 		UpstreamDone: make(chan bool, 1),
@@ -142,7 +142,7 @@ func CreateProducerChannels() *ProducerChannels {
 	return &ProducerChannels{
 		Output: make(chan []byte),
 		Errors: make(chan error),
-		Init:   make(chan struct{}),
+		Ready:  make(chan struct{}),
 		Closer: make(chan struct{}),
 		Closed: make(chan struct{}),
 	}

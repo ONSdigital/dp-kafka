@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Brokers       []string      `envconfig:"KAFKA_ADDR"`
 	KafkaMaxBytes int           `envconfig:"KAFKA_MAX_BYTES"`
+	KafkaVersion  string        `envconfig:"KAFKA_VERSION"`
 	ConsumedTopic string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
 	ConsumedGroup string        `envconfig:"KAFKA_CONSUMED_GROUP"`
 	ProducedTopic string        `envconfig:"KAFKA_PRODUCED_TOPIC"`
@@ -72,7 +73,7 @@ func main() {
 	// Create Consumer with channels
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
 	consumer, err := kafka.NewConsumerGroup(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
+		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaVersion, cgChannels)
 	if err != nil {
 		log.Event(ctx, "[KAFKA-TEST] Fatal error creating consumer.", log.FATAL, log.Error(err))
 		os.Exit(1)
@@ -129,13 +130,13 @@ func main() {
 
 	// log when consumer is initialised. In a real system we might want to do something in this event
 	go func() {
-		<-cgChannels.Init
+		<-cgChannels.Ready
 		log.Event(ctx, "[KAFKA-TEST] Consumer group has been successfully initialised", log.INFO)
 	}()
 
 	// log when producer is initialised. In a real system we might want to do something in this event
 	go func() {
-		<-pChannels.Init
+		<-pChannels.Ready
 		log.Event(ctx, "[KAFKA-TEST] Producer has been successfully initialised", log.INFO)
 	}()
 
