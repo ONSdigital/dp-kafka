@@ -35,7 +35,8 @@ func (M SaramaMessage) Offset() int64 {
 	return M.message.Offset
 }
 
-// Commit the message's offset.
+// Commit marks a message as consumed, and then commits the offset to the backend
 func (M SaramaMessage) Commit() {
 	M.session.MarkMessage(M.message, "metadata")
+	M.session.Commit()
 }

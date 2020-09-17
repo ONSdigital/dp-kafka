@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -12,7 +11,9 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
+var debugMode = true
 var tick = time.Millisecond * 1500
+var messageConsumeTimeout = time.Second * 10
 
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
 
@@ -30,20 +31,22 @@ type IConsumerGroup interface {
 
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokerAddrs []string
-	brokers     []*sarama.Broker
-	channels    *ConsumerGroupChannels
-	saramaCg    sarama.ConsumerGroup
-	topic       string
-	group       string
-	config      *sarama.Config
-	mutex       *sync.Mutex
-	wgClose     *sync.WaitGroup
+	brokerAddrs     []string
+	brokers         []*sarama.Broker
+	channels        *ConsumerGroupChannels
+	saramaCg        sarama.ConsumerGroup
+	saramaCgHandler *saramaCgHandler
+	topic           string
+	group           string
+	config          *sarama.Config
+	mutex           *sync.Mutex
+	wgClose         *sync.WaitGroup
 }
 
-// NewConsumerGroup returns a new consumer group using default configuration and provided channels
-func NewConsumerGroup(
-	ctx context.Context, brokerAddrs []string, topic string, group string, offset int64, kafkaVersion string,
+// NewConsumerGroup creates a new consumer group with the provided parameters
+// -
+func NewConsumerGroup(ctx context.Context,
+	brokerAddrs []string, topic, group string, kafkaVersion string,
 	channels *ConsumerGroupChannels) (*ConsumerGroup, error) {
 
 	if ctx == nil {
@@ -62,6 +65,7 @@ func NewConsumerGroup(
 	config.Version = v
 	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Consumer.Group.Session.Timeout = messageConsumeTimeout
 
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
@@ -137,7 +141,8 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 		return err
 	}
 
-	// On Successful initialization, create main and control loop goroutines
+	// On Successful initialization, create sarama consumer handler, and loop goroutines (for messages and errors)
+	cg.saramaCgHandler = &saramaCgHandler{ctx, cg.channels}
 	cg.saramaCg = saramaConsumerGroup
 	log.Event(ctx, "Initialised Sarama Consumer", log.INFO, logData)
 	cg.createConsumeLoop(ctx)
@@ -150,12 +155,13 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	return nil
 }
 
-// Release signals that upstream has completed an incoming message
-// i.e. move on to read the next message
+// Release unlocks the consumer handler lock (for sync consumers)
+// and signals that upstream has completed an incoming message
 func (cg *ConsumerGroup) Release() {
-	if cg == nil {
+	if cg == nil || cg.saramaCgHandler == nil {
 		return
 	}
+	log.Event(nil, "***** CG Release called *****")
 	cg.channels.UpstreamDone <- true
 }
 
@@ -246,38 +252,26 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
+		logData := log.Data{"topic": cg.topic, "group": cg.group}
+		log.Event(ctx, "Started kafka consumer listener", log.INFO, logData)
 		for {
-			// check if context was cancelled, signaling that the consumer should stop
-			if ctx.Err() != nil {
-				log.Event(ctx, "context was cancelled. Stopping consumer")
-				close(cg.channels.Closer)
+			select {
+			case <-cg.channels.Closer:
+				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
 				return
-			}
-			// check if closer channel is closed, signaling that the consumer should stop
-			if isClosed(cg.channels.Closer) {
-				log.Event(ctx, "Closer channel was closed. Stopping consumer")
+			case <-ctx.Done():
+				log.Event(ctx, "closed kafka consumer consume loop via context done", log.INFO, logData)
 				return
+			default:
+				// 'Consume' should be called inside an infinite loop, when a
+				// server-side rebalance happens, the consumer session will need to be
+				// recreated to get the new claims
+				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
+					log.Event(ctx, "error consuming", log.ERROR, log.Error(err))
+					time.Sleep(tick) // on error, retry loop after 'tick' time
+					continue
+				}
 			}
-			// `Consume` should be called inside an infinite loop, when a
-			// server-side rebalance happens, the consumer session will need to be
-			// recreated to get the new claims
-			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg); err != nil {
-				log.Event(ctx, "error consuming", log.ERROR, log.Error(err))
-				time.Sleep(tick)
-			}
-			// TODO sync?
-			// if cg.sync {
-			// 				// wait for msg-processed or close-consumer triggers
-			// 				for loopingForSync := true; looping && loopingForSync; {
-			// 					select {
-			// 					case <-cg.channels.UpstreamDone:
-			// 						loopingForSync = false
-			// 					case <-cg.channels.Closer:
-			// 						// XXX if we read closer here, this means that the release/upstreamDone blocks unless it is buffered
-			// 						looping = false
-			// 					}
-			// 				}
-			// 			}
 			cg.channels.Ready = make(chan struct{})
 		}
 	}()
@@ -293,28 +287,21 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 	go func() {
 		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-		hasBalanced := false // avoid CommitOffsets() being called before we have balanced (otherwise causes a panic)
-		for looping := true; looping; {
+		for {
 			select {
+			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
-				log.Event(ctx, "Closing kafka consumer controller", log.INFO, logData)
-				looping = false
+				log.Event(ctx, "closed kafka consumer error loop via closer channel", log.INFO, logData)
+				return
+			case <-ctx.Done():
+				close(cg.channels.Closer)
+				log.Event(ctx, "closed kafka consumer error loop via context done", log.INFO, logData)
+				return
+			// listen to kafka errors from sarama and forward them to the Errors chanel
 			case err := <-cg.saramaCg.Errors():
-				log.Event(ctx, "kafka consumer-group error", log.ERROR, log.Error(err))
 				cg.channels.Errors <- err
-			case <-time.After(tick):
-				if hasBalanced {
-					log.Event(ctx, "SHOULD COMMIT OFFSETS")
-					// cg.saramaCg.Commit()
-				}
-				// case n, more := <-cg.cg.Notifications():
-				// 	if more {
-				// 		hasBalanced = true
-				// 		log.Event(ctx, "Rebalancing group", log.INFO, log.Data{"topic": cg.topic, "group": cg.group, "partitions": n.Current[cg.topic]})
-				// 	}
 			}
 		}
-		log.Event(ctx, "Closed kafka consumer controller", log.INFO, logData)
 	}()
 }
 
@@ -332,52 +319,4 @@ func waitWithTimeout(ctx context.Context, wg *sync.WaitGroup) bool {
 	case <-ctx.Done():
 		return true
 	}
-}
-
-// isClosed checks if a channel is closed
-func isClosed(ch <-chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-	}
-
-	return false
-}
-
-/// NEW SARAMA STUFF
-
-// Setup is run at the beginning of a new session, before ConsumeClaim.
-func (cg *ConsumerGroup) Setup(session sarama.ConsumerGroupSession) error {
-	log.Event(session.Context(), "Sarama consumerGroup session Setup OK. ConsumerGroup is Ready", log.INFO, log.Data{"memberID": session.MemberID()})
-	close(cg.channels.Ready)
-	return nil
-}
-
-// Cleanup is run at the end of a session, once all ConsumeClaim goroutines have exited
-func (cg *ConsumerGroup) Cleanup(session sarama.ConsumerGroupSession) error {
-	log.Event(session.Context(), "Sarama consumerGroup session Cleanup", log.Data{"memberID": session.MemberID()})
-	return nil
-}
-
-// ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
-func (cg *ConsumerGroup) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-
-	// NOTE:
-	// Do not move the code below to a goroutine.
-	// The `ConsumeClaim` itself is called within a goroutine, see:
-	// https://github.com/Shopify/sarama/blob/master/consumer_group.go#L27-L29
-	for message := range claim.Messages() {
-
-		msg := string(message.Value)
-
-		log.Event(nil, fmt.Sprintf("Message claimed: value = %s, timestamp = %v, topic = %s", msg, message.Timestamp, message.Topic), log.INFO)
-		time.Sleep(10 * time.Second)
-		session.MarkMessage(message, "")
-		// session.Commit()
-		log.Event(nil, fmt.Sprintf("-- Message MARKED & COMMITED: %s", msg))
-		// cg.channels.Upstream <- SaramaMessage{message, cg.cg}
-	}
-
-	return nil
 }

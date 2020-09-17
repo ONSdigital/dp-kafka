@@ -35,8 +35,9 @@ const ticker = 1 * time.Second
 func main() {
 	log.Namespace = "kafka-example"
 	cfg := &Config{
-		Brokers:       []string{"localhost:9092"},
+		Brokers:       []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaMaxBytes: 50 * 1024 * 1024,
+		KafkaVersion:  "2.3.1",
 		KafkaSync:     true,
 		ConsumedGroup: log.Namespace,
 		ConsumedTopic: "input",
@@ -44,7 +45,7 @@ func main() {
 		ConsumeMax:    0,
 		TimeOut:       5 * time.Second,
 		Chomp:         false,
-		Snooze:        false,
+		Snooze:        true,
 		OverSleep:     false,
 	}
 	if err := envconfig.Process("", cfg); err != nil {
@@ -73,7 +74,7 @@ func main() {
 	// Create Consumer with channels
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
 	consumer, err := kafka.NewConsumerGroup(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaVersion, cgChannels)
+		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
 	if err != nil {
 		log.Event(ctx, "[KAFKA-TEST] Fatal error creating consumer.", log.FATAL, log.Error(err))
 		os.Exit(1)
@@ -247,7 +248,7 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 		sleep = 500 * time.Millisecond
 		if cfg.OverSleep {
 			// OverSleep tests taking more than shutdown timeout to process a message
-			sleep += cfg.TimeOut
+			sleep += cfg.TimeOut + time.Second*2
 		}
 		logData["sleep"] = sleep
 	}
