@@ -22,8 +22,6 @@ type IConsumerGroup interface {
 	Channels() *ConsumerGroupChannels
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
-	Release()
-	CommitAndRelease(msg Message)
 	StopListeningToConsumer(ctx context.Context) (err error)
 	Checker(ctx context.Context, state *health.CheckState) error
 	Close(ctx context.Context) (err error)
@@ -153,25 +151,6 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	log.Event(ctx, "Sarama consumer up and running", log.INFO, logData)
 
 	return nil
-}
-
-// Release unlocks the consumer handler lock (for sync consumers)
-// and signals that upstream has completed an incoming message
-func (cg *ConsumerGroup) Release() {
-	if cg == nil || cg.saramaCgHandler == nil {
-		return
-	}
-	log.Event(nil, "***** CG Release called *****")
-	cg.channels.UpstreamDone <- true
-}
-
-// CommitAndRelease commits the consumed message and release the consumer listener to read another message
-func (cg *ConsumerGroup) CommitAndRelease(msg Message) {
-	if cg == nil {
-		return
-	}
-	msg.Commit()
-	cg.Release()
 }
 
 // StopListeningToConsumer stops any more messages being consumed off kafka topic

@@ -72,7 +72,7 @@ func main() {
 	}
 
 	// Create Consumer with channels
-	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
+	cgChannels := kafka.CreateConsumerGroupChannels(1)
 	consumer, err := kafka.NewConsumerGroup(
 		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
 	if err != nil {
@@ -171,13 +171,7 @@ func main() {
 				// send downstream
 				pChannels.Output <- consumedData
 
-				if cfg.KafkaSync {
-					log.Event(ctx, "[KAFKA-TEST] pre-release", log.INFO)
-					consumer.CommitAndRelease(consumedMessage)
-				} else {
-					log.Event(ctx, "[KAFKA-TEST] pre-commit", log.INFO)
-					consumedMessage.Commit()
-				}
+				consumedMessage.Commit()
 				log.Event(ctx, "[KAFKA-TEST] committed message", log.INFO, log.Data{"messageOffset": consumedMessage.Offset()})
 				if consumeCount == cfg.ConsumeMax {
 					log.Event(ctx, "[KAFKA-TEST] consumed max - exiting eventLoop", log.INFO)

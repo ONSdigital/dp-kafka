@@ -23,7 +23,7 @@ type cgInternal struct {
 // NewMessageConsumer creates a testing consumer with new consumerGroupChannels.
 // isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
 func NewMessageConsumer(isInitialisedAtCreationTime bool) *MessageConsumer {
-	cgChannels := kafka.CreateConsumerGroupChannels(true)
+	cgChannels := kafka.CreateConsumerGroupChannels(1)
 	return NewMessageConsumerWithChannels(cgChannels, isInitialisedAtCreationTime)
 }
 
@@ -45,8 +45,6 @@ func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isI
 			ChannelsFunc:                internal.channelsFunc,
 			IsInitialisedFunc:           internal.isInitialisedFunc,
 			InitialiseFunc:              internal.initialiseFunc,
-			ReleaseFunc:                 internal.releaseFunc,
-			CommitAndReleaseFunc:        internal.commitAndReleaseFunc,
 			StopListeningToConsumerFunc: internal.stopListeningToConsumerFunc,
 			CloseFunc:                   internal.closeFunc,
 		},
@@ -57,7 +55,7 @@ func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isI
 func (internal *cgInternal) UpstreamMessages(messages []kafka.Message) {
 	for _, message := range messages {
 		internal.cgChannels.Upstream <- message
-		<-internal.cgChannels.UpstreamDone
+		<-message.UpstreamDone()
 	}
 }
 
@@ -76,15 +74,6 @@ func (internal *cgInternal) isInitialisedFunc() bool {
 
 func (internal *cgInternal) channelsFunc() *kafka.ConsumerGroupChannels {
 	return internal.cgChannels
-}
-
-func (internal *cgInternal) releaseFunc() {
-	internal.cgChannels.UpstreamDone <- true
-}
-
-func (internal *cgInternal) commitAndReleaseFunc(msg kafka.Message) {
-	msg.Commit()
-	internal.cgChannels.UpstreamDone <- true
 }
 
 func (internal *cgInternal) stopListeningToConsumerFunc(ctx context.Context) error {

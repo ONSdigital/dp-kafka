@@ -19,12 +19,11 @@ const (
 
 // ConsumerGroupChannels represents the channels used by ConsumerGroup.
 type ConsumerGroupChannels struct {
-	Upstream     chan Message
-	Errors       chan error
-	Ready        chan struct{}
-	Closer       chan struct{}
-	Closed       chan struct{}
-	UpstreamDone chan bool
+	Upstream chan Message
+	Errors   chan error
+	Ready    chan struct{}
+	Closer   chan struct{}
+	Closed   chan struct{}
 }
 
 // ProducerChannels represents the channels used by Producer.
@@ -53,9 +52,6 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	}
 	if consumerChannels.Closed == nil {
 		missingChannels = append(missingChannels, Closed)
-	}
-	if consumerChannels.UpstreamDone == nil {
-		missingChannels = append(missingChannels, UpstreamDone)
 	}
 	if len(missingChannels) > 0 {
 		return &ErrNoChannel{ChannelNames: missingChannels}
@@ -117,23 +113,24 @@ func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg 
 	}()
 }
 
-// CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels according to sync
-func CreateConsumerGroupChannels(sync bool) *ConsumerGroupChannels {
+// CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels.
+// You can provide the buffer size to determine the number of messages that will be buffered
+// in the upstream channel (to receive messages)
+func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
 	var chUpstream chan Message
-	if sync {
-		// Sync -> upstream channel buffered, so we can send-and-wait for upstreamDone
-		chUpstream = make(chan Message, 1)
+	if bufferSize > 0 {
+		// Upstream channel buffered
+		chUpstream = make(chan Message, bufferSize)
 	} else {
-		// not sync -> upstream channel un-buffered
+		// Upstream channel un-buffered
 		chUpstream = make(chan Message)
 	}
 	return &ConsumerGroupChannels{
-		Upstream:     chUpstream,
-		Errors:       make(chan error),
-		Ready:        make(chan struct{}),
-		Closer:       make(chan struct{}),
-		Closed:       make(chan struct{}),
-		UpstreamDone: make(chan bool, 1),
+		Upstream: chUpstream,
+		Errors:   make(chan error),
+		Ready:    make(chan struct{}),
+		Closer:   make(chan struct{}),
+		Closed:   make(chan struct{}),
 	}
 }
 

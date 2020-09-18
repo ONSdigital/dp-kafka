@@ -17,12 +17,16 @@ type Message interface {
 
 	// Offset returns the message offset
 	Offset() int64
+
+	// UpstreamDone returns the upstreamDone channel. Closing this channel notifies that the message has been consumed
+	UpstreamDone() chan struct{}
 }
 
 // SaramaMessage represents a Sarama specific Kafka message
 type SaramaMessage struct {
-	message *sarama.ConsumerMessage
-	session sarama.ConsumerGroupSession
+	message      *sarama.ConsumerMessage
+	session      sarama.ConsumerGroupSession
+	upstreamDone chan struct{}
 }
 
 // GetData returns the message contents.
@@ -39,4 +43,10 @@ func (M SaramaMessage) Offset() int64 {
 func (M SaramaMessage) Commit() {
 	M.session.MarkMessage(M.message, "metadata")
 	M.session.Commit()
+	close(M.upstreamDone)
+}
+
+// UpstreamDone returns the upstreamDone channel. Closing this channel notifies that the message has been consumed
+func (M SaramaMessage) UpstreamDone() chan struct{} {
+	return M.upstreamDone
 }

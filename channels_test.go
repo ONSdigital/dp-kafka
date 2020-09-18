@@ -9,13 +9,12 @@ import (
 
 // createConsumerChannels creates local consumer channels for testing
 func createConsumerChannels() (chUpstream chan kafka.Message, chReady, chCloser, chClosed chan struct{},
-	chErrors chan error, chUpstreamDone chan bool) {
+	chErrors chan error) {
 	chUpstream = make(chan kafka.Message)
 	chReady = make(chan struct{})
 	chCloser = make(chan struct{})
 	chClosed = make(chan struct{})
 	chErrors = make(chan error)
-	chUpstreamDone = make(chan bool, 1)
 	return
 }
 
@@ -32,16 +31,15 @@ func createProducerChannels() (chOutput chan []byte, chErrors chan error, chRead
 func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 	Convey("Given a set of consumer group channels", t, func() {
-		chUpstream, chReady, chCloser, chClosed, chErrors, chUpstreamDone := createConsumerChannels()
+		chUpstream, chReady, chCloser, chClosed, chErrors := createConsumerChannels()
 
 		Convey("ConsumerGroupChannels with all required channels has a successful validation", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Upstream:     chUpstream,
-				Ready:        chReady,
-				Closer:       chCloser,
-				Closed:       chClosed,
-				Errors:       chErrors,
-				UpstreamDone: chUpstreamDone,
+				Upstream: chUpstream,
+				Ready:    chReady,
+				Closer:   chCloser,
+				Closed:   chClosed,
+				Errors:   chErrors,
 			}
 			err := cCh.Validate()
 			So(err, ShouldBeNil)
@@ -49,11 +47,10 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Upstream channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Ready:        chReady,
-				Closer:       chCloser,
-				Closed:       chClosed,
-				Errors:       chErrors,
-				UpstreamDone: chUpstreamDone,
+				Ready:  chReady,
+				Closer: chCloser,
+				Closed: chClosed,
+				Errors: chErrors,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Upstream}})
@@ -61,11 +58,10 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Ready channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Upstream:     chUpstream,
-				Closer:       chCloser,
-				Closed:       chClosed,
-				Errors:       chErrors,
-				UpstreamDone: chUpstreamDone,
+				Upstream: chUpstream,
+				Closer:   chCloser,
+				Closed:   chClosed,
+				Errors:   chErrors,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Ready}})
@@ -73,11 +69,10 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Closer channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Upstream:     chUpstream,
-				Ready:        chReady,
-				Closed:       chClosed,
-				Errors:       chErrors,
-				UpstreamDone: chUpstreamDone,
+				Upstream: chUpstream,
+				Ready:    chReady,
+				Closed:   chClosed,
+				Errors:   chErrors,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Closer}})
@@ -85,11 +80,10 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Closed channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Upstream:     chUpstream,
-				Ready:        chReady,
-				Closer:       chCloser,
-				Errors:       chErrors,
-				UpstreamDone: chUpstreamDone,
+				Upstream: chUpstream,
+				Ready:    chReady,
+				Closer:   chCloser,
+				Errors:   chErrors,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Closed}})
@@ -97,11 +91,10 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Errors channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := kafka.ConsumerGroupChannels{
-				Upstream:     chUpstream,
-				Ready:        chReady,
-				Closer:       chCloser,
-				Closed:       chClosed,
-				UpstreamDone: chUpstreamDone,
+				Upstream: chUpstream,
+				Ready:    chReady,
+				Closer:   chCloser,
+				Closed:   chClosed,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, &kafka.ErrNoChannel{ChannelNames: []string{kafka.Errors}})

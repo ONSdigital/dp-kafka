@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	lockMessageMockCommit  sync.RWMutex
-	lockMessageMockGetData sync.RWMutex
-	lockMessageMockOffset  sync.RWMutex
+	lockMessageMockCommit       sync.RWMutex
+	lockMessageMockGetData      sync.RWMutex
+	lockMessageMockOffset       sync.RWMutex
+	lockMessageMockUpstreamDone sync.RWMutex
 )
 
 // Ensure, that MessageMock does implement kafka.Message.
@@ -33,6 +34,9 @@ var _ kafka.Message = &MessageMock{}
 //             OffsetFunc: func() int64 {
 // 	               panic("mock out the Offset method")
 //             },
+//             UpstreamDoneFunc: func() chan struct{} {
+// 	               panic("mock out the UpstreamDone method")
+//             },
 //         }
 //
 //         // use mockedMessage in code that requires kafka.Message
@@ -49,6 +53,9 @@ type MessageMock struct {
 	// OffsetFunc mocks the Offset method.
 	OffsetFunc func() int64
 
+	// UpstreamDoneFunc mocks the UpstreamDone method.
+	UpstreamDoneFunc func() chan struct{}
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// Commit holds details about calls to the Commit method.
@@ -59,6 +66,9 @@ type MessageMock struct {
 		}
 		// Offset holds details about calls to the Offset method.
 		Offset []struct {
+		}
+		// UpstreamDone holds details about calls to the UpstreamDone method.
+		UpstreamDone []struct {
 		}
 	}
 }
@@ -138,5 +148,31 @@ func (mock *MessageMock) OffsetCalls() []struct {
 	lockMessageMockOffset.RLock()
 	calls = mock.calls.Offset
 	lockMessageMockOffset.RUnlock()
+	return calls
+}
+
+// UpstreamDone calls UpstreamDoneFunc.
+func (mock *MessageMock) UpstreamDone() chan struct{} {
+	if mock.UpstreamDoneFunc == nil {
+		panic("MessageMock.UpstreamDoneFunc: method is nil but Message.UpstreamDone was just called")
+	}
+	callInfo := struct {
+	}{}
+	lockMessageMockUpstreamDone.Lock()
+	mock.calls.UpstreamDone = append(mock.calls.UpstreamDone, callInfo)
+	lockMessageMockUpstreamDone.Unlock()
+	return mock.UpstreamDoneFunc()
+}
+
+// UpstreamDoneCalls gets all the calls that were made to UpstreamDone.
+// Check the length with:
+//     len(mockedMessage.UpstreamDoneCalls())
+func (mock *MessageMock) UpstreamDoneCalls() []struct {
+} {
+	var calls []struct {
+	}
+	lockMessageMockUpstreamDone.RLock()
+	calls = mock.calls.UpstreamDone
+	lockMessageMockUpstreamDone.RUnlock()
 	return calls
 }
