@@ -21,6 +21,7 @@ type Config struct {
 	KafkaMaxBytes           int           `envconfig:"KAFKA_MAX_BYTES"`
 	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
 	ProducedTopic           string        `envconfig:"KAFKA_PRODUCED_TOPIC"`
+	WaitForProducerReady    bool          `envconfig:"KAFKA_WAIT_PRODUCER_READY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Chomp                   bool          `envconfig:"CHOMP_MSG"`
 }
@@ -48,6 +49,7 @@ func run(ctx context.Context) error {
 		KafkaMaxBytes:           50 * 1024 * 1024,
 		KafkaVersion:            "2.3.1",
 		ProducedTopic:           "myTopic",
+		WaitForProducerReady:    true,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Chomp:                   false,
 	}
@@ -81,14 +83,18 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 		return nil, err
 	}
 
-	// If it is not initialised at creation time, create a go-routine to retry
-	if !producer.IsInitialised() {
-		log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Please, try to initialise it later.", log.WARN)
-		initialiserLoop(ctx, producer)
-	}
-
 	// go-routine to log errors from error channel
 	pChannels.LogErrors(ctx, "[KAFKA-TEST] Producer error")
+
+	// Producer not initialised at creation time. It will retry to initialise later, we may want to block until it is initialised
+	if !producer.IsInitialised() {
+		if cfg.WaitForProducerReady {
+			log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Waiting until we can initialise it.", log.WARN)
+			<-pChannels.Ready
+		} else {
+			log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Will be initialised later.", log.WARN)
+		}
+	}
 
 	// Create loop-control channel and context
 	eventLoopContext, eventLoopCancel := context.WithCancel(ctx)
@@ -170,23 +176,12 @@ func closeProducer(ctx context.Context, producer *kafka.Producer, gracefulShutdo
 	return nil
 }
 
-// initialiserLoop retries to initialise a producer until it is initialised or the closer channel is closed
-// TODO - we might want to move this loop to kafka Producer itself.
-func initialiserLoop(ctx context.Context, producer *kafka.Producer) {
-	go func() {
-		for {
-			select {
-			case <-producer.Channels().Closer:
-				log.Event(ctx, "[KAFKA-TEST] Producer has not been initialised, but it is being closed. Aborting initialisation loop", log.INFO)
-				return
-			default:
-				if err := producer.Initialise(ctx); err != nil {
-					time.Sleep(ticker)
-					continue
-				}
-				log.Event(ctx, "[KAFKA-TEST] Producer has been successfully initialised", log.INFO)
-				return
-			}
-		}
-	}()
+// waitForInitialised blocks until the consumer is initialised or closed
+func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
+	select {
+	case <-cgChannels.Ready:
+		log.Event(ctx, "[KAFKA-TEST] Consumer is now initialised.", log.WARN)
+	case <-cgChannels.Closer:
+		log.Event(ctx, "[KAFKA-TEST] Consumer is being closed.", log.WARN)
+	}
 }

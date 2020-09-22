@@ -22,6 +22,7 @@ type Config struct {
 	KafkaParallelMessages   int           `envconfig:"KAFKA_PARALLEL_MESSAGES"`
 	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
 	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
+	WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
@@ -54,6 +55,7 @@ func run(ctx context.Context) error {
 		KafkaParallelMessages:   3,
 		ConsumedTopic:           "myTopic",
 		ConsumedGroup:           log.Namespace,
+		WaitForConsumerReady:    true,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Snooze:                  true,
 		OverSleep:               false,
@@ -86,14 +88,19 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 		return nil, err
 	}
 
-	// If it is not initialised at creation time, create a go-routine to retry
-	if !cg.IsInitialised() {
-		log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Please, try to initialise it later.", log.WARN)
-		initialiserLoop(ctx, cg)
-	}
-
 	// go-routine to log errors from error channel
 	cgChannels.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
+
+	// Consumer not initialised at creation time. We need to retry to initialise it.
+	if !cg.IsInitialised() {
+		if cfg.WaitForConsumerReady {
+			log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Waiting until we can initialise it.", log.WARN)
+			waitForInitialised(ctx, cg.Channels())
+		} else {
+			log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Will be initialised later.", log.WARN)
+			go waitForInitialised(ctx, cg.Channels())
+		}
+	}
 
 	// eventLoop to consumer messages from Upstream channel by sending them the workers
 	go func() {
@@ -105,13 +112,14 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// workers to consume messages in parallel
 	for w := 1; w <= cfg.KafkaParallelMessages; w++ {
-		go worker(ctx, cfg, w, cgChannels.Upstream)
+		go consume(ctx, cfg, w, cgChannels.Upstream)
 	}
 
 	return cg, nil
 }
 
-func worker(ctx context.Context, cfg *Config, id int, upstream chan kafka.Message) {
+// consume waits for messages to arrive to the upstream channel and consumes them, in an infinite loop
+func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Message) {
 	log.Event(ctx, "worker started consuming", log.Data{"worker_id": id})
 	for {
 		consumedMessage := <-upstream
@@ -167,27 +175,6 @@ func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulSh
 	return nil
 }
 
-// initialiserLoop retries to initialise a consumerGroup until it is initialised or the closer channel is closed
-// TODO - we might want to move this loop to kafka ConsumerGroup itself.
-func initialiserLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
-	go func() {
-		for {
-			select {
-			case <-cg.Channels().Closer:
-				log.Event(ctx, "[KAFKA-TEST] ConsumerGroup has not been initialised, but it is being closed. Aborting initialisation loop", log.INFO)
-				return
-			default:
-				if err := cg.Initialise(ctx); err != nil {
-					time.Sleep(ticker)
-					continue
-				}
-				log.Event(ctx, "[KAFKA-TEST] ConsumerGroup has been successfully initialised", log.INFO)
-				return
-			}
-		}
-	}()
-}
-
 // sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.
 // Snooze will cause a delay of 500ms, and OverSleep will cause a delay of the timeout plus 500 ms.
 // This function is for testing purposes only and should not be used in applications.
@@ -207,5 +194,15 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 	if sleep > time.Duration(0) {
 		time.Sleep(sleep)
 		log.Event(ctx, "[KAFKA-TEST] done sleeping", log.INFO)
+	}
+}
+
+// waitForInitialised blocks until the consumer is initialised or closed
+func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
+	select {
+	case <-cgChannels.Ready:
+		log.Event(ctx, "[KAFKA-TEST] Consumer is now initialised.", log.WARN)
+	case <-cgChannels.Closer:
+		log.Event(ctx, "[KAFKA-TEST] Consumer is being closed.", log.WARN)
 	}
 }

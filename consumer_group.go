@@ -11,7 +11,6 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-var debugMode = true
 var tick = time.Millisecond * 1500
 var messageConsumeTimeout = time.Second * 10
 
@@ -42,7 +41,6 @@ type ConsumerGroup struct {
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
-// -
 func NewConsumerGroup(ctx context.Context,
 	brokerAddrs []string, topic, group string, kafkaVersion string,
 	channels *ConsumerGroupChannels) (*ConsumerGroup, error) {
@@ -54,7 +52,7 @@ func NewConsumerGroup(ctx context.Context,
 	// Obtain Sarama Kafka Version from kafkaVersion string
 	v, err := sarama.ParseKafkaVersion(kafkaVersion)
 	if err != nil {
-		log.Event(nil, "Error parsing Kafka version: %v", log.ERROR, log.Error(err))
+		log.Event(nil, "error parsing kafka version: %v", log.ERROR, log.Error(err))
 		return nil, err
 	}
 
@@ -94,7 +92,7 @@ func NewConsumerGroup(ctx context.Context,
 	// Initialise consumer group, and log any error
 	err = cg.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "Initialisation error (non-fatal)", log.WARN, log.Error(err))
+		cg.createLoopUninitialised(ctx)
 	}
 	return cg, nil
 }
@@ -135,20 +133,18 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	saramaConsumerGroup, err := sarama.NewConsumerGroup(cg.brokerAddrs, cg.group, cg.config)
 	if err != nil {
-		log.Event(ctx, "Error creating consumer group client", log.ERROR, log.Error(err))
 		return err
 	}
 
 	// On Successful initialization, create sarama consumer handler, and loop goroutines (for messages and errors)
 	cg.saramaCgHandler = &saramaCgHandler{ctx, cg.channels}
 	cg.saramaCg = saramaConsumerGroup
-	log.Event(ctx, "Initialised Sarama Consumer", log.INFO, logData)
 	cg.createConsumeLoop(ctx)
 	cg.createErrorLoop(ctx)
 
 	// Await until the consumer has been set up
 	<-cg.channels.Ready
-	log.Event(ctx, "Sarama consumer up and running", log.INFO, logData)
+	log.Event(ctx, "sarama consumer successfully initialised", log.INFO, logData)
 
 	return nil
 }
@@ -208,7 +204,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close consumer only if it was initialised.
 	if cg.IsInitialised() {
 		if err = cg.saramaCg.Close(); err != nil {
-			log.Event(ctx, "Close failed of kafka consumer group", log.WARN, log.Error(err), logData)
+			log.Event(ctx, "close failed of kafka consumer group", log.WARN, log.Error(err), logData)
 			return err
 		}
 	}
@@ -218,9 +214,39 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		broker.Close()
 	}
 
-	log.Event(ctx, "Successfully closed kafka consumer group", log.INFO, logData)
+	log.Event(ctx, "successfully closed kafka consumer group", log.INFO, logData)
 	close(cg.channels.Closed)
 	return nil
+}
+
+// createLoopUninitialised creates a goroutine to handle uninitialised consumer groups.
+// It retries to initialise it every InitRetryPeriod, until the consumer group is initialised or being closed.
+func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
+
+	// Do nothing if consumer group already initialised
+	if cg.IsInitialised() {
+		return
+	}
+
+	cg.wgClose.Add(1)
+	go func() {
+		defer cg.wgClose.Done()
+		for {
+			select {
+			case <-cg.channels.Ready:
+				return
+			case <-cg.channels.Closer:
+				log.Event(ctx, "closing uninitialised kafka consumer group", log.INFO, log.Data{"topic": cg.topic})
+				return
+			default:
+				if err := cg.Initialise(ctx); err != nil {
+					time.Sleep(InitRetryPeriod)
+					continue
+				}
+				return
+			}
+		}
+	}()
 }
 
 // createConsumeLoop creates a goroutine to handle initialised consumer groups.
@@ -232,7 +258,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	go func() {
 		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-		log.Event(ctx, "Started kafka consumer listener", log.INFO, logData)
+		log.Event(ctx, "started kafka consumer listener loop", log.INFO, logData)
 		for {
 			select {
 			case <-cg.channels.Closer:

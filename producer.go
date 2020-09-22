@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"sync"
+	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/log"
@@ -80,7 +81,6 @@ func NewProducerWithSaramaClient(
 	// Initialise producer, and log any error
 	err = producer.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "Initialisation error (non-fatal)", log.WARN, log.Error(err))
 		producer.createLoopUninitialised(ctx)
 	}
 	return producer, nil
@@ -129,7 +129,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
-	log.Event(ctx, "Initialised Sarama Producer", log.INFO, log.Data{"topic": p.topic})
+	log.Event(ctx, "initialised sarama producer", log.INFO, log.Data{"topic": p.topic})
 	p.createLoopInitialised(ctx)
 	close(p.channels.Ready)
 	return nil
@@ -149,7 +149,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 
 	didTimeout := waitWithTimeout(ctx, p.wgClose)
 	if didTimeout {
-		log.Event(ctx, "Shutdown context time exceeded, skipping graceful shutdown of producer", log.WARN)
+		log.Event(ctx, "shutdown context time exceeded, skipping graceful shutdown of producer", log.WARN)
 		return ErrShutdownTimedOut
 	}
 
@@ -161,7 +161,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	// Close producer only if it was initialised
 	if p.IsInitialised() {
 		if err = p.producer.Close(); err != nil {
-			log.Event(ctx, "Close failed of kafka producer", log.ERROR, log.Error(err), logData)
+			log.Event(ctx, "close failed of kafka producer", log.ERROR, log.Error(err), logData)
 			return err
 		}
 	}
@@ -171,7 +171,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 		broker.Close()
 	}
 
-	log.Event(ctx, "Successfully closed kafka producer", log.INFO, logData)
+	log.Event(ctx, "successfully closed kafka producer", log.INFO, logData)
 	close(p.channels.Closed)
 	return nil
 }
@@ -190,16 +190,21 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 	p.wgClose.Add(1)
 	go func() {
 		defer p.wgClose.Done()
-		log.Event(ctx, "Started uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 		for {
 			select {
 			case message := <-p.channels.Output:
 				log.Event(ctx, "error sending a message", log.INFO, log.Data{"message": message, "topic": p.topic}, log.Error(ErrUninitialisedProducer))
 				p.channels.Errors <- ErrUninitialisedProducer
-			case <-p.channels.Closer:
-				log.Event(ctx, "Closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
-				return
 			case <-p.channels.Ready:
+				return
+			case <-p.channels.Closer:
+				log.Event(ctx, "closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
+				return
+			default:
+				if err := p.Initialise(ctx); err != nil {
+					time.Sleep(InitRetryPeriod)
+					continue
+				}
 				return
 			}
 		}
@@ -221,16 +226,14 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 	p.wgClose.Add(1)
 	go func() {
 		defer p.wgClose.Done()
-		log.Event(ctx, "Started initialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 		for {
 			select {
 			case err := <-p.producer.Errors():
-				log.Event(ctx, "Producer", log.ERROR, log.Data{"topic": p.topic}, log.Error(err))
 				p.channels.Errors <- err
 			case message := <-p.channels.Output:
 				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)}
 			case <-p.channels.Closer:
-				log.Event(ctx, "Closing initialised kafka producer", log.INFO, log.Data{"topic": p.topic})
+				log.Event(ctx, "closing initialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 				return
 			}
 		}

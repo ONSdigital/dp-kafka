@@ -1,63 +1,120 @@
 dp-kafka
 =======
 
-Kafka client wrapper using channels to abstract kafka consumers and producers.
+Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/Shopify/sarama)
 
 ## Life-cycle
 
 ### Creation
 
-Kafka producers and consumers can be created with constructors that accept the required channels and configuration. You may create the channels using `CreateProducerChannels` and `CreateConsumerChannels` respectively.
+Kafka producers and consumers can be created with constructors that accept the required channels and configuration. You may create the channels using `CreateProducerChannels` and `CreateConsumerChannels` respectively:
 
-Example: create a kafka producer
-```
-pChannels := kafka.CreateProducerChannels()
-producer, err := kafka.NewProducer(
-	ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
-```
-
-Example: create a kafka consumer
-```
-cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaSync)
-consumer, err := kafka.NewConsumerGroup(
-	ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, kafka.OffsetNewest, cfg.KafkaSync, cgChannels)
+```go
+	// Create Producer with channels
+	pChannels := kafka.CreateProducerChannels()
+	producer, err := kafka.NewProducer(
+		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
 ```
 
-For consumers, is recommended to use `sync=true` - where, when you have read a message from `Incoming()`,
-the listener for messages will block (and not read the next message from kafka)
-until you signal that the message has been consumed (typically with `CommitAndRelease(msg)`).
-Otherwise, if the application gets shutdown (e.g. interrupt signal), and has to be shutdown,
-the consumer may not be shutdown in a timely manner (because it is blocked sending the read message to `Incoming()`).
+```go
+	// Create ConsumerGroup with channels
+	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
+	cg, err := kafka.NewConsumerGroup(
+		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+```
+
+For consumers, you can specify the batch size that determines the number of messages to be stored in the Upstream channel. It is recommended to provide a batch size equal to the number of parallel messages that are consumed.
+
+The constructor tires to initialise the producer/consumer by creating the underlying Sarama client, but failing to initialise it is not considered a fatal error, hence the constructor will not error.
 
 please, note that if you do not provide the necessary channels, an `ErrNoChannel` error will be returned by the constructors, which must be considered fatal.
 
-The constructor tires to initialise the producer/consumer by creating the underlying client. If the initialisation fails, a non-fatal error is returned; you can try to initialise it again later.
-
 ### Initialisation
 
-A producer/consumer might not have been successfully initialised at creation time. If this is the case, you can always try to initialise it by calling `Initialise`. To validate the initialisation state, please call `IsInitialised`.
+If the producer/consumer can establish a connection with the Kafka cluster, it will be initialised at creation time, which is usually the case. But it might not be able to do so, for example if the kafka cluster is not running. If a producer/consumer is not initialised, it cannot contact the kafka broker, and it cannot send or receive any message. Any attempt to send a message in this state will result in an error being sent to the Errors channel.
 
-If a producer/consumer is not initialised, it cannot contact the kafka broker.
+An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and it will start producing/consuming.
 
-An uninitialised kafka producer cannot send messages, and any attempt to do so will result in an error being sent to the Errors channel.
+You can check if a producer/consumer is initialised by calling `IsInitialised()` or wait for it to be initialised by waiting for the Ready channel to be closed, like so:
 
-An uninitialised kafka consumer group will not receive any message.
-
-When a producer/consumer is successfully initialised, it will close the channel `Init`. You can trigger some event on kafka initialisation by waiting for the channel to be closed. For example:
-```
+```go
+	// wait in a parallel go-routine
 	go func() {
-		<-channels.Init
-		doKafkaStuff()
+		<-channels.Ready
+		doStuff()
 	}()
 ```
 
-Waiting for this channel is a convenient hook, but not a necessary requirement. The other channels will send/receive data when Sarama is initialised in any case.
+```go
+	// block until kafka is initialised
+	<-channels.Ready
+	doStuff()
+```
+
+Waiting for this channel is a convenient hook, but not a necessary requirement.
+
+### Message production
+
+Messages are sent to Kafka by sending them to a producer Output channel, as byte arrays:
+
+```go
+	// send message
+	pChannels.Output <- []byte(msg)
+```
+
+### Message consumption
+
+Messages can be consumed by creating an infinite consumption loop. Once a message has finished being processed, you need to call `Commit()`, so that Sarama releases the go-routine consuming a message and Kafka knows that the message does not need to be delivered again (marks the message, and commits the offset):
+
+```go
+// consumer loop
+func consume(upstream chan kafka.Message) {
+	for {
+		msg := <-upstream
+		doStuff(msg)
+		msg.Commit()
+	}
+}
+```
+
+You may create a single go-routine to consume messages sequentially, or multiple parallel go-routines (workers) to consume them concurrently:
+
+```go
+	// single consume go-routine
+	go consume(channels.Upstream)
+```
+
+```go
+	// multiple workers to consume messages in parallel
+	for w := 1; w <= cfg.KafkaParallelMessages; w++ {
+		go consume(channels.Upstream)
+	}
+```
+
+You may consume as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
+
+#### Message consumption deep dive
+
+Sarama creates as many go-routines as partitions are assigned to the consumer, for the topic being consumed.
+
+For example, if we have a topic with 60 partitions and we have 2 instances of a service that consumes that topic running at the same time, kafka will assign 30 partitions to each one.
+
+Then Sarama will create 30 parallel go-routines, which this library uses in order to send messages to the upstream channel. Each go-routine waits for the message to finish being processed by waiting for the message-specific `upstreamDone` channel to be closed, like so:
+
+```go
+	channels.Upstream <- msg
+	<-msg.upstreamDone
+```
+
+Each Sarama consumption go routine exists only during a particular session. Sessions are periodically destroyed and created by Sarama, according to Kafka events like a cluster re-balance (where the number of partitions assigned to a consumer may change). It is important that messages are released as soon as possible when this happens. The default message consumption timeout is 10 seconds in this scenario (determined by `config.Consumer.Group.Session.Timeout`).
 
 ### Closing
 
-Producers can be closed calling the `Close` method.
+Producers can be closed by calling the `Close` method.
 
 For graceful handling of Closing consumers, it is advised to use the `StopListeningToConsumer` method prior to the `Close` method. This will allow inflight messages to be completed and successfully call commit so that the message does not get replayed once the application restarts.
+
+The `Closer` channel is used to signal to all the loops that they need to exit because the consumer is being closed.
 
 After successfully closing a producer or consumer, the corresponding `Closed` channel is closed.
 
@@ -72,9 +129,12 @@ check, err = cli.Checker(ctx)
 - If all brokers can be reached, but a broker does not provide the expected topic metadata, the Status is set to WARNING.
 - If all brokers can be reached and return the expected topic metadata, we try to initialise the consumer/producer. If it was already initialised, or the initialisation is successful, the Status is set to OK.
 
-## Example
+## Examples
 
-See the [example source file](cmd/kafka-example/main.go) for a typical usage.
+See the [examples](examples/README.md) for some typical usages of this library:
+- [Producer example](examples/producer/main.go)
+- [Sequential consumer example](examples/consumer-sequential/main.go)
+- [Concurrent consumer example](examples/consumer-concurrent/main.go)
 
 ## Testing
 
