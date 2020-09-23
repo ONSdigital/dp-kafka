@@ -12,15 +12,13 @@ Kafka producers and consumers can be created with constructors that accept the r
 ```go
 	// Create Producer with channels
 	pChannels := kafka.CreateProducerChannels()
-	producer, err := kafka.NewProducer(
-		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
+	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, cfg.KafkaVersion, pChannels)
 ```
 
 ```go
 	// Create ConsumerGroup with channels
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cg, err := kafka.NewConsumerGroup(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
 ```
 
 For consumers, you can specify the batch size that determines the number of messages to be stored in the Upstream channel. It is recommended to provide a batch size equal to the number of parallel messages that are consumed.
@@ -91,7 +89,7 @@ You may create a single go-routine to consume messages sequentially, or multiple
 	}
 ```
 
-You may consume as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
+You con consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
 
 #### Message consumption deep dive
 

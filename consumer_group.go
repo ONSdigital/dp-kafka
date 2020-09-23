@@ -71,8 +71,10 @@ func newConsumerGroup(ctx context.Context,
 	// Create config
 	config := sarama.NewConfig()
 	config.Version = v
-	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	config.Consumer.MaxWaitTime = 50 * time.Millisecond
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Consumer.Return.Errors = true
+	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	config.Consumer.Group.Session.Timeout = messageConsumeTimeout
 
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
@@ -135,8 +137,6 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 		ctx = context.Background()
 	}
 
-	logData := log.Data{"topic": cg.topic, "group": cg.group}
-
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.config)
 	if err != nil {
@@ -151,7 +151,6 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 
 	// Await until the consumer has been set up
 	<-cg.channels.Ready
-	log.Event(ctx, "sarama consumer successfully initialised", log.INFO, logData)
 
 	return nil
 }
@@ -184,7 +183,6 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 		return err
 	}
 
-	log.Event(ctx, "StopListeningToConsumer got confirmation of closed kafka consumer listener", log.INFO, logData)
 	return nil
 }
 
@@ -221,7 +219,6 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		broker.Close()
 	}
 
-	log.Event(ctx, "successfully closed kafka consumer group", log.INFO, logData)
 	close(cg.channels.Closed)
 	return nil
 }
