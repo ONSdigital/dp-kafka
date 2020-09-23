@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	kafka "github.com/ONSdigital/dp-kafka"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -16,19 +15,19 @@ func TestProducerMock(t *testing.T) {
 		producerMock := NewMessageProducer(false)
 		So(producerMock.IsInitialised(), ShouldBeFalse)
 
-		Convey("It can be successfully initialised, closing Init channel", func() {
-			initClosed := false
+		Convey("It can be successfully initialised, closing Ready channel", func() {
+			readyClosed := false
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				<-producerMock.Channels().Ready
-				initClosed = true
+				readyClosed = true
 			}()
 			producerMock.Initialise(context.Background())
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
-			So(initClosed, ShouldBeTrue)
+			So(readyClosed, ShouldBeTrue)
 		})
 
 		Convey("It can be successfully closed", func() {
@@ -81,24 +80,25 @@ func validateCloseProducer(producerMock *MessageProducer) {
 	So(closedClosed, ShouldBeTrue)
 }
 
-func TestMocks(t *testing.T) {
+func TestConsumerMock(t *testing.T) {
+
 	Convey("Given an uninitialised consumer mock", t, func() {
 		consumerMock := NewMessageConsumer(false)
 		So(consumerMock.IsInitialised(), ShouldBeFalse)
 
-		Convey("It can be successfully initialised, closing Init channel", func() {
-			initClosed := false
+		Convey("It can be successfully initialised, closing Ready channel", func() {
+			readyClosed := false
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				<-consumerMock.Channels().Ready
-				initClosed = true
+				readyClosed = true
 			}()
 			consumerMock.Initialise(context.Background())
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
-			So(initClosed, ShouldBeTrue)
+			So(readyClosed, ShouldBeTrue)
 		})
 
 		Convey("It can successfully stop listening", func() {
@@ -145,15 +145,15 @@ func TestMocks(t *testing.T) {
 				defer wg.Done()
 				rxMsg := <-consumerMock.Channels().Upstream
 				c.So(rxMsg, ShouldResemble, message1)
-				consumerMock.CommitAndRelease(rxMsg)
+				rxMsg.Commit()
 
 				rxMsg = <-consumerMock.Channels().Upstream
 				c.So(rxMsg, ShouldResemble, message2)
-				consumerMock.CommitAndRelease(rxMsg)
+				rxMsg.Commit()
 
 				rxMsg = <-consumerMock.Channels().Upstream
 				c.So(rxMsg, ShouldResemble, message3)
-				consumerMock.CommitAndRelease(rxMsg)
+				rxMsg.Commit()
 				receivedAll = true
 			}()
 
@@ -161,7 +161,9 @@ func TestMocks(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				consumerMock.UpstreamMessages([]kafka.Message{message1, message2, message3})
+				consumerMock.Channels().Upstream <- message1
+				consumerMock.Channels().Upstream <- message2
+				consumerMock.Channels().Upstream <- message3
 				sentAll = true
 			}()
 

@@ -24,30 +24,28 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	envMax      int
-	producer    sarama.AsyncProducer
-	brokerAddrs []string
-	brokers     []*sarama.Broker
-	topic       string
-	channels    *ProducerChannels
-	cli         Sarama
-	mutex       *sync.Mutex
-	wgClose     *sync.WaitGroup
+	envMax       int
+	producer     sarama.AsyncProducer
+	producerInit producerInitialiser
+	brokerAddrs  []string
+	brokers      []*sarama.Broker
+	topic        string
+	channels     *ProducerChannels
+	mutex        *sync.Mutex
+	wgClose      *sync.WaitGroup
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
-	ctx context.Context, brokerAddrs []string, topic string, envMax int, channels *ProducerChannels) (*Producer, error) {
-	return NewProducerWithSaramaClient(
-		ctx, brokerAddrs, topic, envMax, channels, &SaramaClient{},
-	)
+	ctx context.Context, brokerAddrs []string, topic string, envMax int,
+	channels *ProducerChannels) (producer *Producer, err error) {
+	return newProducer(ctx, brokerAddrs, topic, envMax, channels, saramaNewAsyncProducer)
 }
 
-// NewProducerWithSaramaClient returns a new producer with a provided Sarama client
-func NewProducerWithSaramaClient(
+func newProducer(
 	ctx context.Context, brokerAddrs []string, topic string, envMax int,
-	channels *ProducerChannels, cli Sarama) (producer *Producer, err error) {
+	channels *ProducerChannels, pInit producerInitialiser) (producer *Producer, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -55,12 +53,12 @@ func NewProducerWithSaramaClient(
 
 	// Producer initialised with provided brokers and topic
 	producer = &Producer{
-		envMax:      envMax,
-		brokerAddrs: brokerAddrs,
-		topic:       topic,
-		cli:         cli,
-		mutex:       &sync.Mutex{},
-		wgClose:     &sync.WaitGroup{},
+		envMax:       envMax,
+		producerInit: pInit,
+		brokerAddrs:  brokerAddrs,
+		topic:        topic,
+		mutex:        &sync.Mutex{},
+		wgClose:      &sync.WaitGroup{},
 	}
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
@@ -122,7 +120,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	if p.envMax > 0 {
 		config.Producer.MaxMessageBytes = p.envMax
 	}
-	saramaProducer, err := p.cli.NewAsyncProducer(p.brokerAddrs, config)
+	saramaProducer, err := p.producerInit(p.brokerAddrs, config)
 	if err != nil {
 		return err
 	}
@@ -200,9 +198,8 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case <-p.channels.Closer:
 				log.Event(ctx, "closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 				return
-			default:
+			case <-time.After(InitRetryPeriod):
 				if err := p.Initialise(ctx); err != nil {
-					time.Sleep(InitRetryPeriod)
 					continue
 				}
 				return

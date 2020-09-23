@@ -16,7 +16,11 @@ type saramaCgHandler struct {
 // Setup is run by Sarama at the beginning of a new session, before ConsumeClaim.
 func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
 	log.Event(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.INFO, log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
-	close(sh.channels.Ready)
+	select {
+	case <-sh.channels.Ready:
+	default:
+		close(sh.channels.Ready)
+	}
 	return nil
 }
 

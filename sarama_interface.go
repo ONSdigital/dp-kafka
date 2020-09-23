@@ -2,21 +2,25 @@ package kafka
 
 import "github.com/Shopify/sarama"
 
-//go:generate moq -out ./mock/sarama.go -pkg mock . Sarama
 //go:generate moq -out ./mock/sarama_async_producer.go -pkg mock . AsyncProducer
-
-// Sarama is an interface representing the Sarama library.
-type Sarama interface {
-	NewAsyncProducer(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error)
-}
+//go:generate moq -out ./mock/sarama_consumer_group.go -pkg mock . SaramaConsumerGroup
 
 // AsyncProducer is a wrapper around sarama.AsyncProducer
 type AsyncProducer = sarama.AsyncProducer
 
-// SaramaClient implements Sarama interface and wraps the real calls to Sarama library.
-type SaramaClient struct{}
+// SaramaConsumerGroup is a wrapper around sarama.ConsumerGroup
+type SaramaConsumerGroup = sarama.ConsumerGroup
 
-// NewAsyncProducer creates a new sarama.AsyncProducer using the given broker addresses and configuration.
-func (s *SaramaClient) NewAsyncProducer(addrs []string, conf *sarama.Config) (AsyncProducer, error) {
+// Types for sarama initialisers
+type (
+	producerInitialiser      = func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error)
+	consumerGroupInitialiser = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error)
+)
+
+var saramaNewAsyncProducer = func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error) {
 	return sarama.NewAsyncProducer(addrs, conf)
+}
+
+var saramaNewConsumerGroup = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
+	return sarama.NewConsumerGroup(addrs, groupID, config)
 }

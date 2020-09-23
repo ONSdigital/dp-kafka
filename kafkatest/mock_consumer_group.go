@@ -14,10 +14,8 @@ var (
 	lockIConsumerGroupMockChannels                sync.RWMutex
 	lockIConsumerGroupMockChecker                 sync.RWMutex
 	lockIConsumerGroupMockClose                   sync.RWMutex
-	lockIConsumerGroupMockCommitAndRelease        sync.RWMutex
 	lockIConsumerGroupMockInitialise              sync.RWMutex
 	lockIConsumerGroupMockIsInitialised           sync.RWMutex
-	lockIConsumerGroupMockRelease                 sync.RWMutex
 	lockIConsumerGroupMockStopListeningToConsumer sync.RWMutex
 )
 
@@ -40,17 +38,11 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 //             CloseFunc: func(ctx context.Context) error {
 // 	               panic("mock out the Close method")
 //             },
-//             CommitAndReleaseFunc: func(msg kafka.Message)  {
-// 	               panic("mock out the CommitAndRelease method")
-//             },
 //             InitialiseFunc: func(ctx context.Context) error {
 // 	               panic("mock out the Initialise method")
 //             },
 //             IsInitialisedFunc: func() bool {
 // 	               panic("mock out the IsInitialised method")
-//             },
-//             ReleaseFunc: func()  {
-// 	               panic("mock out the Release method")
 //             },
 //             StopListeningToConsumerFunc: func(ctx context.Context) error {
 // 	               panic("mock out the StopListeningToConsumer method")
@@ -71,17 +63,11 @@ type IConsumerGroupMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
 
-	// CommitAndReleaseFunc mocks the CommitAndRelease method.
-	CommitAndReleaseFunc func(msg kafka.Message)
-
 	// InitialiseFunc mocks the Initialise method.
 	InitialiseFunc func(ctx context.Context) error
 
 	// IsInitialisedFunc mocks the IsInitialised method.
 	IsInitialisedFunc func() bool
-
-	// ReleaseFunc mocks the Release method.
-	ReleaseFunc func()
 
 	// StopListeningToConsumerFunc mocks the StopListeningToConsumer method.
 	StopListeningToConsumerFunc func(ctx context.Context) error
@@ -103,11 +89,6 @@ type IConsumerGroupMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 		}
-		// CommitAndRelease holds details about calls to the CommitAndRelease method.
-		CommitAndRelease []struct {
-			// Msg is the msg argument value.
-			Msg kafka.Message
-		}
 		// Initialise holds details about calls to the Initialise method.
 		Initialise []struct {
 			// Ctx is the ctx argument value.
@@ -115,9 +96,6 @@ type IConsumerGroupMock struct {
 		}
 		// IsInitialised holds details about calls to the IsInitialised method.
 		IsInitialised []struct {
-		}
-		// Release holds details about calls to the Release method.
-		Release []struct {
 		}
 		// StopListeningToConsumer holds details about calls to the StopListeningToConsumer method.
 		StopListeningToConsumer []struct {
@@ -219,37 +197,6 @@ func (mock *IConsumerGroupMock) CloseCalls() []struct {
 	return calls
 }
 
-// CommitAndRelease calls CommitAndReleaseFunc.
-func (mock *IConsumerGroupMock) CommitAndRelease(msg kafka.Message) {
-	if mock.CommitAndReleaseFunc == nil {
-		panic("IConsumerGroupMock.CommitAndReleaseFunc: method is nil but IConsumerGroup.CommitAndRelease was just called")
-	}
-	callInfo := struct {
-		Msg kafka.Message
-	}{
-		Msg: msg,
-	}
-	lockIConsumerGroupMockCommitAndRelease.Lock()
-	mock.calls.CommitAndRelease = append(mock.calls.CommitAndRelease, callInfo)
-	lockIConsumerGroupMockCommitAndRelease.Unlock()
-	mock.CommitAndReleaseFunc(msg)
-}
-
-// CommitAndReleaseCalls gets all the calls that were made to CommitAndRelease.
-// Check the length with:
-//     len(mockedIConsumerGroup.CommitAndReleaseCalls())
-func (mock *IConsumerGroupMock) CommitAndReleaseCalls() []struct {
-	Msg kafka.Message
-} {
-	var calls []struct {
-		Msg kafka.Message
-	}
-	lockIConsumerGroupMockCommitAndRelease.RLock()
-	calls = mock.calls.CommitAndRelease
-	lockIConsumerGroupMockCommitAndRelease.RUnlock()
-	return calls
-}
-
 // Initialise calls InitialiseFunc.
 func (mock *IConsumerGroupMock) Initialise(ctx context.Context) error {
 	if mock.InitialiseFunc == nil {
@@ -304,32 +251,6 @@ func (mock *IConsumerGroupMock) IsInitialisedCalls() []struct {
 	lockIConsumerGroupMockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
 	lockIConsumerGroupMockIsInitialised.RUnlock()
-	return calls
-}
-
-// Release calls ReleaseFunc.
-func (mock *IConsumerGroupMock) Release() {
-	if mock.ReleaseFunc == nil {
-		panic("IConsumerGroupMock.ReleaseFunc: method is nil but IConsumerGroup.Release was just called")
-	}
-	callInfo := struct {
-	}{}
-	lockIConsumerGroupMockRelease.Lock()
-	mock.calls.Release = append(mock.calls.Release, callInfo)
-	lockIConsumerGroupMockRelease.Unlock()
-	mock.ReleaseFunc()
-}
-
-// ReleaseCalls gets all the calls that were made to Release.
-// Check the length with:
-//     len(mockedIConsumerGroup.ReleaseCalls())
-func (mock *IConsumerGroupMock) ReleaseCalls() []struct {
-} {
-	var calls []struct {
-	}
-	lockIConsumerGroupMockRelease.RLock()
-	calls = mock.calls.Release
-	lockIConsumerGroupMockRelease.RUnlock()
 	return calls
 }
 

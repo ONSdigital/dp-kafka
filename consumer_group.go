@@ -11,7 +11,6 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-var tick = time.Millisecond * 1500
 var messageConsumeTimeout = time.Second * 10
 
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
@@ -33,6 +32,7 @@ type ConsumerGroup struct {
 	channels        *ConsumerGroupChannels
 	saramaCg        sarama.ConsumerGroup
 	saramaCgHandler *saramaCgHandler
+	saramaCgInit    consumerGroupInitialiser
 	topic           string
 	group           string
 	config          *sarama.Config
@@ -44,6 +44,12 @@ type ConsumerGroup struct {
 func NewConsumerGroup(ctx context.Context,
 	brokerAddrs []string, topic, group string, kafkaVersion string,
 	channels *ConsumerGroupChannels) (*ConsumerGroup, error) {
+	return newConsumerGroup(ctx, brokerAddrs, topic, group, kafkaVersion, channels, saramaNewConsumerGroup)
+}
+
+func newConsumerGroup(ctx context.Context,
+	brokerAddrs []string, topic, group string, kafkaVersion string,
+	channels *ConsumerGroupChannels, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -65,13 +71,14 @@ func NewConsumerGroup(ctx context.Context,
 
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
-		brokerAddrs: brokerAddrs,
-		brokers:     []*sarama.Broker{},
-		topic:       topic,
-		group:       group,
-		config:      config,
-		mutex:       &sync.Mutex{},
-		wgClose:     &sync.WaitGroup{},
+		brokerAddrs:  brokerAddrs,
+		brokers:      []*sarama.Broker{},
+		topic:        topic,
+		group:        group,
+		config:       config,
+		mutex:        &sync.Mutex{},
+		wgClose:      &sync.WaitGroup{},
+		saramaCgInit: cgInit,
 	}
 
 	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
@@ -131,7 +138,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
 
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
-	saramaConsumerGroup, err := sarama.NewConsumerGroup(cg.brokerAddrs, cg.group, cg.config)
+	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.config)
 	if err != nil {
 		return err
 	}
@@ -238,9 +245,8 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Closer:
 				log.Event(ctx, "closing uninitialised kafka consumer group", log.INFO, log.Data{"topic": cg.topic})
 				return
-			default:
+			case <-time.After(InitRetryPeriod):
 				if err := cg.Initialise(ctx); err != nil {
-					time.Sleep(InitRetryPeriod)
 					continue
 				}
 				return
@@ -273,11 +279,10 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 				// recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
 					log.Event(ctx, "error consuming", log.ERROR, log.Error(err))
-					time.Sleep(tick) // on error, retry loop after 'tick' time
+					time.Sleep(ConsumeErrRetryPeriod) // on error, retry loop after 'tick' time
 					continue
 				}
 			}
-			cg.channels.Ready = make(chan struct{})
 		}
 	}()
 }

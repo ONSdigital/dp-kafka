@@ -13,7 +13,10 @@ const (
 )
 
 // InitRetryPeriod is the time between initialisation retries (for producers and consumer gropus)
-var InitRetryPeriod = 1500 * time.Millisecond
+var InitRetryPeriod = 5 * time.Second
+
+// ConsumeErrRetryPeriod is the time between consume retrials on error (for consumer groups)
+var ConsumeErrRetryPeriod = 1500 * time.Millisecond
 
 // SetMaxMessageSize sets the Sarama MaxRequestSize and MaxResponseSize values to the provided maxSize
 func SetMaxMessageSize(maxSize int32) {
