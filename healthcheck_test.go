@@ -42,7 +42,7 @@ func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, er
 		return asyncProducerMock, nil
 	}
 	channels := CreateProducerChannels()
-	return newProducer(ctx, brokerAddrs, topic, 123, channels, pInit)
+	return newProducer(ctx, brokerAddrs, topic, 123, testKafkaVersion, channels, pInit)
 }
 
 // createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
@@ -51,7 +51,7 @@ func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (
 		return nil, ErrSaramaNoBrokers
 	}
 	channels := CreateProducerChannels()
-	return newProducer(ctx, brokerAddrs, topic, 123, channels, pInit)
+	return newProducer(ctx, brokerAddrs, topic, 123, testKafkaVersion, channels, pInit)
 }
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing

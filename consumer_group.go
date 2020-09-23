@@ -62,6 +62,12 @@ func newConsumerGroup(ctx context.Context,
 		return nil, err
 	}
 
+	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
+	err = channels.Validate()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create config
 	config := sarama.NewConfig()
 	config.Version = v
@@ -73,6 +79,7 @@ func newConsumerGroup(ctx context.Context,
 	cg := &ConsumerGroup{
 		brokerAddrs:  brokerAddrs,
 		brokers:      []*sarama.Broker{},
+		channels:     channels,
 		topic:        topic,
 		group:        group,
 		config:       config,
@@ -80,13 +87,6 @@ func newConsumerGroup(ctx context.Context,
 		wgClose:      &sync.WaitGroup{},
 		saramaCgInit: cgInit,
 	}
-
-	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
-	err = channels.Validate()
-	if err != nil {
-		return cg, err
-	}
-	cg.channels = channels
 
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true

@@ -77,8 +77,7 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 
 	// Create Producer with channels
 	pChannels := kafka.CreateProducerChannels()
-	producer, err := kafka.NewProducer(
-		ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, pChannels)
+	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, cfg.KafkaVersion, pChannels)
 	if err != nil {
 		return nil, err
 	}

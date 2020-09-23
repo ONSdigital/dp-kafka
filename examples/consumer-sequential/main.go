@@ -78,8 +78,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// Create ConsumerGroup with channels
 	cgChannels := kafka.CreateConsumerGroupChannels(1)
-	cg, err := kafka.NewConsumerGroup(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
 	if err != nil {
 		return nil, err
 	}

@@ -68,15 +68,25 @@ func GetFromSaramaChans(
 // TestProducerMissingChannels checks wrong producer creation because of channels not provided by caller
 func TestProducerMissingChannels(t *testing.T) {
 
+	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
+		producer, err := newProducer(
+			ctx, testBrokers, testTopic, 123, "wrongVersion",
+			nil,
+			nil,
+		)
+		So(producer, ShouldBeNil)
+		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+	})
+
 	Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error and producer will not be initialised", t, func() {
 		producer, err := newProducer(
-			ctx, testBrokers, testTopic, 123,
+			ctx, testBrokers, testTopic, 123, testKafkaVersion,
 			&ProducerChannels{
 				Output: make(chan []byte),
 			},
 			nil,
 		)
-		So(producer, ShouldNotBeNil)
+		So(producer, ShouldBeNil)
 		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Closer, Closed}})
 		So(producer.IsInitialised(), ShouldBeFalse)
 	})
@@ -94,7 +104,7 @@ func TestProducer(t *testing.T) {
 			return asyncProducerMock, nil
 		}
 		channels := CreateProducerChannels()
-		producer, err := newProducer(ctx, testBrokers, testTopic, 123, channels, pInit)
+		producer, err := newProducer(ctx, testBrokers, testTopic, 123, testKafkaVersion, channels, pInit)
 
 		Convey("Producer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
@@ -194,7 +204,7 @@ func TestProducerNotInitialised(t *testing.T) {
 			pInitCalls++
 			return nil, ErrSaramaNoBrokers
 		}
-		producer, err := newProducer(ctx, testBrokers, testTopic, 123, channels, pInit)
+		producer, err := newProducer(ctx, testBrokers, testTopic, 123, testKafkaVersion, channels, pInit)
 
 		Convey("Producer is partially created with channels and checker and is not initialised", func() {
 			So(err, ShouldBeNil)

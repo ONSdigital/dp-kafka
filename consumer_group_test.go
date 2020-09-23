@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/ONSdigital/dp-kafka/mock"
@@ -16,9 +17,19 @@ var (
 
 var ctx = context.Background()
 
-func TestConsumerMissingChannels(t *testing.T) {
+func TestConsumerCreationError(t *testing.T) {
 
-	Convey("Providing an invalid ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", t, func() {
+	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
+		consumer, err := newConsumerGroup(
+			ctx, testBrokers, testTopic, testGroup, "wrongVersion",
+			nil,
+			nil,
+		)
+		So(consumer, ShouldBeNil)
+		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+	})
+
+	Convey("Providing an incomplete ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", t, func() {
 		consumer, err := newConsumerGroup(
 			ctx, testBrokers, testTopic, testGroup, testKafkaVersion,
 			&ConsumerGroupChannels{
@@ -26,9 +37,8 @@ func TestConsumerMissingChannels(t *testing.T) {
 			},
 			nil,
 		)
-		So(consumer, ShouldNotBeNil)
+		So(consumer, ShouldBeNil)
 		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Closer, Closed}})
-		So(consumer.IsInitialised(), ShouldBeFalse)
 	})
 }
 

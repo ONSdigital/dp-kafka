@@ -82,8 +82,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// Create ConsumerGroup with channels, buffer should be equal or slightly higher than number of workers
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cg, err := kafka.NewConsumerGroup(
-		ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
 	if err != nil {
 		return nil, err
 	}

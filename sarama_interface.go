@@ -13,12 +13,12 @@ type SaramaConsumerGroup = sarama.ConsumerGroup
 
 // Types for sarama initialisers
 type (
-	producerInitialiser      = func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error)
+	producerInitialiser      = func(addrs []string, config *sarama.Config) (sarama.AsyncProducer, error)
 	consumerGroupInitialiser = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error)
 )
 
-var saramaNewAsyncProducer = func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error) {
-	return sarama.NewAsyncProducer(addrs, conf)
+var saramaNewAsyncProducer = func(addrs []string, config *sarama.Config) (sarama.AsyncProducer, error) {
+	return sarama.NewAsyncProducer(addrs, config)
 }
 
 var saramaNewConsumerGroup = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {

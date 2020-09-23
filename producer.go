@@ -31,6 +31,7 @@ type Producer struct {
 	brokers      []*sarama.Broker
 	topic        string
 	channels     *ProducerChannels
+	config       *sarama.Config
 	mutex        *sync.Mutex
 	wgClose      *sync.WaitGroup
 }
@@ -38,27 +39,24 @@ type Producer struct {
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(
-	ctx context.Context, brokerAddrs []string, topic string, envMax int,
+	ctx context.Context, brokerAddrs []string, topic string, envMax int, kafkaVersion string,
 	channels *ProducerChannels) (producer *Producer, err error) {
-	return newProducer(ctx, brokerAddrs, topic, envMax, channels, saramaNewAsyncProducer)
+	return newProducer(ctx, brokerAddrs, topic, envMax, kafkaVersion, channels, saramaNewAsyncProducer)
 }
 
 func newProducer(
-	ctx context.Context, brokerAddrs []string, topic string, envMax int,
+	ctx context.Context, brokerAddrs []string, topic string, envMax int, kafkaVersion string,
 	channels *ProducerChannels, pInit producerInitialiser) (producer *Producer, err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Producer initialised with provided brokers and topic
-	producer = &Producer{
-		envMax:       envMax,
-		producerInit: pInit,
-		brokerAddrs:  brokerAddrs,
-		topic:        topic,
-		mutex:        &sync.Mutex{},
-		wgClose:      &sync.WaitGroup{},
+	// Obtain Sarama Kafka Version from kafkaVersion string
+	v, err := sarama.ParseKafkaVersion(kafkaVersion)
+	if err != nil {
+		log.Event(nil, "error parsing kafka version: %v", log.ERROR, log.Error(err))
+		return nil, err
 	}
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
@@ -66,6 +64,25 @@ func newProducer(
 	if err != nil {
 		return producer, err
 	}
+
+	// Create Config
+	config := sarama.NewConfig()
+	if envMax > 0 {
+		config.Producer.MaxMessageBytes = envMax
+	}
+	config.Version = v
+
+	// Producer initialised with provided brokers and topic
+	producer = &Producer{
+		envMax:       envMax,
+		producerInit: pInit,
+		brokerAddrs:  brokerAddrs,
+		topic:        topic,
+		config:       config,
+		mutex:        &sync.Mutex{},
+		wgClose:      &sync.WaitGroup{},
+	}
+
 	producer.channels = channels
 
 	// disable metrics to prevent memory leak on broker.Open()
@@ -116,11 +133,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	}
 
 	// Initialise AsyncProducer with default config and envMax
-	config := sarama.NewConfig()
-	if p.envMax > 0 {
-		config.Producer.MaxMessageBytes = p.envMax
-	}
-	saramaProducer, err := p.producerInit(p.brokerAddrs, config)
+	saramaProducer, err := p.producerInit(p.brokerAddrs, p.config)
 	if err != nil {
 		return err
 	}
