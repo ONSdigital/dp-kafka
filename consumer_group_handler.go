@@ -46,10 +46,6 @@ func (sh *saramaCgHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 		case <-sh.channels.Closer:
 			log.Event(sh.ctx, "closed kafka consumer consume claim go-routine via closer channel", log.INFO)
 			return nil
-		case <-sh.ctx.Done():
-			log.Event(sh.ctx, "closed kafka consumer consume claim go-routine via context done", log.INFO)
-			return nil
-		// TODO we may stop consuming if the kafka cluster has rebalanced (or sarama session is finishing)
 		default:
 			log.Event(nil, "message claimed", log.INFO, log.Data{"value": string(message.Value), "messageOffset": message.Offset, "topic": message.Topic, "partition": message.Partition})
 			return sh.consumeMessage(SaramaMessage{message, session, make(chan struct{})})

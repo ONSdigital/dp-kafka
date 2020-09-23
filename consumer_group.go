@@ -270,11 +270,8 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 			case <-cg.channels.Closer:
 				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
 				return
-			case <-ctx.Done():
-				log.Event(ctx, "closed kafka consumer consume loop via context done", log.INFO, logData)
-				return
 			default:
-				// 'Consume' should be called inside an infinite loop, when a
+				// 'Consume' is called inside an infinite loop, when a
 				// server-side rebalance happens, the consumer session will need to be
 				// recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
@@ -302,10 +299,6 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
 				log.Event(ctx, "closed kafka consumer error loop via closer channel", log.INFO, logData)
-				return
-			case <-ctx.Done():
-				close(cg.channels.Closer)
-				log.Event(ctx, "closed kafka consumer error loop via context done", log.INFO, logData)
 				return
 			// listen to kafka errors from sarama and forward them to the Errors chanel
 			case err := <-cg.saramaCg.Errors():
