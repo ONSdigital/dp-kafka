@@ -201,6 +201,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 	p.wgClose.Add(1)
 	go func() {
 		defer p.wgClose.Done()
+		initAttempt := 1
 		for {
 			select {
 			case message := <-p.channels.Output:
@@ -211,8 +212,10 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case <-p.channels.Closer:
 				log.Event(ctx, "closing uninitialised kafka producer", log.INFO, log.Data{"topic": p.topic})
 				return
-			case <-time.After(InitRetryPeriod):
+			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
 				if err := p.Initialise(ctx); err != nil {
+					log.Event(ctx, "error initialising producer", log.ERROR, log.Error(err), log.Data{"attempt": initAttempt})
+					initAttempt++
 					continue
 				}
 				return

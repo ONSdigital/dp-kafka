@@ -31,7 +31,7 @@ please, note that if you do not provide the necessary channels, an `ErrNoChannel
 
 If the producer/consumer can establish a connection with the Kafka cluster, it will be initialised at creation time, which is usually the case. But it might not be able to do so, for example if the kafka cluster is not running. If a producer/consumer is not initialised, it cannot contact the kafka broker, and it cannot send or receive any message. Any attempt to send a message in this state will result in an error being sent to the Errors channel.
 
-An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and it will start producing/consuming.
+An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop following an exponential backoff strategy. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and it will start producing/consuming.
 
 You can check if a producer/consumer is initialised by calling `IsInitialised()` or wait for it to be initialised by waiting for the Ready channel to be closed, like so:
 
@@ -89,7 +89,7 @@ You may create a single go-routine to consume messages sequentially, or multiple
 	}
 ```
 
-You con consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
+You can consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
 
 #### Message consumption deep dive
 
@@ -105,6 +105,8 @@ Then Sarama will create 30 parallel go-routines, which this library uses in orde
 ```
 
 Each Sarama consumption go routine exists only during a particular session. Sessions are periodically destroyed and created by Sarama, according to Kafka events like a cluster re-balance (where the number of partitions assigned to a consumer may change). It is important that messages are released as soon as possible when this happens. The default message consumption timeout is 10 seconds in this scenario (determined by `config.Consumer.Group.Session.Timeout`).
+
+When a session finishes, we call Consume() again, which tries to establish a new session. If an error occurs trying to establish a new session, it will be retried following an exponential backoff strategy.
 
 ### Closing
 

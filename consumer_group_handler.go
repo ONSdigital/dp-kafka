@@ -36,7 +36,7 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 // are consumed and forwarded to the upstream service.
 //
 // Sarama creates T*P(T) go-routines, where T is the number of topics and P(T) is the number of partitions per topic,
-// expecting each consumer to be assigned P(T)/N(T), where N(T) is the number of consumers for a particular topic.
+// expecting each consumer to be assigned T*P(T)/N(T), where N(T) is the number of consumers for a particular topic.
 //
 // Each go-routine will send a message to the shared Upstream channel,
 // and then wait for the message specific upstreamDone channel to be closed.

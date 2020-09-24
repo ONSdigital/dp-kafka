@@ -224,7 +224,8 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 }
 
 // createLoopUninitialised creates a goroutine to handle uninitialised consumer groups.
-// It retries to initialise it every InitRetryPeriod, until the consumer group is initialised or being closed.
+// It retries to initialise the consumer with an exponential retrial algorithm,
+// starting with a period `InitRetryPeriod`, until the consumer group is initialised or being closed.
 func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 
 	// Do nothing if consumer group already initialised
@@ -235,6 +236,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
+		initAttempt := 1
 		for {
 			select {
 			case <-cg.channels.Ready:
@@ -242,8 +244,10 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Closer:
 				log.Event(ctx, "closing uninitialised kafka consumer group", log.INFO, log.Data{"topic": cg.topic})
 				return
-			case <-time.After(InitRetryPeriod):
+			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
+					log.Event(ctx, "error initialising consumer group", log.ERROR, log.Error(err), log.Data{"attempt": initAttempt})
+					initAttempt++
 					continue
 				}
 				return
@@ -254,14 +258,15 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 
 // createConsumeLoop creates a goroutine to handle initialised consumer groups.
 // It calls Consume(), to consume messages from sarama and sends them to the Upstream channel.
-// If the consumer group is configured as 'sync', we wait for the UpstreamDone (of Closer) channels.
-// If the contxt is done, it ends the loop and closes Closed channel.
+// Failed Consumes are retried with an exponential backoff retrial algorithm.
+// In any case, if the Close channel is closed, this loop will end.
 func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
 		log.Event(ctx, "started kafka consumer listener loop", log.INFO, logData)
+		consumeAttempt := 1
 		for {
 			select {
 			case <-cg.channels.Closer:
@@ -272,9 +277,16 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 				// server-side rebalance happens, the consumer session will need to be
 				// recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
-					log.Event(ctx, "error consuming", log.ERROR, log.Error(err))
-					time.Sleep(ConsumeErrRetryPeriod) // on error, retry loop after 'tick' time
-					continue
+					log.Event(ctx, "error consuming", log.ERROR, log.Error(err), log.Data{"attempt": consumeAttempt})
+					select {
+					case <-cg.channels.Closer:
+						log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
+						return
+					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
+						consumeAttempt++
+					}
+				} else {
+					consumeAttempt = 1
 				}
 			}
 		}
@@ -303,20 +315,4 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 			}
 		}
 	}()
-}
-
-// waitWithTimeout blocks until all go-routines tracked by a WaitGroup are done, or until the timeout defined in a context expires.
-// It returns true only if the context timeout expired
-func waitWithTimeout(ctx context.Context, wg *sync.WaitGroup) bool {
-	chWaiting := make(chan struct{})
-	go func() {
-		defer close(chWaiting)
-		wg.Wait()
-	}()
-	select {
-	case <-chWaiting:
-		return false
-	case <-ctx.Done():
-		return true
-	}
 }
