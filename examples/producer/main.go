@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 	cfg := &Config{
 		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaMaxBytes:           50 * 1024 * 1024,
-		KafkaVersion:            "2.3.1",
+		KafkaVersion:            "1.0.2",
 		ProducedTopic:           "myTopic",
 		WaitForProducerReady:    true,
 		GracefulShutdownTimeout: 5 * time.Second,
@@ -75,9 +75,13 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 	log.Event(ctx, "[KAFKA-TEST] Starting Producer (stdin sent to producer)", log.INFO, log.Data{"config": cfg})
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
-	// Create Producer with channels
+	// Create Producer with channels and config
 	pChannels := kafka.CreateProducerChannels()
-	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, cfg.KafkaVersion, pChannels)
+	pConfig := &kafka.ProducerConfig{
+		MaxMessageBytes: &cfg.KafkaMaxBytes,
+		KafkaVersion:    &cfg.KafkaVersion,
+	}
+	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
 	if err != nil {
 		return nil, err
 	}

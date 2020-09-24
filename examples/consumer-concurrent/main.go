@@ -51,7 +51,7 @@ func run(ctx context.Context) error {
 	cfg := &Config{
 		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaMaxBytes:           50 * 1024 * 1024,
-		KafkaVersion:            "2.3.1",
+		KafkaVersion:            "1.0.2",
 		KafkaParallelMessages:   3,
 		ConsumedTopic:           "myTopic",
 		ConsumedGroup:           log.Namespace,
@@ -80,9 +80,10 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	log.Event(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.INFO, log.Data{"config": cfg})
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
-	// Create ConsumerGroup with channels, buffer should be equal or slightly higher than number of workers
+	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
+	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -10,18 +10,22 @@ Kafka client wrapper using channels to abstract kafka consumers and producers. T
 Kafka producers and consumers can be created with constructors that accept the required channels and configuration. You may create the channels using `CreateProducerChannels` and `CreateConsumerChannels` respectively:
 
 ```go
-	// Create Producer with channels
+	// Create Producer with channels and config
 	pChannels := kafka.CreateProducerChannels()
-	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, cfg.KafkaMaxBytes, cfg.KafkaVersion, pChannels)
+	pConfig := &kafka.ProducerConfig{MaxMessageBytes: &cfg.KafkaMaxBytes}
+	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
 ```
 
 ```go
-	// Create ConsumerGroup with channels
+	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cfg.KafkaVersion, cgChannels)
+	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
+	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 ```
 
 For consumers, you can specify the batch size that determines the number of messages to be stored in the Upstream channel. It is recommended to provide a batch size equal to the number of parallel messages that are consumed.
+
+You can provide an optional config parameter to the constructor (`ProducerConfig` and `ConsumerGroupConfig`). Any provided configuration will overwrite the default sarama config, or you can pass a nil value to use the default sarama config.
 
 The constructor tires to initialise the producer/consumer by creating the underlying Sarama client, but failing to initialise it is not considered a fatal error, hence the constructor will not error.
 

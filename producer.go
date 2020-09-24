@@ -24,7 +24,6 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	envMax       int
 	producer     sarama.AsyncProducer
 	producerInit producerInitialiser
 	brokerAddrs  []string
@@ -38,43 +37,32 @@ type Producer struct {
 
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
-func NewProducer(
-	ctx context.Context, brokerAddrs []string, topic string, envMax int, kafkaVersion string,
-	channels *ProducerChannels) (producer *Producer, err error) {
-	return newProducer(ctx, brokerAddrs, topic, envMax, kafkaVersion, channels, saramaNewAsyncProducer)
+func NewProducer(ctx context.Context, brokerAddrs []string, topic string,
+	channels *ProducerChannels, pConfig *ProducerConfig) (producer *Producer, err error) {
+	return newProducer(ctx, brokerAddrs, topic, channels, pConfig, saramaNewAsyncProducer)
 }
 
-func newProducer(
-	ctx context.Context, brokerAddrs []string, topic string, envMax int, kafkaVersion string,
-	channels *ProducerChannels, pInit producerInitialiser) (producer *Producer, err error) {
+func newProducer(ctx context.Context, brokerAddrs []string, topic string,
+	channels *ProducerChannels, pConfig *ProducerConfig, pInit producerInitialiser) (*Producer, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Obtain Sarama Kafka Version from kafkaVersion string
-	v, err := sarama.ParseKafkaVersion(kafkaVersion)
+	// Create Config
+	config, err := getProducerConfig(pConfig)
 	if err != nil {
-		log.Event(nil, "error parsing kafka version: %v", log.ERROR, log.Error(err))
 		return nil, err
 	}
 
 	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
 	err = channels.Validate()
 	if err != nil {
-		return producer, err
+		return nil, err
 	}
-
-	// Create Config
-	config := sarama.NewConfig()
-	if envMax > 0 {
-		config.Producer.MaxMessageBytes = envMax
-	}
-	config.Version = v
 
 	// Producer initialised with provided brokers and topic
-	producer = &Producer{
-		envMax:       envMax,
+	producer := &Producer{
 		producerInit: pInit,
 		brokerAddrs:  brokerAddrs,
 		topic:        topic,

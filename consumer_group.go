@@ -41,24 +41,21 @@ type ConsumerGroup struct {
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
-func NewConsumerGroup(ctx context.Context,
-	brokerAddrs []string, topic, group string, kafkaVersion string,
-	channels *ConsumerGroupChannels) (*ConsumerGroup, error) {
-	return newConsumerGroup(ctx, brokerAddrs, topic, group, kafkaVersion, channels, saramaNewConsumerGroup)
+func NewConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
+	channels *ConsumerGroupChannels, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error) {
+	return newConsumerGroup(ctx, brokerAddrs, topic, group, channels, cgConfig, saramaNewConsumerGroup)
 }
 
-func newConsumerGroup(ctx context.Context,
-	brokerAddrs []string, topic, group string, kafkaVersion string,
-	channels *ConsumerGroupChannels, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
+func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
+	channels *ConsumerGroupChannels, cgConfig *ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Obtain Sarama Kafka Version from kafkaVersion string
-	v, err := sarama.ParseKafkaVersion(kafkaVersion)
+	// Create config
+	config, err := getConsumerGroupConfig(cgConfig)
 	if err != nil {
-		log.Event(nil, "error parsing kafka version: %v", log.ERROR, log.Error(err))
 		return nil, err
 	}
 
@@ -67,15 +64,6 @@ func newConsumerGroup(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-
-	// Create config
-	config := sarama.NewConfig()
-	config.Version = v
-	config.Consumer.MaxWaitTime = 50 * time.Millisecond
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
-	config.Consumer.Return.Errors = true
-	config.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
-	config.Consumer.Group.Session.Timeout = messageConsumeTimeout
 
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
@@ -122,7 +110,7 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 	return cg.saramaCg != nil
 }
 
-// Initialise creates a new Sarama ConsumerGroup and the channel redirection, only if it was not already initialised.
+// Initialise creates a new Sarama ConsumerGroup and the consumer/error loops, only if it was not already initialised.
 func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 
 	cg.mutex.Lock()
@@ -165,8 +153,7 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 		ctx = context.Background()
 	}
 
-	// close(closer) to indicate that the closing process has started
-	// the select{} avoids panic if already closed
+	// close(closer) to indicate that the closing process has started (select{} avoids panic if already closed)
 	select {
 	case <-cg.channels.Closer:
 	default:
@@ -219,13 +206,14 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		broker.Close()
 	}
 
+	// Close the Closed channel to signal that the closing operation has completed
 	close(cg.channels.Closed)
 	return nil
 }
 
 // createLoopUninitialised creates a goroutine to handle uninitialised consumer groups.
-// It retries to initialise the consumer with an exponential retrial algorithm,
-// starting with a period `InitRetryPeriod`, until the consumer group is initialised or being closed.
+// It retries to initialise the consumer with an exponential backoff retrial algorithm,
+// starting with a period `InitRetryPeriod`, until the consumer group is initialised or closed.
 func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 
 	// Do nothing if consumer group already initialised
@@ -256,7 +244,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	}()
 }
 
-// createConsumeLoop creates a goroutine to handle initialised consumer groups.
+// createConsumeLoop creates a goroutine to consume messages with an initialised consumer group.
 // It calls Consume(), to consume messages from sarama and sends them to the Upstream channel.
 // Failed Consumes are retried with an exponential backoff retrial algorithm.
 // In any case, if the Close channel is closed, this loop will end.
@@ -269,6 +257,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 		consumeAttempt := 1
 		for {
 			select {
+			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
 				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
 				return
@@ -279,13 +268,16 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
 					log.Event(ctx, "error consuming", log.ERROR, log.Error(err), log.Data{"attempt": consumeAttempt})
 					select {
+					// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
 					case <-cg.channels.Closer:
 						log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
 						return
+					// once the retrial time has expired, we try to consume again (continue the loop)
 					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
 						consumeAttempt++
 					}
 				} else {
+					// on successful consumption, reset the attempt counter
 					consumeAttempt = 1
 				}
 			}
@@ -293,7 +285,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	}()
 }
 
-// createErrorLoop allows us to close consumer even if blocked while upstreaming a message (main loop)
+// createErrorLoop creates a goroutine to consume errors returned by Sarama to the Errors channel.
 // It redirects sarama errors to caller errors channel.
 // It listens to Notifications channel, and checks if the consumer group has balanced.
 // It periodically checks if the consumer group has balanced, and in that case, it commits offsets.

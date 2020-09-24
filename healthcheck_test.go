@@ -42,7 +42,7 @@ func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, er
 		return asyncProducerMock, nil
 	}
 	channels := CreateProducerChannels()
-	return newProducer(ctx, brokerAddrs, topic, 123, testKafkaVersion, channels, pInit)
+	return newProducer(ctx, brokerAddrs, topic, channels, nil, pInit)
 }
 
 // createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
@@ -51,7 +51,7 @@ func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (
 		return nil, ErrSaramaNoBrokers
 	}
 	channels := CreateProducerChannels()
-	return newProducer(ctx, brokerAddrs, topic, 123, testKafkaVersion, channels, pInit)
+	return newProducer(ctx, brokerAddrs, topic, channels, nil, pInit)
 }
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
@@ -73,7 +73,7 @@ func createConsumerForTesting(brokerAddrs []string, topic string) (*ConsumerGrou
 	cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
 		return saramaConsumerGroupMock, nil
 	}
-	return newConsumerGroup(ctx, brokerAddrs, topic, testGroup, testKafkaVersion, channels, cgInit)
+	return newConsumerGroup(ctx, brokerAddrs, topic, testGroup, channels, nil, cgInit)
 }
 
 // createConsumerForTesting creates a consumer for testing without a valid Sarama ConsuerGroup
@@ -82,7 +82,7 @@ func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (
 		return nil, ErrSaramaNoBrokers
 	}
 	channels := CreateConsumerGroupChannels(1)
-	return newConsumerGroup(ctx, brokerAddrs, topic, testGroup, testKafkaVersion, channels, cgInit)
+	return newConsumerGroup(ctx, brokerAddrs, topic, testGroup, channels, nil, cgInit)
 }
 
 func TestKafkaProducerHealthcheck(t *testing.T) {

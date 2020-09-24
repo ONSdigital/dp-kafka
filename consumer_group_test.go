@@ -11,8 +11,7 @@ import (
 )
 
 var (
-	testGroup        = "testGroup"
-	testKafkaVersion = "2.3.1"
+	testGroup = "testGroup"
 )
 
 var ctx = context.Background()
@@ -20,9 +19,11 @@ var ctx = context.Background()
 func TestConsumerCreationError(t *testing.T) {
 
 	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
+		wrongVersion := "wrongVersion"
 		consumer, err := newConsumerGroup(
-			ctx, testBrokers, testTopic, testGroup, "wrongVersion",
+			ctx, testBrokers, testTopic, testGroup,
 			nil,
+			&ConsumerGroupConfig{KafkaVersion: &wrongVersion},
 			nil,
 		)
 		So(consumer, ShouldBeNil)
@@ -31,10 +32,11 @@ func TestConsumerCreationError(t *testing.T) {
 
 	Convey("Providing an incomplete ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", t, func() {
 		consumer, err := newConsumerGroup(
-			ctx, testBrokers, testTopic, testGroup, testKafkaVersion,
+			ctx, testBrokers, testTopic, testGroup,
 			&ConsumerGroupChannels{
 				Upstream: make(chan Message),
 			},
+			nil,
 			nil,
 		)
 		So(consumer, ShouldBeNil)
@@ -42,7 +44,6 @@ func TestConsumerCreationError(t *testing.T) {
 	})
 }
 
-// TestConsumer checks that messages, errors, and closing events are correctly directed to the expected channels
 func TestConsumer(t *testing.T) {
 
 	Convey("Given a correct initialization of a Kafka Consumer Group", t, func() {
@@ -69,8 +70,7 @@ func TestConsumer(t *testing.T) {
 			return saramaConsumerGroupMock, nil
 		}
 
-		// Create ConsumerGroup with channels
-		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, testKafkaVersion, channels, cgInit)
+		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, channels, nil, cgInit)
 
 		Convey("Consumer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
@@ -117,7 +117,6 @@ func TestConsumer(t *testing.T) {
 	})
 }
 
-// TestConsumerNotInitialised checks that if sarama cluster cannot be initialised, we can still partially use our ConsumerGroup
 func TestConsumerNotInitialised(t *testing.T) {
 
 	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func() {
@@ -127,7 +126,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 			cgInitCalls++
 			return nil, ErrSaramaNoBrokers
 		}
-		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, testKafkaVersion, channels, cgInit)
+		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, channels, nil, cgInit)
 
 		Convey("Consumer is partially created with channels and checker, but it is not initialised", func() {
 			So(err, ShouldBeNil)
