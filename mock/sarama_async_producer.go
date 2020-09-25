@@ -9,19 +9,19 @@ import (
 )
 
 var (
-	lockAsyncProducerMockAsyncClose sync.RWMutex
-	lockAsyncProducerMockClose      sync.RWMutex
-	lockAsyncProducerMockErrors     sync.RWMutex
-	lockAsyncProducerMockInput      sync.RWMutex
-	lockAsyncProducerMockSuccesses  sync.RWMutex
+	lockSaramaAsyncProducerMockAsyncClose sync.RWMutex
+	lockSaramaAsyncProducerMockClose      sync.RWMutex
+	lockSaramaAsyncProducerMockErrors     sync.RWMutex
+	lockSaramaAsyncProducerMockInput      sync.RWMutex
+	lockSaramaAsyncProducerMockSuccesses  sync.RWMutex
 )
 
-// AsyncProducerMock is a mock implementation of kafka.AsyncProducer.
+// SaramaAsyncProducerMock is a mock implementation of kafka.SaramaAsyncProducer.
 //
-//     func TestSomethingThatUsesAsyncProducer(t *testing.T) {
+//     func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
 //
-//         // make and configure a mocked kafka.AsyncProducer
-//         mockedAsyncProducer := &AsyncProducerMock{
+//         // make and configure a mocked kafka.SaramaAsyncProducer
+//         mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
 //             AsyncCloseFunc: func()  {
 // 	               panic("mock out the AsyncClose method")
 //             },
@@ -39,11 +39,11 @@ var (
 //             },
 //         }
 //
-//         // use mockedAsyncProducer in code that requires kafka.AsyncProducer
+//         // use mockedSaramaAsyncProducer in code that requires kafka.SaramaAsyncProducer
 //         // and then make assertions.
 //
 //     }
-type AsyncProducerMock struct {
+type SaramaAsyncProducerMock struct {
 	// AsyncCloseFunc mocks the AsyncClose method.
 	AsyncCloseFunc func()
 
@@ -80,131 +80,131 @@ type AsyncProducerMock struct {
 }
 
 // AsyncClose calls AsyncCloseFunc.
-func (mock *AsyncProducerMock) AsyncClose() {
+func (mock *SaramaAsyncProducerMock) AsyncClose() {
 	if mock.AsyncCloseFunc == nil {
-		panic("AsyncProducerMock.AsyncCloseFunc: method is nil but AsyncProducer.AsyncClose was just called")
+		panic("SaramaAsyncProducerMock.AsyncCloseFunc: method is nil but SaramaAsyncProducer.AsyncClose was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockAsyncProducerMockAsyncClose.Lock()
+	lockSaramaAsyncProducerMockAsyncClose.Lock()
 	mock.calls.AsyncClose = append(mock.calls.AsyncClose, callInfo)
-	lockAsyncProducerMockAsyncClose.Unlock()
+	lockSaramaAsyncProducerMockAsyncClose.Unlock()
 	mock.AsyncCloseFunc()
 }
 
 // AsyncCloseCalls gets all the calls that were made to AsyncClose.
 // Check the length with:
-//     len(mockedAsyncProducer.AsyncCloseCalls())
-func (mock *AsyncProducerMock) AsyncCloseCalls() []struct {
+//     len(mockedSaramaAsyncProducer.AsyncCloseCalls())
+func (mock *SaramaAsyncProducerMock) AsyncCloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockAsyncProducerMockAsyncClose.RLock()
+	lockSaramaAsyncProducerMockAsyncClose.RLock()
 	calls = mock.calls.AsyncClose
-	lockAsyncProducerMockAsyncClose.RUnlock()
+	lockSaramaAsyncProducerMockAsyncClose.RUnlock()
 	return calls
 }
 
 // Close calls CloseFunc.
-func (mock *AsyncProducerMock) Close() error {
+func (mock *SaramaAsyncProducerMock) Close() error {
 	if mock.CloseFunc == nil {
-		panic("AsyncProducerMock.CloseFunc: method is nil but AsyncProducer.Close was just called")
+		panic("SaramaAsyncProducerMock.CloseFunc: method is nil but SaramaAsyncProducer.Close was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockAsyncProducerMockClose.Lock()
+	lockSaramaAsyncProducerMockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockAsyncProducerMockClose.Unlock()
+	lockSaramaAsyncProducerMockClose.Unlock()
 	return mock.CloseFunc()
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedAsyncProducer.CloseCalls())
-func (mock *AsyncProducerMock) CloseCalls() []struct {
+//     len(mockedSaramaAsyncProducer.CloseCalls())
+func (mock *SaramaAsyncProducerMock) CloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockAsyncProducerMockClose.RLock()
+	lockSaramaAsyncProducerMockClose.RLock()
 	calls = mock.calls.Close
-	lockAsyncProducerMockClose.RUnlock()
+	lockSaramaAsyncProducerMockClose.RUnlock()
 	return calls
 }
 
 // Errors calls ErrorsFunc.
-func (mock *AsyncProducerMock) Errors() <-chan *sarama.ProducerError {
+func (mock *SaramaAsyncProducerMock) Errors() <-chan *sarama.ProducerError {
 	if mock.ErrorsFunc == nil {
-		panic("AsyncProducerMock.ErrorsFunc: method is nil but AsyncProducer.Errors was just called")
+		panic("SaramaAsyncProducerMock.ErrorsFunc: method is nil but SaramaAsyncProducer.Errors was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockAsyncProducerMockErrors.Lock()
+	lockSaramaAsyncProducerMockErrors.Lock()
 	mock.calls.Errors = append(mock.calls.Errors, callInfo)
-	lockAsyncProducerMockErrors.Unlock()
+	lockSaramaAsyncProducerMockErrors.Unlock()
 	return mock.ErrorsFunc()
 }
 
 // ErrorsCalls gets all the calls that were made to Errors.
 // Check the length with:
-//     len(mockedAsyncProducer.ErrorsCalls())
-func (mock *AsyncProducerMock) ErrorsCalls() []struct {
+//     len(mockedSaramaAsyncProducer.ErrorsCalls())
+func (mock *SaramaAsyncProducerMock) ErrorsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockAsyncProducerMockErrors.RLock()
+	lockSaramaAsyncProducerMockErrors.RLock()
 	calls = mock.calls.Errors
-	lockAsyncProducerMockErrors.RUnlock()
+	lockSaramaAsyncProducerMockErrors.RUnlock()
 	return calls
 }
 
 // Input calls InputFunc.
-func (mock *AsyncProducerMock) Input() chan<- *sarama.ProducerMessage {
+func (mock *SaramaAsyncProducerMock) Input() chan<- *sarama.ProducerMessage {
 	if mock.InputFunc == nil {
-		panic("AsyncProducerMock.InputFunc: method is nil but AsyncProducer.Input was just called")
+		panic("SaramaAsyncProducerMock.InputFunc: method is nil but SaramaAsyncProducer.Input was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockAsyncProducerMockInput.Lock()
+	lockSaramaAsyncProducerMockInput.Lock()
 	mock.calls.Input = append(mock.calls.Input, callInfo)
-	lockAsyncProducerMockInput.Unlock()
+	lockSaramaAsyncProducerMockInput.Unlock()
 	return mock.InputFunc()
 }
 
 // InputCalls gets all the calls that were made to Input.
 // Check the length with:
-//     len(mockedAsyncProducer.InputCalls())
-func (mock *AsyncProducerMock) InputCalls() []struct {
+//     len(mockedSaramaAsyncProducer.InputCalls())
+func (mock *SaramaAsyncProducerMock) InputCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockAsyncProducerMockInput.RLock()
+	lockSaramaAsyncProducerMockInput.RLock()
 	calls = mock.calls.Input
-	lockAsyncProducerMockInput.RUnlock()
+	lockSaramaAsyncProducerMockInput.RUnlock()
 	return calls
 }
 
 // Successes calls SuccessesFunc.
-func (mock *AsyncProducerMock) Successes() <-chan *sarama.ProducerMessage {
+func (mock *SaramaAsyncProducerMock) Successes() <-chan *sarama.ProducerMessage {
 	if mock.SuccessesFunc == nil {
-		panic("AsyncProducerMock.SuccessesFunc: method is nil but AsyncProducer.Successes was just called")
+		panic("SaramaAsyncProducerMock.SuccessesFunc: method is nil but SaramaAsyncProducer.Successes was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockAsyncProducerMockSuccesses.Lock()
+	lockSaramaAsyncProducerMockSuccesses.Lock()
 	mock.calls.Successes = append(mock.calls.Successes, callInfo)
-	lockAsyncProducerMockSuccesses.Unlock()
+	lockSaramaAsyncProducerMockSuccesses.Unlock()
 	return mock.SuccessesFunc()
 }
 
 // SuccessesCalls gets all the calls that were made to Successes.
 // Check the length with:
-//     len(mockedAsyncProducer.SuccessesCalls())
-func (mock *AsyncProducerMock) SuccessesCalls() []struct {
+//     len(mockedSaramaAsyncProducer.SuccessesCalls())
+func (mock *SaramaAsyncProducerMock) SuccessesCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockAsyncProducerMockSuccesses.RLock()
+	lockSaramaAsyncProducerMockSuccesses.RLock()
 	calls = mock.calls.Successes
-	lockAsyncProducerMockSuccesses.RUnlock()
+	lockSaramaAsyncProducerMockSuccesses.RUnlock()
 	return calls
 }

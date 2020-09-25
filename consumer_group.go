@@ -262,9 +262,8 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
 				return
 			default:
-				// 'Consume' is called inside an infinite loop, when a
-				// server-side rebalance happens, the consumer session will need to be
-				// recreated to get the new claims
+				// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
+				// the consumer session will need to be recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
 					log.Event(ctx, "error consuming", log.ERROR, log.Error(err), log.Data{"attempt": consumeAttempt})
 					select {

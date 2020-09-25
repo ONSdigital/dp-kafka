@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 
 	"github.com/ONSdigital/log.go/log"
 	"github.com/Shopify/sarama"
@@ -41,22 +42,32 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 // Each go-routine will send a message to the shared Upstream channel,
 // and then wait for the message specific upstreamDone channel to be closed.
 func (sh *saramaCgHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for message := range claim.Messages() {
+	for {
 		select {
+		case message, ok := <-claim.Messages():
+			if !ok {
+				// claim ConsumerMessage channel is closed. Exit goroutine
+				return nil
+			}
+			// new message available to be consumed
+			if err := sh.consumeMessage(SaramaMessage{message, session, make(chan struct{})}); err != nil {
+				return err // error consuming. Exit goroutine
+			}
 		case <-sh.channels.Closer:
-			log.Event(sh.ctx, "closed kafka consumer consume claim go-routine via closer channel", log.INFO)
+			// closer channel is closed. Exit goroutine
 			return nil
-		default:
-			return sh.consumeMessage(SaramaMessage{message, session, make(chan struct{})})
 		}
 	}
-	return nil
 }
 
 // consumeMessage sends the message to the consumer Upstream channel, and waits for upstream done.
 // Note that this doesn't make the consumer synchronous: we still have other go-routines processing messages.
 func (sh *saramaCgHandler) consumeMessage(msg SaramaMessage) error {
-	sh.channels.Upstream <- msg
-	<-msg.upstreamDone
-	return nil
+	select {
+	case sh.channels.Upstream <- msg:
+		<-msg.upstreamDone
+		return nil
+	case <-sh.channels.Closer:
+		return errors.New("message not consumed because closer channel is closed")
+	}
 }

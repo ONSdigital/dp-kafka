@@ -42,8 +42,8 @@ func createMockInputFunc(saramaInputChan chan *sarama.ProducerMessage) func() ch
 
 // createMockNewAsyncProducerComplete creates an AsyncProducer mock and returns it.
 func createMockNewAsyncProducerComplete(
-	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) *mock.AsyncProducerMock {
-	return &mock.AsyncProducerMock{
+	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) *mock.SaramaAsyncProducerMock {
+	return &mock.SaramaAsyncProducerMock{
 		ErrorsFunc: createMockErrorsFunc(saramaErrsChan),
 		InputFunc:  createMockInputFunc(saramaInputChan),
 		CloseFunc:  func() error { return nil },
@@ -102,14 +102,14 @@ func TestProducer(t *testing.T) {
 		chSaramaErr, chSaramaIn := createSaramaChannels()
 		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
 		pInitCalls := 0
-		pInit := func(addrs []string, conf *sarama.Config) (AsyncProducer, error) {
+		pInit := func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}
 		channels := CreateProducerChannels()
 		producer, err := newProducer(ctx, testBrokers, testTopic, channels, nil, pInit)
 
-		Convey("Producer is correctly created and initialised without error", func() {
+		Convey("Producer is correctly created and initialised without error", func(c C) {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
 			So(channels.Output, ShouldEqual, channels.Output)
@@ -117,7 +117,7 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeTrue)
-			validateChannelClosed(channels.Ready, true)
+			validateChannelClosed(c, channels.Ready, true)
 		})
 
 		Convey("We cannot initialise producer again", func() {
@@ -156,10 +156,10 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
-		Convey("Closing the producer closes Sarama producer and channels", func() {
+		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
 			producer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
 		})
 
@@ -183,7 +183,7 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 }
 
 // validateChannelClosed validates that a channel is closed before a timeout expires
-func validateChannelClosed(ch chan struct{}, expectedClosed bool) {
+func validateChannelClosed(c C, ch chan struct{}, expectedClosed bool) {
 	var (
 		closed  bool
 		timeout bool
@@ -194,8 +194,8 @@ func validateChannelClosed(ch chan struct{}, expectedClosed bool) {
 	case <-time.After(TIMEOUT):
 		timeout = true
 	}
-	So(timeout, ShouldNotEqual, expectedClosed)
-	So(closed, ShouldEqual, expectedClosed)
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
 }
 
 func TestProducerNotInitialised(t *testing.T) {
@@ -209,14 +209,14 @@ func TestProducerNotInitialised(t *testing.T) {
 		}
 		producer, err := newProducer(ctx, testBrokers, testTopic, channels, nil, pInit)
 
-		Convey("Producer is partially created with channels and checker and is not initialised", func() {
+		Convey("Producer is partially created with channels and checker and is not initialised", func(c C) {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
 			So(channels.Output, ShouldEqual, channels.Output)
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeFalse)
-			validateChannelClosed(channels.Ready, false)
+			validateChannelClosed(c, channels.Ready, false)
 		})
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
@@ -231,18 +231,13 @@ func TestProducerNotInitialised(t *testing.T) {
 			channels.Output <- []byte(message)
 
 			// Read and validate error
-			select {
-			case err := <-channels.Errors:
-				So(err, ShouldResemble, ErrUninitialisedProducer)
-			case <-time.After(TIMEOUT):
-				So(true, ShouldBeFalse)
-			}
+			validateChannelReceivesError(channels.Errors, ErrUninitialisedProducer)
 		})
 
-		Convey("Closing the producer closes the caller channels", func() {
+		Convey("Closing the producer closes the caller channels", func(c C) {
 			producer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 		})
 
 	})

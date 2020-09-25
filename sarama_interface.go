@@ -2,14 +2,22 @@ package kafka
 
 import "github.com/Shopify/sarama"
 
-//go:generate moq -out ./mock/sarama_async_producer.go -pkg mock . AsyncProducer
-//go:generate moq -out ./mock/sarama_consumer_group.go -pkg mock . SaramaConsumerGroup
+//go:generate moq -out ./mock/sarama_async_producer.go -pkg mock . SaramaAsyncProducer
+//go:generate moq -out ./mock/sarama_cg.go -pkg mock . SaramaConsumerGroup
+//go:generate moq -out ./mock/sarama_cg_session.go -pkg mock . SaramaConsumerGroupSession
+//go:generate moq -out ./mock/sarama_cg_claim.go -pkg mock . SaramaConsumerGroupClaim
 
-// AsyncProducer is a wrapper around sarama.AsyncProducer
-type AsyncProducer = sarama.AsyncProducer
+// SaramaAsyncProducer is a wrapper around sarama.AsyncProducer
+type SaramaAsyncProducer = sarama.AsyncProducer
 
 // SaramaConsumerGroup is a wrapper around sarama.ConsumerGroup
 type SaramaConsumerGroup = sarama.ConsumerGroup
+
+// SaramaConsumerGroupSession is a wrapper around sarama.ConsumerGroupSession
+type SaramaConsumerGroupSession = sarama.ConsumerGroupSession
+
+// SaramaConsumerGroupClaim is a wrapper around sarama.ConsumerGroupClaim
+type SaramaConsumerGroupClaim = sarama.ConsumerGroupClaim
 
 // Types for sarama initialisers
 type (

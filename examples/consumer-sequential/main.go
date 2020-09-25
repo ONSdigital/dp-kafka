@@ -107,7 +107,10 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 			case <-time.After(ticker):
 				log.Event(ctx, "[KAFKA-TEST] tick", log.INFO)
 
-			case consumedMessage := <-cgChannels.Upstream:
+			case consumedMessage, ok := <-cgChannels.Upstream:
+				if !ok {
+					break
+				}
 				// consumer will be nil if the broker could not be contacted, that's why we use the channel directly instead of consumer.Incoming()
 				consumeCount++
 				logData := log.Data{"consumeCount": consumeCount, "messageOffset": consumedMessage.Offset()}

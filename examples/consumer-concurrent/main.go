@@ -122,7 +122,10 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Message) {
 	log.Event(ctx, "worker started consuming", log.Data{"worker_id": id})
 	for {
-		consumedMessage := <-upstream
+		consumedMessage, ok := <-upstream
+		if !ok {
+			break
+		}
 		consumeCount++
 		logData := log.Data{"consumeCount": consumeCount, "messageOffset": consumedMessage.Offset(), "worker_id": id}
 		log.Event(ctx, "[KAFKA-TEST] Received message", log.INFO, logData)

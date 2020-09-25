@@ -46,7 +46,7 @@ func TestConsumerCreationError(t *testing.T) {
 
 func TestConsumer(t *testing.T) {
 
-	Convey("Given a correct initialization of a Kafka Consumer Group", t, func() {
+	Convey("Given a correct initialization of a Kafka Consumer Group", t, func(c C) {
 
 		channels := CreateConsumerGroupChannels(1)
 
@@ -87,30 +87,30 @@ func TestConsumer(t *testing.T) {
 			So(cgInitCalls, ShouldEqual, 1)
 		})
 
-		Convey("StopListeningToConsumer closes closer channels, without actually closing sarama-cluster consumer", func() {
+		Convey("StopListeningToConsumer closes closer channels, without actually closing sarama-cluster consumer", func(c C) {
 			consumer.StopListeningToConsumer(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, false)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, false)
 		})
 
-		Convey("Closing the consumer closes Sarama-cluster consumer and closed channel", func() {
+		Convey("Closing the consumer closes Sarama-cluster consumer and closed channel", func(c C) {
 			saramaConsumerGroupMock.CloseFunc = func() error {
 				return nil
 			}
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
 		})
 
-		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func() {
+		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func(c C) {
 			saramaConsumerGroupMock.CloseFunc = func() error {
 				return nil
 			}
 			consumer.StopListeningToConsumer(ctx)
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
 		})
 
@@ -119,7 +119,7 @@ func TestConsumer(t *testing.T) {
 
 func TestConsumerNotInitialised(t *testing.T) {
 
-	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func() {
+	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func(c C) {
 		channels := CreateConsumerGroupChannels(1)
 		cgInitCalls := 0
 		cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
@@ -143,23 +143,23 @@ func TestConsumerNotInitialised(t *testing.T) {
 			So(cgInitCalls, ShouldEqual, 2)
 		})
 
-		Convey("StopListeningToConsumer closes closer channel only", func() {
+		Convey("StopListeningToConsumer closes closer channel only", func(c C) {
 			consumer.StopListeningToConsumer(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, false)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, false)
 		})
 
-		Convey("Closing the consumer closes the caller channels", func() {
+		Convey("Closing the consumer closes the caller channels", func(c C) {
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 		})
 
-		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func() {
+		Convey("Closing the consumer after StopListeningToConsumer channels doesn't panic because of channels being closed", func(c C) {
 			consumer.StopListeningToConsumer(ctx)
 			consumer.Close(ctx)
-			validateChannelClosed(channels.Closer, true)
-			validateChannelClosed(channels.Closed, true)
+			validateChannelClosed(c, channels.Closer, true)
+			validateChannelClosed(c, channels.Closed, true)
 		})
 
 	})
