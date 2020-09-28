@@ -134,12 +134,15 @@ func TestConsume(t *testing.T) {
 	})
 }
 
-// validate that there are no more messages in the provided message channel
+// validate that there are no more messages in the provided message channel, but channel is still open
 func validateNoMoreMessages(c C, ch chan Message) {
 	unexpectedMessage := false
 	timeout := false
 	select {
-	case <-ch:
+	case _, ok := <-ch:
+		if !ok {
+			break
+		}
 		unexpectedMessage = true
 	case <-time.After(TIMEOUT):
 		timeout = true
@@ -148,16 +151,19 @@ func validateNoMoreMessages(c C, ch chan Message) {
 	So(timeout, ShouldBeTrue)
 }
 
-// consume consumes any remaining messages
+// consume consumes any remaining messages. Returns the number of messages consumed when the channel is closed or a timeout expires
 func consume(c C, ch chan Message) int {
 	numConsum := 0
 	for {
 		select {
-		case msg := <-ch:
+		case msg, ok := <-ch:
+			if !ok {
+				return numConsum
+			}
 			msg.Commit()
 			validateChannelClosed(c, msg.UpstreamDone(), true)
 			numConsum++
-		case <-time.After(3 * TIMEOUT):
+		case <-time.After(TIMEOUT):
 			return numConsum
 		}
 	}

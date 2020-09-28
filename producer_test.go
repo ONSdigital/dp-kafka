@@ -14,7 +14,7 @@ import (
 const testTopic = "testTopic"
 
 // timeout for test channels message propagation
-const TIMEOUT = 1 * time.Second
+const TIMEOUT = 100 * time.Millisecond
 
 // ErrSaramaNoBrokers is the error returned by Sarama when trying to create an AsyncProducer without available brokers
 var ErrSaramaNoBrokers = errors.New("kafka: client has run out of available brokers to talk to (Is your cluster reachable?)")
@@ -173,7 +173,10 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 		timeout bool
 	)
 	select {
-	case e := <-ch:
+	case e, ok := <-ch:
+		if !ok {
+			break
+		}
 		rxErr = e
 	case <-time.After(TIMEOUT):
 		timeout = true
@@ -189,8 +192,10 @@ func validateChannelClosed(c C, ch chan struct{}, expectedClosed bool) {
 		timeout bool
 	)
 	select {
-	case <-ch:
-		closed = true
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
 	case <-time.After(TIMEOUT):
 		timeout = true
 	}
