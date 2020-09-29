@@ -3,7 +3,7 @@ package kafkatest
 import (
 	"context"
 
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 )
 
 // MessageProducer is an extension of the moq Producer, with channels

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/ONSdigital/dp-kafka/mock"
+	"github.com/ONSdigital/dp-kafka/v2/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )

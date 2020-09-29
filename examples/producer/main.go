@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/kelseyhightower/envconfig"
 )

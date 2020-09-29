@@ -4,7 +4,7 @@
 package kafkatest
 
 import (
-	"github.com/ONSdigital/dp-kafka"
+	"github.com/ONSdigital/dp-kafka/v2"
 	"sync"
 )
 

@@ -3,7 +3,7 @@ package kafkatest
 import (
 	"sync"
 
-	kafka "github.com/ONSdigital/dp-kafka"
+	kafka "github.com/ONSdigital/dp-kafka/v2"
 )
 
 var _ kafka.Message = (*Message)(nil)
