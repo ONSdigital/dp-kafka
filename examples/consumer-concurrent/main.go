@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/log.go/log"
 	"github.com/kelseyhightower/envconfig"
@@ -53,7 +54,7 @@ func run(ctx context.Context) error {
 		KafkaMaxBytes:           50 * 1024 * 1024,
 		KafkaVersion:            "1.0.2",
 		KafkaParallelMessages:   3,
-		ConsumedTopic:           "myTopic",
+		ConsumedTopic:           "hello",
 		ConsumedGroup:           log.Namespace,
 		WaitForConsumerReady:    true,
 		GracefulShutdownTimeout: 5 * time.Second,
@@ -90,6 +91,19 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// go-routine to log errors from error channel
 	cgChannels.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
+
+	h := healthcheck.NewCheckState("test")
+
+	if err = cg.Checker(ctx, h); err != nil {
+		log.Event(ctx, "healthcheck error", log.Error(err))
+
+	}
+
+	log.Event(ctx, "check state", log.Data{
+		"name":    h.Name(),
+		"status":  h.Status(),
+		"message": h.Message(),
+	})
 
 	// Consumer not initialised at creation time. We need to retry to initialise it.
 	if !cg.IsInitialised() {

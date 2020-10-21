@@ -44,7 +44,7 @@ func (cg *ConsumerGroup) Checker(ctx context.Context, state *health.CheckState) 
 func getStatusFromError(err error) string {
 	switch err.(type) {
 	case *ErrInvalidBrokers:
-		return health.StatusWarning
+		return health.StatusCritical
 	default:
 		return health.StatusCritical
 	}
@@ -142,12 +142,16 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string) (r
 		return false, false
 	}
 
-	// Validate metadata response is as expected
-	if len(resp.Topics) == 0 {
-		log.Event(ctx, "topic metadata not found in broker", log.WARN, log.Data{"address": broker.Addr(), "topic": topic})
-		return true, false
+	log.Event(ctx, "get metadata response", log.Data{
+		"response": resp.Topics,
+	})
+
+	for _, metadata := range resp.Topics {
+		if metadata.Name == topic {
+			return true, true
+		}
 	}
 
-	// Broker is reachable and topic is in its metadata
-	return true, true
+	return true, false
+
 }
