@@ -17,6 +17,7 @@ var (
 	testProducerRetryBackoffFunc = func(retries, maxRetries int) time.Duration { return time.Second }
 	testConsumerRetryBackoffFunc = func(retries int) time.Duration { return time.Second }
 	testKafkaVersion             = "1.0.2"
+	testOffsetNewest             = OffsetNewest
 )
 
 func TestProducerConfig(t *testing.T) {
@@ -126,18 +127,20 @@ func TestConsumerGroupConfig(t *testing.T) {
 				KeepAlive:        &testKeepAlive,
 				RetryBackoff:     &testRetryBackoff,
 				RetryBackoffFunc: &testConsumerRetryBackoffFunc,
+				Offset:           &testOffsetNewest,
 			}
 			config, err := getConsumerGroupConfig(cgConfig)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, kafkaVersion)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
-			So(config.Consumer.Offsets.Initial, ShouldEqual, sarama.OffsetOldest)
 			So(config.Consumer.Return.Errors, ShouldBeTrue)
 			So(config.Consumer.Group.Rebalance.Strategy, ShouldEqual, sarama.BalanceStrategyRoundRobin)
 			So(config.Consumer.Group.Session.Timeout, ShouldEqual, time.Second*10)
 			So(config.Net.KeepAlive, ShouldEqual, testKeepAlive)
 			So(config.Consumer.Retry.Backoff, ShouldEqual, testRetryBackoff)
 			So(config.Consumer.Retry.BackoffFunc, ShouldEqual, testConsumerRetryBackoffFunc)
+			So(config.Consumer.Offsets.Initial, ShouldEqual, testOffsetNewest)
+
 		})
 
 		Convey("getConsumerGroupConfig with consumerGroupConfig containing an invald kafka version returns the expected error", func() {
@@ -147,6 +150,16 @@ func TestConsumerGroupConfig(t *testing.T) {
 			}
 			config, err := getConsumerGroupConfig(cgConfig)
 			So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+			So(config, ShouldBeNil)
+		})
+
+		Convey("getConsumerGroupConfig with consumerGroupConfig containing an invald offset returns the expected error", func() {
+			wrongOffset := int64(678)
+			cgConfig := &ConsumerGroupConfig{
+				Offset: &wrongOffset,
+			}
+			config, err := getConsumerGroupConfig(cgConfig)
+			So(err, ShouldResemble, errors.New("offset value incorrect"))
 			So(config, ShouldBeNil)
 		})
 	})
