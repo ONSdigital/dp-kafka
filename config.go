@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Shopify/sarama"
@@ -24,6 +25,7 @@ type ConsumerGroupConfig struct {
 	KeepAlive        *time.Duration
 	RetryBackoff     *time.Duration
 	RetryBackoffFunc *func(retries int) time.Duration
+	Offset           *int64
 }
 
 // getProducerConfig creates a default sarama config and overwrites any values provided in pConfig
@@ -78,6 +80,12 @@ func getConsumerGroupConfig(cgConfig *ConsumerGroupConfig) (config *sarama.Confi
 		}
 		if cgConfig.RetryBackoffFunc != nil {
 			config.Consumer.Retry.BackoffFunc = *cgConfig.RetryBackoffFunc
+		}
+		if cgConfig.Offset != nil {
+			if *cgConfig.Offset != sarama.OffsetNewest && *cgConfig.Offset != sarama.OffsetOldest {
+				return nil, errors.New("offset value incorrect")
+			}
+			config.Consumer.Offsets.Initial = *cgConfig.Offset
 		}
 	}
 	return config, nil

@@ -87,7 +87,7 @@ func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (
 
 func TestKafkaProducerHealthcheck(t *testing.T) {
 
-	Convey("Given that kafka brokers are available, without topic metadata", t, func() {
+	Convey("Given that kafka brokers are available with the expected metadata", t, func() {
 		brokers := createMockBrokers(t)
 		defer closeMockBrokers(brokers)
 
@@ -103,6 +103,15 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
+		Convey("Producer configured with right brokers and non-existent topic returns a unsuccessful Check structure", func() {
+			producer, err := createProducerForTesting(testBrokers, "test2")
+			So(err, ShouldBeNil)
+			producer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
+		})
+
 		Convey("Uninitialised producer with right config returns a Critical Check structure", func() {
 			producer, err := createUninitialisedProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
@@ -111,15 +120,6 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			So(producer.IsInitialised(), ShouldBeFalse)
 			So(checkState.Status(), ShouldEqual, health.StatusCritical)
 			So(checkState.Message(), ShouldEqual, ErrInitSarama.Error())
-			So(checkState.StatusCode(), ShouldEqual, 0)
-		})
-
-		Convey("Producer configured with right brokers and wrong topic returns a warning Check structure", func() {
-			producer, err := createProducerForTesting(testBrokers, "wrongTopic")
-			So(err, ShouldBeNil)
-			producer.Checker(context.Background(), checkState)
-			So(checkState.Status(), ShouldEqual, health.StatusWarning)
-			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
 			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
@@ -161,6 +161,15 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
+		Convey("Consumer configured with right brokers and non-existent topic returns a Critical Check Structure", func() {
+			consumer, err := createConsumerForTesting(testBrokers, "test2")
+			So(err, ShouldBeNil)
+			consumer.Checker(context.Background(), checkState)
+			So(checkState.Status(), ShouldEqual, health.StatusCritical)
+			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
+			So(checkState.StatusCode(), ShouldEqual, 0)
+		})
+
 		Convey("Uninitialised consumer with right config returns a Critical Check structure", func() {
 			consumer, err := createUninitialisedConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
@@ -169,15 +178,6 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			So(consumer.IsInitialised(), ShouldBeFalse)
 			So(checkState.Status(), ShouldEqual, health.StatusCritical)
 			So(checkState.Message(), ShouldEqual, ErrInitSarama.Error())
-			So(checkState.StatusCode(), ShouldEqual, 0)
-		})
-
-		Convey("Consumer configured with right brokers and wrong topic returns a warning Check structure", func() {
-			consumer, err := createConsumerForTesting(testBrokers, "wrongTopic")
-			So(err, ShouldBeNil)
-			consumer.Checker(context.Background(), checkState)
-			So(checkState.Status(), ShouldEqual, health.StatusWarning)
-			So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12300 localhost:12301]")
 			So(checkState.StatusCode(), ShouldEqual, 0)
 		})
 
