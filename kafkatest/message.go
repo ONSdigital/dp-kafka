@@ -53,6 +53,7 @@ func (internal *mInternal) commitFunc() {
 	internal.mu.Lock()
 	defer internal.mu.Unlock()
 	internal.committed = true
+	close(internal.upstreamDoneChan)
 }
 
 // committedFunc returns true if commit was called on this message.
