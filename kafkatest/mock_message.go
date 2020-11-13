@@ -9,10 +9,13 @@ import (
 )
 
 var (
-	lockMessageMockCommit       sync.RWMutex
-	lockMessageMockGetData      sync.RWMutex
-	lockMessageMockOffset       sync.RWMutex
-	lockMessageMockUpstreamDone sync.RWMutex
+	lockMessageMockCommit           sync.RWMutex
+	lockMessageMockCommitAndRelease sync.RWMutex
+	lockMessageMockGetData          sync.RWMutex
+	lockMessageMockMark             sync.RWMutex
+	lockMessageMockOffset           sync.RWMutex
+	lockMessageMockRelease          sync.RWMutex
+	lockMessageMockUpstreamDone     sync.RWMutex
 )
 
 // Ensure, that MessageMock does implement kafka.Message.
@@ -28,11 +31,20 @@ var _ kafka.Message = &MessageMock{}
 //             CommitFunc: func()  {
 // 	               panic("mock out the Commit method")
 //             },
+//             CommitAndReleaseFunc: func()  {
+// 	               panic("mock out the CommitAndRelease method")
+//             },
 //             GetDataFunc: func() []byte {
 // 	               panic("mock out the GetData method")
 //             },
+//             MarkFunc: func()  {
+// 	               panic("mock out the Mark method")
+//             },
 //             OffsetFunc: func() int64 {
 // 	               panic("mock out the Offset method")
+//             },
+//             ReleaseFunc: func()  {
+// 	               panic("mock out the Release method")
 //             },
 //             UpstreamDoneFunc: func() chan struct{} {
 // 	               panic("mock out the UpstreamDone method")
@@ -47,11 +59,20 @@ type MessageMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func()
 
+	// CommitAndReleaseFunc mocks the CommitAndRelease method.
+	CommitAndReleaseFunc func()
+
 	// GetDataFunc mocks the GetData method.
 	GetDataFunc func() []byte
 
+	// MarkFunc mocks the Mark method.
+	MarkFunc func()
+
 	// OffsetFunc mocks the Offset method.
 	OffsetFunc func() int64
+
+	// ReleaseFunc mocks the Release method.
+	ReleaseFunc func()
 
 	// UpstreamDoneFunc mocks the UpstreamDone method.
 	UpstreamDoneFunc func() chan struct{}
@@ -61,11 +82,20 @@ type MessageMock struct {
 		// Commit holds details about calls to the Commit method.
 		Commit []struct {
 		}
+		// CommitAndRelease holds details about calls to the CommitAndRelease method.
+		CommitAndRelease []struct {
+		}
 		// GetData holds details about calls to the GetData method.
 		GetData []struct {
 		}
+		// Mark holds details about calls to the Mark method.
+		Mark []struct {
+		}
 		// Offset holds details about calls to the Offset method.
 		Offset []struct {
+		}
+		// Release holds details about calls to the Release method.
+		Release []struct {
 		}
 		// UpstreamDone holds details about calls to the UpstreamDone method.
 		UpstreamDone []struct {
@@ -99,6 +129,32 @@ func (mock *MessageMock) CommitCalls() []struct {
 	return calls
 }
 
+// CommitAndRelease calls CommitAndReleaseFunc.
+func (mock *MessageMock) CommitAndRelease() {
+	if mock.CommitAndReleaseFunc == nil {
+		panic("MessageMock.CommitAndReleaseFunc: method is nil but Message.CommitAndRelease was just called")
+	}
+	callInfo := struct {
+	}{}
+	lockMessageMockCommitAndRelease.Lock()
+	mock.calls.CommitAndRelease = append(mock.calls.CommitAndRelease, callInfo)
+	lockMessageMockCommitAndRelease.Unlock()
+	mock.CommitAndReleaseFunc()
+}
+
+// CommitAndReleaseCalls gets all the calls that were made to CommitAndRelease.
+// Check the length with:
+//     len(mockedMessage.CommitAndReleaseCalls())
+func (mock *MessageMock) CommitAndReleaseCalls() []struct {
+} {
+	var calls []struct {
+	}
+	lockMessageMockCommitAndRelease.RLock()
+	calls = mock.calls.CommitAndRelease
+	lockMessageMockCommitAndRelease.RUnlock()
+	return calls
+}
+
 // GetData calls GetDataFunc.
 func (mock *MessageMock) GetData() []byte {
 	if mock.GetDataFunc == nil {
@@ -125,6 +181,32 @@ func (mock *MessageMock) GetDataCalls() []struct {
 	return calls
 }
 
+// Mark calls MarkFunc.
+func (mock *MessageMock) Mark() {
+	if mock.MarkFunc == nil {
+		panic("MessageMock.MarkFunc: method is nil but Message.Mark was just called")
+	}
+	callInfo := struct {
+	}{}
+	lockMessageMockMark.Lock()
+	mock.calls.Mark = append(mock.calls.Mark, callInfo)
+	lockMessageMockMark.Unlock()
+	mock.MarkFunc()
+}
+
+// MarkCalls gets all the calls that were made to Mark.
+// Check the length with:
+//     len(mockedMessage.MarkCalls())
+func (mock *MessageMock) MarkCalls() []struct {
+} {
+	var calls []struct {
+	}
+	lockMessageMockMark.RLock()
+	calls = mock.calls.Mark
+	lockMessageMockMark.RUnlock()
+	return calls
+}
+
 // Offset calls OffsetFunc.
 func (mock *MessageMock) Offset() int64 {
 	if mock.OffsetFunc == nil {
@@ -148,6 +230,32 @@ func (mock *MessageMock) OffsetCalls() []struct {
 	lockMessageMockOffset.RLock()
 	calls = mock.calls.Offset
 	lockMessageMockOffset.RUnlock()
+	return calls
+}
+
+// Release calls ReleaseFunc.
+func (mock *MessageMock) Release() {
+	if mock.ReleaseFunc == nil {
+		panic("MessageMock.ReleaseFunc: method is nil but Message.Release was just called")
+	}
+	callInfo := struct {
+	}{}
+	lockMessageMockRelease.Lock()
+	mock.calls.Release = append(mock.calls.Release, callInfo)
+	lockMessageMockRelease.Unlock()
+	mock.ReleaseFunc()
+}
+
+// ReleaseCalls gets all the calls that were made to Release.
+// Check the length with:
+//     len(mockedMessage.ReleaseCalls())
+func (mock *MessageMock) ReleaseCalls() []struct {
+} {
+	var calls []struct {
+	}
+	lockMessageMockRelease.RLock()
+	calls = mock.calls.Release
+	lockMessageMockRelease.RUnlock()
 	return calls
 }
 

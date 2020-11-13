@@ -138,8 +138,8 @@ func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Messa
 		// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
 		sleepIfRequired(ctx, cfg, logData)
 
-		consumedMessage.Commit()
-		log.Event(ctx, "[KAFKA-TEST] committed message", log.INFO, logData)
+		consumedMessage.CommitAndRelease()
+		log.Event(ctx, "[KAFKA-TEST] committed and released message", log.INFO, logData)
 	}
 }
 

@@ -155,7 +155,7 @@ func consume(c C, ch chan Message) int {
 			if !ok {
 				return numConsum
 			}
-			msg.Commit()
+			msg.CommitAndRelease()
 			validateChannelClosed(c, msg.UpstreamDone(), true)
 			numConsum++
 		case <-time.After(TIMEOUT):
