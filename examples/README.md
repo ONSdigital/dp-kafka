@@ -60,3 +60,16 @@ You can run this example like so:
 $ cd consumer-concurrent
 $ go run main.go
 ```
+
+## Consumer (concurrent)
+
+The [batch consumer example](consumer-batch/main.go) creates a kafka consumer that adds messages to a batch and releases them. Then, once the batch is full, it processes all the messages, marks each one of them as consumed and commits the offsets at the end, by committing the last message.
+
+It has a configurable sleep during message consumption, so that you can test scenarios with consumption delays.
+
+You can run this example like so:
+
+```sh
+$ cd consumer-batch
+$ go run main.go
+```
