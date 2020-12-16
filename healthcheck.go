@@ -142,10 +142,6 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string) (r
 		return false, false
 	}
 
-	log.Event(ctx, "get metadata response", log.Data{
-		"response": resp.Topics,
-	})
-
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
 			return true, true
