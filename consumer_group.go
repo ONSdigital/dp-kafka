@@ -239,6 +239,9 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 					continue
 				}
 				return
+			case <-ctx.Done():
+				log.Event(ctx, "abandoning initialisation of consumer group - context expired", log.ERROR, log.Error(ctx.Err()), log.Data{"attempt": initAttempt})
+				return
 			}
 		}
 	}()

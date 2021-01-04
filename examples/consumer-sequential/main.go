@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
@@ -25,6 +25,7 @@ type Config struct {
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
+	SecurityConfig          kafka.SecurityConfig
 }
 
 // period of time between tickers
@@ -32,17 +33,23 @@ const ticker = 3 * time.Second
 
 func main() {
 	log.Namespace = serviceName
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
-	if err := run(ctx); err != nil {
+	if err := run(ctx, cancel); err != nil {
 		log.Event(ctx, "fatal runtime error", log.Error(err), log.FATAL)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context) error {
+func run(ctx context.Context, cancel context.CancelFunc) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
+	go func(cancel context.CancelFunc) {
+		// blocks until an os interrupt or a fatal error occurs
+		sig := <-signals
+		log.Event(ctx, "os signal received", log.Data{"signal": sig}, log.INFO)
+		cancel()
+	}(cancel)
 
 	// Read Config
 	cfg := &Config{
@@ -66,10 +73,10 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	// blocks until an os interrupt or a fatal error occurs
-	sig := <-signals
-	log.Event(ctx, "os signal received", log.Data{"signal": sig}, log.INFO)
-	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
+	select {
+	case <-ctx.Done():
+	}
+	return closeConsumerGroup(ctx, cancel, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
 func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, error) {
@@ -78,7 +85,17 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(1)
-	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
+	secConfig := &kafka.SecurityConfig{
+		Protocol:           cfg.SecurityConfig.Protocol,
+		RootCACerts:        cfg.SecurityConfig.RootCACerts,
+		ClientCert:         cfg.SecurityConfig.ClientCert,
+		ClientKey:          cfg.SecurityConfig.ClientKey,
+		InsecureSkipVerify: cfg.SecurityConfig.InsecureSkipVerify,
+	}
+	cgConfig := &kafka.ConsumerGroupConfig{
+		KafkaVersion:   &cfg.KafkaVersion,
+		SecurityConfig: *secConfig,
+	}
 	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {
 		return nil, err
@@ -126,45 +143,57 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 				consumedMessage.CommitAndRelease()
 				log.Event(ctx, "[KAFKA-TEST] committed and released message", log.INFO, log.Data{"messageOffset": consumedMessage.Offset()})
+
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()
 	return cg, nil
 }
 
-func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
+func closeConsumerGroup(ctx context.Context, cancel context.CancelFunc, cg *kafka.ConsumerGroup, gracefulShutdownTimeout time.Duration) (err error) {
 	log.Event(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout}, log.INFO)
-	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
+	ctxShutdown, shutdownCancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 
-	// track shutown gracefully closes up
-	var hasShutdownError bool
+	// track shutdown gracefully closes up
+	var shutdownError error
 
 	// background graceful shutdown
 	go func() {
-		defer cancel()
+		defer shutdownCancel()
 		log.Event(ctx, "[KAFKA-TEST] Closing kafka consumerGroup", log.INFO)
-		if err := cg.Close(ctx); err != nil {
-			hasShutdownError = true
+		if err := cg.Close(ctxShutdown); err != nil {
+			shutdownError = err
 		}
 		log.Event(ctx, "[KAFKA-TEST] Closed kafka consumerGroup", log.INFO)
 	}()
 
 	// wait for timeout or success (via cancel)
-	<-ctx.Done()
+	select {
+	case <-ctx.Done():
+		err = ctx.Err()
+		log.Event(ctx, "[KAFKA-TEST] graceful shutdown abandoned during close", log.WARN, log.Error(err))
+		return
+	case <-ctxShutdown.Done():
+		err = ctxShutdown.Err()
+		if err == context.DeadlineExceeded {
+			log.Event(ctx, "[KAFKA-TEST] graceful shutdown timed out", log.WARN, log.Error(err))
+			return
+		} else if err != nil {
+			log.Event(ctx, "[KAFKA-TEST] graceful shutdown failed during close", log.ERROR, log.Error(err))
+			return
+		}
 
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Event(ctx, "[KAFKA-TEST] graceful shutdown timed out", log.WARN, log.Error(ctx.Err()))
-		return ctx.Err()
-	}
-
-	if hasShutdownError {
-		err := errors.New("failed to shutdown gracefully")
-		log.Event(ctx, "failed to shutdown gracefully ", log.ERROR, log.Error(err))
-		return err
+		if shutdownError != nil {
+			err = fmt.Errorf("failed to shutdown gracefully: %w", shutdownError)
+			log.Event(ctx, "failed to shutdown gracefully ", log.ERROR, log.Error(err))
+			return
+		}
 	}
 
 	log.Event(ctx, "graceful shutdown was successful", log.INFO)
-	return nil
+	return
 }
 
 // sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.
@@ -196,5 +225,7 @@ func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChan
 		log.Event(ctx, "[KAFKA-TEST] Consumer is now initialised.", log.WARN)
 	case <-cgChannels.Closer:
 		log.Event(ctx, "[KAFKA-TEST] Consumer is being closed.", log.WARN)
+	case <-ctx.Done():
+		log.Event(ctx, "[KAFKA-TEST] Consumer context done - not waiting for initialisation", log.WARN)
 	}
 }
