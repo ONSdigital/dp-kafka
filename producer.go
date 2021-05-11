@@ -207,6 +207,9 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 					continue
 				}
 				return
+			case <-ctx.Done():
+				log.Event(ctx, "abandoning uninitialised producer - context expired", log.ERROR, log.Error(ctx.Err()), log.Data{"attempt": initAttempt})
+				return
 			}
 		}
 	}()
