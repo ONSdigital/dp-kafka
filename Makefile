@@ -3,7 +3,7 @@ test:
 .PHONY: test
 
 audit:
-	go list -json -m all | nancy sleuth --exclude-vulnerability-file ./.nancy-ignore
+	go list -json -m all | nancy sleuth
 .PHONY: audit
 
 build:
