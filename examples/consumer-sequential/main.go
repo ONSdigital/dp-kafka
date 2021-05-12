@@ -85,16 +85,9 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(1)
-	secConfig := &kafka.SecurityConfig{
-		Protocol:           cfg.SecurityConfig.Protocol,
-		RootCACerts:        cfg.SecurityConfig.RootCACerts,
-		ClientCert:         cfg.SecurityConfig.ClientCert,
-		ClientKey:          cfg.SecurityConfig.ClientKey,
-		InsecureSkipVerify: cfg.SecurityConfig.InsecureSkipVerify,
-	}
 	cgConfig := &kafka.ConsumerGroupConfig{
 		KafkaVersion:   &cfg.KafkaVersion,
-		SecurityConfig: *secConfig,
+		SecurityConfig: cfg.SecurityConfig,
 	}
 	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {

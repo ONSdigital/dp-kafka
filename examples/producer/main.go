@@ -24,6 +24,7 @@ type Config struct {
 	WaitForProducerReady    bool          `envconfig:"KAFKA_WAIT_PRODUCER_READY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Chomp                   bool          `envconfig:"CHOMP_MSG"`
+	kafka.SecurityConfig
 }
 
 // period of time between tickers
@@ -42,6 +43,13 @@ func main() {
 func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill)
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithCancel(ctx)
+	go func() {
+		sig := <-signals
+		log.Event(ctx, "os signal received", log.Data{"signal": sig}, log.WARN)
+		cancel()
+	}()
 
 	// Read Config
 	cfg := &Config{
@@ -63,10 +71,17 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	// blocks until an os interrupt or a fatal error occurs
-	sig := <-signals
-	log.Event(ctx, "os signal received", log.Data{"signal": sig}, log.INFO)
+	// blocks until context is done
+	<-ctx.Done()
 	return closeProducer(ctx, producer, cfg.GracefulShutdownTimeout)
+}
+
+func getProducerConfig(cfg *Config) *kafka.ProducerConfig {
+	return &kafka.ProducerConfig{
+		MaxMessageBytes: &cfg.KafkaMaxBytes,
+		KafkaVersion:    &cfg.KafkaVersion,
+		SecurityConfig:  cfg.SecurityConfig,
+	}
 }
 
 func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
@@ -77,10 +92,7 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 
 	// Create Producer with channels and config
 	pChannels := kafka.CreateProducerChannels()
-	pConfig := &kafka.ProducerConfig{
-		MaxMessageBytes: &cfg.KafkaMaxBytes,
-		KafkaVersion:    &cfg.KafkaVersion,
-	}
+	pConfig := getProducerConfig(cfg)
 	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
 	if err != nil {
 		return nil, err
@@ -93,7 +105,7 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 	if !producer.IsInitialised() {
 		if cfg.WaitForProducerReady {
 			log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Waiting until we can initialise it.", log.WARN)
-			<-pChannels.Ready
+			waitForInitialised(ctx, pChannels)
 		} else {
 			log.Event(ctx, "[KAFKA-TEST] Producer could not be initialised at creation time. Will be initialised later.", log.WARN)
 		}
@@ -179,12 +191,14 @@ func closeProducer(ctx context.Context, producer *kafka.Producer, gracefulShutdo
 	return nil
 }
 
-// waitForInitialised blocks until the consumer is initialised or closed
-func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
+// waitForInitialised blocks until the producer is initialised or closed
+func waitForInitialised(ctx context.Context, pChannels *kafka.ProducerChannels) {
 	select {
-	case <-cgChannels.Ready:
-		log.Event(ctx, "[KAFKA-TEST] Consumer is now initialised.", log.WARN)
-	case <-cgChannels.Closer:
-		log.Event(ctx, "[KAFKA-TEST] Consumer is being closed.", log.WARN)
+	case <-pChannels.Ready:
+		log.Event(ctx, "[KAFKA-TEST] Producer is now initialised.", log.WARN)
+	case <-pChannels.Closer:
+		log.Event(ctx, "[KAFKA-TEST] Producer is being closed.", log.WARN)
+	case <-ctx.Done():
+		log.Event(ctx, "[KAFKA-TEST] Producer context done.", log.WARN)
 	}
 }

@@ -277,6 +277,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 					// once the retrial time has expired, we try to consume again (continue the loop)
 					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
 						consumeAttempt++
+					case <-ctx.Done():
 					}
 				} else {
 					// on successful consumption, reset the attempt counter
