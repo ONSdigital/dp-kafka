@@ -244,3 +244,12 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 	}()
 	return nil
 }
+
+// NewAdmin creates an admin-based client
+func NewAdmin(brokerAddrs []string, pConfig *ProducerConfig) (sarama.ClusterAdmin, error) {
+	config, err := getProducerConfig(pConfig)
+	if err != nil {
+		return nil, err
+	}
+	return sarama.NewClusterAdmin(brokerAddrs, config)
+}
