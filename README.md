@@ -1,7 +1,19 @@
-dp-kafka
-=======
+# dp-kafka
 
 Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/Shopify/sarama)
+
+## Configuration
+
+By default, the library assumes plaintext connections.
+TLS connections are configured by using the following environment variables:
+
+Environment Variable  | Default   | Description
+---                   | ---       | ---
+KAFKA_SEC_PROTO       |           | when set to `TLS`, the library will use TLS connections (and only then are the below variables used)
+KAFKA_SEC_CA_CERTS    |           | path to CA cert file (e.g. `/etc/ssl/certs/Amazon_Root_CA_1.pem`)
+KAFKA_SEC_CLIENT_CERT |           | path to client cert file (optional)
+KAFKA_SEC_CLIENT_KEY  |           | path to client key file (optional)
+KAFKA_SEC_SKIP_VERIFY | false     | Skip verifying TLS certificate on connect (optional)
 
 ## Life-cycle
 
@@ -125,17 +137,19 @@ After successfully closing a producer or consumer, the corresponding `Closed` ch
 ## Health-check
 
 The health status of a consumer or producer can be obtained by calling `Checker` method, which updates the provided CheckState structure with the relevant information:
-```
+
+```go
 check, err = cli.Checker(ctx)
 ```
 
-- If a broker cannot be reached, the Status is set to CRITICAL. 
+- If a broker cannot be reached, the Status is set to CRITICAL.
 - If all brokers can be reached, but a broker does not provide the expected topic metadata, the Status is set to WARNING.
 - If all brokers can be reached and return the expected topic metadata, we try to initialise the consumer/producer. If it was already initialised, or the initialisation is successful, the Status is set to OK.
 
 ## Examples
 
 See the [examples](examples/README.md) for some typical usages of this library:
+
 - [Producer example](examples/producer/main.go)
 - [Sequential consumer example](examples/consumer-sequential/main.go)
 - [Concurrent consumer example](examples/consumer-concurrent/main.go)
