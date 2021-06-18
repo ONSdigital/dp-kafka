@@ -90,7 +90,7 @@ func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string) er
 	unreachableBrokers := []string{}
 	invalidBrokers := []string{}
 	if len(brokers) == 0 {
-		return errors.New("No brokers defined")
+		return errors.New("no brokers defined")
 	}
 
 	// Validate all brokers

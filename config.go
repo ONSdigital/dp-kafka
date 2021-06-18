@@ -13,7 +13,7 @@ import (
 )
 
 // ErrTLSCannotLoadCACerts is returned when the certs file cannot be loaded
-var ErrTLSCannotLoadCACerts = errors.New("Cannot load CA Certs")
+var ErrTLSCannotLoadCACerts = errors.New("cannot load CA Certs")
 
 // ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
 // Any value that is not provied will use the default Sarama config value.
