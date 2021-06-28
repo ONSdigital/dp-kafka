@@ -14,9 +14,19 @@ KAFKA_PRODUCED_TOPIC | `myTopic`                | topic used by the producer exa
 KAFKA_CONSUMED_TOPIC | `myTopic`                | topic consumed by the example consumers
 KAFKA_CONSUMED_GROUP | `kafka-example-consumer` | consumer group name used by example consumers
 
-### TLS examples
+### TLS
 
 Currently, TLS is an option in the `producer` and `consumer-sequential` examples only.
+
+TLS connections can be used in enabled examples by using the following additional environment variables:
+
+Environment Variable  | Default   | Description
+---                   | ---       | ---
+KAFKA_SEC_PROTO       |           | when set to `TLS`, the example will use TLS connections (and only then are the below variables used)
+KAFKA_SEC_CA_CERTS    |           | path to CA cert file (e.g. `/etc/ssl/certs/Amazon_Root_CA_1.pem`)
+KAFKA_SEC_CLIENT_CERT |           | path to client cert file (optional)
+KAFKA_SEC_CLIENT_KEY  |           | path to client key file (optional)
+KAFKA_SEC_SKIP_VERIFY | false     | Skip verifying TLS certificate on connect (optional)
 
 ## Run kafka cluster
 
