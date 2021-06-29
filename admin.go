@@ -31,12 +31,7 @@ func NewAdmin(brokerAddrs []string, pConfig *AdminConfig) (sarama.ClusterAdmin, 
 }
 
 func (t Acls) Apply(adm sarama.ClusterAdmin) error {
-	// acls := t.getAllAcls(t.Brokers, t.Domain)
 	for _, acl := range t {
-		// if acl == nil {
-		// 	log.Event(nil, "nil ACL")
-		// 	continue
-		// }
 		log.Event(nil, "creating ACL", log.Data{"res": acl.Resource, "acl": acl.Acl})
 		if err := adm.CreateACL(acl.Resource, acl.Acl); err != nil {
 			return err
@@ -47,8 +42,6 @@ func (t Acls) Apply(adm sarama.ClusterAdmin) error {
 }
 
 func (t TopicAuthList) Apply(adm sarama.ClusterAdmin) error {
-	// acls := getAdminAcls(domain)
-	// acls := make([]*sarama.AclCreation, 0)
 	for _, topicAcl := range t.Acls {
 		acls := topicAcl.GetAcls(t.Domain)
 		if err := acls.Apply(adm); err != nil {
