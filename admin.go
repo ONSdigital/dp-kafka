@@ -64,7 +64,7 @@ func (t TopicAuth) GetAcls(domain string) Acls {
 						ResourcePatternType: sarama.AclPatternLiteral,
 					},
 					Acl: sarama.Acl{
-						Principal:      "User:CN=" + t.App + "." + subnet + "." + domain,
+						Principal:      GetPrincipal(t.App, subnet, domain),
 						Host:           host,
 						Operation:      op,
 						PermissionType: sarama.AclPermissionAllow,
@@ -75,4 +75,8 @@ func (t TopicAuth) GetAcls(domain string) Acls {
 		}
 	}
 	return acls
+}
+
+func GetPrincipal(app, subnet, domain string) string {
+	return "User:CN=" + app + "." + subnet + "." + domain
 }
