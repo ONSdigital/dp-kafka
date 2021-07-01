@@ -10,7 +10,6 @@ import (
 
 	kafka "github.com/ONSdigital/dp-kafka/v2"
 	"github.com/ONSdigital/log.go/log"
-	"github.com/Shopify/sarama"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -22,12 +21,14 @@ type Config struct {
 	KafkaMaxBytes           int           `envconfig:"KAFKA_MAX_BYTES"`
 	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
 	ProducedTopic           string        `envconfig:"KAFKA_PRODUCED_TOPIC"`
-	CreateProducedTopic     bool          `envconfig:"KAFKA_PRODUCED_TOPIC_CREATE"`
-	CreateProducedTopicOnly bool          `envconfig:"KAFKA_PRODUCED_TOPIC_CREATE_ONLY"`
 	WaitForProducerReady    bool          `envconfig:"KAFKA_WAIT_PRODUCER_READY"`
+	KafkaSecProtocol        string        `envconfig:"KAFKA_SEC_PROTO"`
+	KafkaSecCACerts         string        `envconfig:"KAFKA_SEC_CA_CERTS"`
+	KafkaSecClientCert      string        `envconfig:"KAFKA_SEC_CLIENT_CERT"`
+	KafkaSecClientKey       string        `envconfig:"KAFKA_SEC_CLIENT_KEY" json:"-"`
+	KafkaSecSkipVerify      bool          `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Chomp                   bool          `envconfig:"CHOMP_MSG"`
-	kafka.SecurityConfig
 }
 
 // period of time between tickers
@@ -60,7 +61,6 @@ func run(ctx context.Context) error {
 		KafkaMaxBytes:           50 * 1024 * 1024,
 		KafkaVersion:            "1.0.2",
 		ProducedTopic:           "myTopic",
-		CreateProducedTopic:     false,
 		WaitForProducerReady:    true,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Chomp:                   false,
@@ -69,26 +69,8 @@ func run(ctx context.Context) error {
 		return err
 	}
 
-	if cfg.CreateProducedTopic {
-		pConfig := getProducerConfig(cfg)
-		admin, err := kafka.NewAdmin(cfg.Brokers, pConfig)
-		if err != nil {
-			log.Event(ctx, "[KAFKA-TEST] Failed to get admin when creating topic", log.ERROR, log.Data{"config": cfg})
-			return err
-		}
-		err = admin.CreateTopic(cfg.ProducedTopic, &sarama.TopicDetail{NumPartitions: 12, ReplicationFactor: 3}, false)
-		if err != nil {
-			log.Event(ctx, "[KAFKA-TEST] Failed to create topic", log.ERROR, log.Data{"error": err})
-			return err
-		}
-		log.Event(ctx, "[KAFKA-TEST] created topic", log.INFO, log.Data{"topic": cfg.ProducedTopic})
-		if cfg.CreateProducedTopicOnly {
-			return nil
-		}
-	}
-
 	// run kafka Producer
-	producer, err := runProducer(ctx, cfg)
+	producer, err := runProducer(ctx, cancel, cfg)
 	if err != nil {
 		return err
 	}
@@ -99,14 +81,22 @@ func run(ctx context.Context) error {
 }
 
 func getProducerConfig(cfg *Config) *kafka.ProducerConfig {
-	return &kafka.ProducerConfig{
+	pCfg := &kafka.ProducerConfig{
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
 		KafkaVersion:    &cfg.KafkaVersion,
-		SecurityConfig:  cfg.SecurityConfig,
 	}
+	if cfg.KafkaSecProtocol == "TLS" {
+		pCfg.SecurityConfig = kafka.GetSecurityConfig(
+			cfg.KafkaSecCACerts,
+			cfg.KafkaSecClientCert,
+			cfg.KafkaSecClientKey,
+			cfg.KafkaSecSkipVerify,
+		)
+	}
+	return pCfg
 }
 
-func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
+func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*kafka.Producer, error) {
 	stdinChannel := make(chan string)
 
 	log.Event(ctx, "[KAFKA-TEST] Starting Producer (stdin sent to producer)", log.INFO, log.Data{"config": cfg})
@@ -157,6 +147,7 @@ func runProducer(ctx context.Context, cfg *Config) (*kafka.Producer, error) {
 
 	// eventLoop
 	go func() {
+		defer cancel()
 		defer close(eventLoopDone)
 		for {
 			select {

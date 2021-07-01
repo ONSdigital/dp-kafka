@@ -6,14 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/Shopify/sarama"
 	saramatls "github.com/Shopify/sarama/tools/tls"
 )
 
+const certPrefix = "-----BEGIN " // magic string for PEM/Cert/Key (when not file path)
+
 // ErrTLSCannotLoadCACerts is returned when the certs file cannot be loaded
-var ErrTLSCannotLoadCACerts = errors.New("Cannot load CA Certs")
+var ErrTLSCannotLoadCACerts = errors.New("cannot load CA Certs")
 
 // ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
 // Any value that is not provied will use the default Sarama config value.
@@ -24,7 +27,7 @@ type ProducerConfig struct {
 	KeepAlive        *time.Duration
 	RetryBackoff     *time.Duration
 	RetryBackoffFunc *func(retries, maxRetries int) time.Duration
-	SecurityConfig   SecurityConfig
+	SecurityConfig   *SecurityConfig
 }
 
 // ConsumerGroupConfig exposes the optional configurable parameters for a consumer group, to overwrite default Sarama config values.
@@ -35,16 +38,25 @@ type ConsumerGroupConfig struct {
 	RetryBackoff     *time.Duration
 	RetryBackoffFunc *func(retries int) time.Duration
 	Offset           *int64
-	SecurityConfig   SecurityConfig
+	SecurityConfig   *SecurityConfig
+}
+
+// AdminConfig exposes the optional configurable parameters for an admin client to overwrite default Sarama config values.
+// Any value that is not provied will use the default Sarama config value.
+type AdminConfig struct {
+	KafkaVersion   *string
+	KeepAlive      *time.Duration
+	RetryBackoff   *time.Duration
+	RetryMax       *int
+	SecurityConfig *SecurityConfig
 }
 
 // SecurityConfig is common to producers and consumer configs, above
 type SecurityConfig struct {
-	Protocol           *string `envconfig:"KAFKA_SEC_PROTO"`
-	RootCACerts        *string `envconfig:"KAFKA_SEC_CA_CERTS"`
-	ClientCert         *string `envconfig:"KAFKA_SEC_CLIENT_CERT"`
-	ClientKey          *string `envconfig:"KAFKA_SEC_CLIENT_KEY"`
-	InsecureSkipVerify bool    `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
+	RootCACerts        string
+	ClientCert         string
+	ClientKey          string
+	InsecureSkipVerify bool
 }
 
 // getProducerConfig creates a default sarama config and overwrites any values provided in pConfig
@@ -71,7 +83,7 @@ func getProducerConfig(pConfig *ProducerConfig) (config *sarama.Config, err erro
 		if pConfig.RetryBackoffFunc != nil {
 			config.Producer.Retry.BackoffFunc = *pConfig.RetryBackoffFunc
 		}
-		if err = addTLS(pConfig.SecurityConfig, config); err != nil {
+		if err = addAnyTLS(pConfig.SecurityConfig, config); err != nil {
 			return nil, err
 		}
 	}
@@ -107,36 +119,80 @@ func getConsumerGroupConfig(cgConfig *ConsumerGroupConfig) (config *sarama.Confi
 			}
 			config.Consumer.Offsets.Initial = *cgConfig.Offset
 		}
-		if err = addTLS(cgConfig.SecurityConfig, config); err != nil {
+		if err = addAnyTLS(cgConfig.SecurityConfig, config); err != nil {
 			return nil, err
 		}
 	}
 	return config, nil
 }
 
-func addTLS(tlsConfig SecurityConfig, saramaConfig *sarama.Config) (err error) {
-	if tlsConfig.Protocol == nil || *tlsConfig.Protocol != "TLS" {
+// getAdminConfig creates a default sarama config and overwrites any values provided in pConfig
+func getAdminConfig(cfg *AdminConfig) (config *sarama.Config, err error) {
+	config = sarama.NewConfig()
+	if cfg != nil {
+		if cfg.KafkaVersion != nil {
+			if config.Version, err = sarama.ParseKafkaVersion(*cfg.KafkaVersion); err != nil {
+				return nil, err
+			}
+		}
+		if cfg.KeepAlive != nil {
+			config.Net.KeepAlive = *cfg.KeepAlive
+		}
+		if cfg.RetryMax != nil {
+			config.Admin.Retry.Max = *cfg.RetryMax
+		}
+		if cfg.RetryBackoff != nil {
+			config.Admin.Retry.Backoff = *cfg.RetryBackoff
+		}
+		if err = addAnyTLS(cfg.SecurityConfig, config); err != nil {
+			return nil, err
+		}
+	}
+	return config, nil
+}
+
+func expandNewlines(s string) string {
+	return strings.ReplaceAll(s, `\n`, "\n")
+}
+
+func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err error) {
+	if tlsConfig == nil {
 		return
 	}
 
 	var saramaTLSConfig *tls.Config
-	if tlsConfig.ClientCert != nil && tlsConfig.ClientKey != nil {
-		saramaTLSConfig, err = saramatls.NewConfig(*tlsConfig.ClientCert, *tlsConfig.ClientKey)
+	if strings.HasPrefix(tlsConfig.ClientCert, certPrefix) {
+		// create cert from strings (not files), cf https://github.com/Shopify/sarama/blob/master/tools/tls/config.go
+		var cert tls.Certificate
+		if cert, err = tls.X509KeyPair(
+			[]byte(expandNewlines(tlsConfig.ClientCert)),
+			[]byte(expandNewlines(tlsConfig.ClientKey)),
+		); err != nil {
+			return
+		}
+		saramaTLSConfig = &tls.Config{
+			MinVersion:   tls.VersionTLS12,
+			Certificates: []tls.Certificate{cert},
+		}
 	} else {
-		saramaTLSConfig, err = saramatls.NewConfig("", "")
-	}
-	if err != nil {
-		return
+		// cert in files
+		if saramaTLSConfig, err = saramatls.NewConfig(tlsConfig.ClientCert, tlsConfig.ClientKey); err != nil {
+			return
+		}
 	}
 
-	if tlsConfig.RootCACerts != nil && *tlsConfig.RootCACerts != "" {
+	if tlsConfig.RootCACerts != "" {
 		var rootCAsBytes []byte
-		if rootCAsBytes, err = ioutil.ReadFile(*tlsConfig.RootCACerts); err != nil {
-			return fmt.Errorf("failed read from %q: %w", *tlsConfig.RootCACerts, err)
+		if strings.HasPrefix(tlsConfig.RootCACerts, certPrefix) {
+			rootCAsBytes = []byte(expandNewlines(tlsConfig.RootCACerts))
+		} else {
+			if rootCAsBytes, err = ioutil.ReadFile(tlsConfig.RootCACerts); err != nil {
+				return fmt.Errorf("failed read from %q: %w", tlsConfig.RootCACerts, err)
+			}
 		}
 		certPool := x509.NewCertPool()
 		if !certPool.AppendCertsFromPEM(rootCAsBytes) {
-			return fmt.Errorf("failed load from %q: %w", *tlsConfig.RootCACerts, ErrTLSCannotLoadCACerts)
+			return fmt.Errorf("failed load from %q: %w", tlsConfig.RootCACerts, ErrTLSCannotLoadCACerts)
 		}
 		// Use specific root CA set vs the host's set
 		saramaTLSConfig.RootCAs = certPool
@@ -150,4 +206,13 @@ func addTLS(tlsConfig SecurityConfig, saramaConfig *sarama.Config) (err error) {
 	saramaConfig.Net.TLS.Config = saramaTLSConfig
 
 	return
+}
+
+func GetSecurityConfig(caCerts, clientCert, clientKey string, skipVerify bool) *SecurityConfig {
+	return &SecurityConfig{
+		RootCACerts:        caCerts,
+		ClientCert:         clientCert,
+		ClientKey:          clientKey,
+		InsecureSkipVerify: skipVerify,
+	}
 }

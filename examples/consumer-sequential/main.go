@@ -22,10 +22,14 @@ type Config struct {
 	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
 	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
 	WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
+	KafkaSecProtocol        string        `envconfig:"KAFKA_SEC_PROTO"`
+	KafkaSecCACerts         string        `envconfig:"KAFKA_SEC_CA_CERTS"`
+	KafkaSecClientCert      string        `envconfig:"KAFKA_SEC_CLIENT_CERT"`
+	KafkaSecClientKey       string        `envconfig:"KAFKA_SEC_CLIENT_KEY" json:"-"`
+	KafkaSecSkipVerify      bool          `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
-	SecurityConfig          kafka.SecurityConfig
 }
 
 // period of time between tickers
@@ -73,9 +77,7 @@ func run(ctx context.Context, cancel context.CancelFunc) error {
 		return err
 	}
 
-	select {
-	case <-ctx.Done():
-	}
+	<-ctx.Done()
 	return closeConsumerGroup(ctx, cancel, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
@@ -86,8 +88,15 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(1)
 	cgConfig := &kafka.ConsumerGroupConfig{
-		KafkaVersion:   &cfg.KafkaVersion,
-		SecurityConfig: cfg.SecurityConfig,
+		KafkaVersion: &cfg.KafkaVersion,
+	}
+	if cfg.KafkaSecProtocol == "TLS" {
+		cgConfig.SecurityConfig = kafka.GetSecurityConfig(
+			cfg.KafkaSecCACerts,
+			cfg.KafkaSecClientCert,
+			cfg.KafkaSecClientKey,
+			cfg.KafkaSecSkipVerify,
+		)
 	}
 	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {

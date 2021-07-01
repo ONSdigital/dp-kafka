@@ -18,7 +18,6 @@ var (
 	testConsumerRetryBackoffFunc = func(retries int) time.Duration { return time.Second }
 	testKafkaVersion             = "1.0.2"
 	testOffsetNewest             = OffsetNewest
-	testTLS                      = "TLS"
 )
 
 func TestProducerConfig(t *testing.T) {
@@ -63,8 +62,7 @@ func TestProducerConfig(t *testing.T) {
 				RetryMax:         &testRetryMax,
 				RetryBackoff:     &testRetryBackoff,
 				RetryBackoffFunc: &testProducerRetryBackoffFunc,
-				SecurityConfig: SecurityConfig{
-					Protocol:           &testTLS,
+				SecurityConfig: &SecurityConfig{
 					InsecureSkipVerify: true,
 				},
 			}
@@ -137,9 +135,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 				RetryBackoff:     &testRetryBackoff,
 				RetryBackoffFunc: &testConsumerRetryBackoffFunc,
 				Offset:           &testOffsetNewest,
-				SecurityConfig: SecurityConfig{
-					Protocol: &testTLS,
-				},
+				SecurityConfig:   &SecurityConfig{},
 			}
 			config, err := getConsumerGroupConfig(cgConfig)
 			So(err, ShouldBeNil)

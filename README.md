@@ -4,16 +4,8 @@ Kafka client wrapper using channels to abstract kafka consumers and producers. T
 
 ## Configuration
 
-By default, the library assumes plaintext connections.
-TLS connections are configured by using the following environment variables:
-
-Environment Variable  | Default   | Description
----                   | ---       | ---
-KAFKA_SEC_PROTO       |           | when set to `TLS`, the library will use TLS connections (and only then are the below variables used)
-KAFKA_SEC_CA_CERTS    |           | path to CA cert file (e.g. `/etc/ssl/certs/Amazon_Root_CA_1.pem`)
-KAFKA_SEC_CLIENT_CERT |           | path to client cert file (optional)
-KAFKA_SEC_CLIENT_KEY  |           | path to client key file (optional)
-KAFKA_SEC_SKIP_VERIFY | false     | Skip verifying TLS certificate on connect (optional)
+By default, the library assumes plaintext connections,
+unless the configuration argument has a non-nil `SecurityConfig` field.
 
 ## Life-cycle
 
@@ -148,10 +140,10 @@ check, err = cli.Checker(ctx)
 
 ## Examples
 
-See the [examples](examples/README.md) for some typical usages of this library:
+See the [examples](examples/README.md) below for some typical usages of this library.
 
-- [Producer example](examples/producer/main.go)
-- [Sequential consumer example](examples/consumer-sequential/main.go)
+- [Producer example](examples/producer/main.go) [TLS enabled]
+- [Sequential consumer example](examples/consumer-sequential/main.go) [TLS enabled]
 - [Concurrent consumer example](examples/consumer-concurrent/main.go)
 
 ## Testing
