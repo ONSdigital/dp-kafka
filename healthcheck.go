@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
 
@@ -59,7 +59,7 @@ func (p *Producer) healthcheck(ctx context.Context) error {
 	// If Sarama client is not initialised, we need to initialise it
 	err = p.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama producer", log.WARN, log.Data{"topic": p.topic}, log.Error(err))
+		log.Warn(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.FormatErrors([]error{err}))
 		return ErrInitSarama
 	}
 	return nil
@@ -74,7 +74,7 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 	// If Sarama client is not initialised, we need to initialise it
 	err = cg.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama consumer-group", log.WARN, log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
+		log.Warn(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.FormatErrors([]error{err}))
 		return ErrInitSarama
 	}
 	return nil
@@ -126,10 +126,10 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cf
 
 	// try to open connection if it is not connected
 	if !isConnected {
-		log.Event(ctx, "broker not connected. Trying to open connection now", log.INFO, log.Data{"address": broker.Addr()})
+		log.Info(ctx, "broker not connected. Trying to open connection now", log.Data{"address": broker.Addr()})
 		err := broker.Open(cfg)
 		if err != nil {
-			log.Event(ctx, "failed to open connection with broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
+			log.Warn(ctx, "failed to open connection with broker", log.Data{"address": broker.Addr()}, log.FormatErrors([]error{err}))
 			return false, false
 		}
 	}
@@ -138,7 +138,7 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cf
 	request := sarama.MetadataRequest{Topics: []string{topic}}
 	resp, err := broker.GetMetadata(&request)
 	if err != nil {
-		log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": broker.Addr(), "topic": topic}, log.Error(err))
+		log.Warn(ctx, "failed to obtain metadata from broker", log.Data{"address": broker.Addr(), "topic": topic}, log.FormatErrors([]error{err}))
 		return false, false
 	}
 
