@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/ONSdigital/dp-api-clients-go v1.40.0 // indirect
 	github.com/ONSdigital/dp-healthcheck v1.0.5
-	github.com/ONSdigital/log.go v1.0.1
+	github.com/ONSdigital/log.go/v2 v2.0.5
 	github.com/Shopify/sarama v1.29.1
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11

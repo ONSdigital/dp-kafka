@@ -6,7 +6,7 @@ import (
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
 )
@@ -166,7 +166,7 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 	didTimeout := waitWithTimeout(ctx, cg.wgClose)
 	if didTimeout {
 		err := ctx.Err()
-		log.Event(ctx, "StopListeningToConsumer abandoned: context done", log.WARN, log.Error(err), logData)
+		log.Warn(ctx, "StopListeningToConsumer abandoned: context done", log.FormatErrors([]error{err}), logData)
 		return err
 	}
 
@@ -196,7 +196,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close consumer only if it was initialised.
 	if cg.IsInitialised() {
 		if err = cg.saramaCg.Close(); err != nil {
-			log.Event(ctx, "close failed of kafka consumer group", log.WARN, log.Error(err), logData)
+			log.Warn(ctx, "close failed of kafka consumer group", log.FormatErrors([]error{err}), logData)
 			return err
 		}
 	}
@@ -230,17 +230,17 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Ready:
 				return
 			case <-cg.channels.Closer:
-				log.Event(ctx, "closing uninitialised kafka consumer group", log.INFO, log.Data{"topic": cg.topic})
+				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
 				return
 			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
-					log.Event(ctx, "error initialising consumer group", log.ERROR, log.Error(err), log.Data{"attempt": initAttempt})
+					log.Error(ctx, "error initialising consumer group", err, log.Data{"attempt": initAttempt})
 					initAttempt++
 					continue
 				}
 				return
 			case <-ctx.Done():
-				log.Event(ctx, "abandoning initialisation of consumer group - context expired", log.ERROR, log.Error(ctx.Err()), log.Data{"attempt": initAttempt})
+				log.Error(ctx, "abandoning initialisation of consumer group - context expired", ctx.Err(), log.Data{"attempt": initAttempt})
 				return
 			}
 		}
@@ -256,23 +256,23 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	go func() {
 		defer cg.wgClose.Done()
 		logData := log.Data{"topic": cg.topic, "group": cg.group}
-		log.Event(ctx, "started kafka consumer listener loop", log.INFO, logData)
+		log.Info(ctx, "started kafka consumer listener loop", logData)
 		consumeAttempt := 1
 		for {
 			select {
 			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
-				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
+				log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 				return
 			default:
 				// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
 				// the consumer session will need to be recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
-					log.Event(ctx, "error consuming", log.ERROR, log.Error(err), log.Data{"attempt": consumeAttempt})
+					log.Error(ctx, "error consuming", err, log.Data{"attempt": consumeAttempt})
 					select {
 					// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
 					case <-cg.channels.Closer:
-						log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
+						log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 						return
 					// once the retrial time has expired, we try to consume again (continue the loop)
 					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
@@ -302,7 +302,7 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 			select {
 			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
-				log.Event(ctx, "closed kafka consumer error loop via closer channel", log.INFO, logData)
+				log.Info(ctx, "closed kafka consumer error loop via closer channel", logData)
 				return
 			// listen to kafka errors from sarama and forward them to the Errors chanel
 			case err := <-cg.saramaCg.Errors():
