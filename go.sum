@@ -17,7 +17,6 @@ github.com/ONSdigital/log.go v1.0.1-0.20200805084515-ee61165ea36a/go.mod h1:dDnQ
 github.com/ONSdigital/log.go v1.0.1-0.20200805145532-1f25087a0744/go.mod h1:y4E9MYC+cV9VfjRD0UBGj8PA7H3wABqQi87/ejrDhYc=
 github.com/ONSdigital/log.go v1.0.1 h1:SZ5wRZAwlt2jQUZ9AUzBB/PL+iG15KapfQpJUdA18/4=
 github.com/ONSdigital/log.go v1.0.1/go.mod h1:dIwSXuvFB5EsZG5x44JhsXZKMd80zlb0DZxmiAtpL4M=
-github.com/ONSdigital/log.go/v2 v2.0.0 h1:ozm2DORFnPwVe1Dmved7ccjNo16z06EOmAXAllZxW3A=
 github.com/ONSdigital/log.go/v2 v2.0.0/go.mod h1:PR7vXrv9dZKUc7SI/0toxBbStk84snmybBnWpe+xY2o=
 github.com/ONSdigital/log.go/v2 v2.0.5 h1:kl2lF0vr3BQDwPTAUcarDvX4Um3uE3fjVRfLoHAarBc=
 github.com/ONSdigital/log.go/v2 v2.0.5/go.mod h1:PR7vXrv9dZKUc7SI/0toxBbStk84snmybBnWpe+xY2o=

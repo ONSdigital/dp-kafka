@@ -118,36 +118,67 @@ func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string, cf
 	return nil
 }
 
-// validateBroker checks that the provider broker is reachable and the topic is in its metadata.
+func ensureBrokerOpen(ctx context.Context, broker *sarama.Broker, cfg *sarama.Config) (err error) {
+	var isConnected bool
+	if isConnected, err = broker.Connected(); err != nil {
+		log.Warn(ctx, "broker reports connected error - ignoring", log.FormatErrors([]error{err}), log.Data{"address": broker.Addr()})
+	}
+	if !isConnected {
+		log.Info(ctx, "broker not connected: connecting", log.Data{"address": broker.Addr()})
+		err = broker.Open(cfg)
+	}
+	return
+}
+
+// validateBroker checks that the provider broker is reachable and the topic is in its metadata
 func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cfg *sarama.Config) (reachable, valid bool) {
 
-	// check if broker is connected
-	isConnected, _ := broker.Connected()
-
-	// try to open connection if it is not connected
-	if !isConnected {
-		log.Info(ctx, "broker not connected. Trying to open connection now", log.Data{"address": broker.Addr()})
-		err := broker.Open(cfg)
-		if err != nil {
-			log.Warn(ctx, "failed to open connection with broker", log.Data{"address": broker.Addr()}, log.FormatErrors([]error{err}))
-			return false, false
-		}
-	}
+	var resp *sarama.MetadataResponse
+	var err error
+	logData := log.Data{"address": broker.Addr(), "topic": topic}
 
 	// Metadata request (will fail if connection cannot be established)
 	request := sarama.MetadataRequest{Topics: []string{topic}}
-	resp, err := broker.GetMetadata(&request)
-	if err != nil {
-		log.Warn(ctx, "failed to obtain metadata from broker", log.Data{"address": broker.Addr(), "topic": topic}, log.FormatErrors([]error{err}))
-		return false, false
+
+	// note: `!reachable` also a loop condition
+	for retriesLeft := 1; retriesLeft >= 0 && !reachable; retriesLeft-- {
+		if err = ensureBrokerOpen(ctx, broker, cfg); err != nil {
+			if retriesLeft == 0 {
+				// will exit loop, err will cause failure
+				continue
+			}
+			log.Warn(ctx, "error opening broker - will retry", log.FormatErrors([]error{err}), logData)
+		}
+
+		if resp, err = broker.GetMetadata(&request); err != nil {
+			if retriesLeft > 0 {
+				errs := []error{err}
+				// want next retry to trigger broker.Open, so Close first
+				if err = broker.Close(); err != nil {
+					closeErrs := append(errs, err)
+					log.Warn(ctx, "failed to obtain metadata from broker - close also failed", logData, log.FormatErrors(closeErrs))
+				} else {
+					log.Warn(ctx, "failed to obtain metadata from broker, closed broker for retry", logData, log.FormatErrors(errs))
+				}
+			}
+			// when retriesLeft == 0, will exit loop and err will be returned
+		} else {
+			// GetMetadata success, this exits retry loop
+			reachable = true
+		}
+	}
+	// catch any errors during final retry loop
+	if err != nil || !reachable {
+		log.Warn(ctx, "failed to obtain metadata from broker", logData, log.FormatErrors([]error{err}))
+		return
 	}
 
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
-			return true, true
+			valid = true
+			return
 		}
 	}
 
-	return true, false
-
+	return
 }

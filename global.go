@@ -19,8 +19,15 @@ const (
 // InitRetryPeriod is the initial time period between initialisation retries (for producers and consumer gropus)
 var InitRetryPeriod = 250 * time.Millisecond
 
-// ConsumeErrRetryPeriod is the initial time period between consume retrials on error (for consumer groups)
+// ConsumeErrRetryPeriod is the initial time period between consumer retries on error (for consumer groups)
 var ConsumeErrRetryPeriod = 250 * time.Millisecond
+
+// MaxRetryInterval is the maximum time between retries (plus or minus a random amount)
+var MaxRetryInterval = 31 * time.Second
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 // SetMaxMessageSize sets the Sarama MaxRequestSize and MaxResponseSize values to the provided maxSize
 func SetMaxMessageSize(maxSize int32) {
@@ -28,15 +35,24 @@ func SetMaxMessageSize(maxSize int32) {
 	sarama.MaxResponseSize = maxSize
 }
 
-// getRetryTime will return a time based on the attempt and initial retry time.
-// It uses the algorithm 2^n where n is the attempt number (double the previous) and
-// a randomization factor of between 0-5ms so that the server isn't being hit constantly
-// at the same time by many clients.
+// SetMaxRetryInterval sets MaxRetryInterval to its duration argument
+func SetMaxRetryInterval(maxPause time.Duration) {
+	MaxRetryInterval = maxPause
+}
+
+// getRetryTime will return a duration based on the attempt and initial retry time.
+// It uses the algorithm `2^n` where `n` is the attempt number (double the previous)
+// plus a randomization factor of ±25% of the initial retry time
+// (so that the server isn't being hit at the same time by many clients)
 func getRetryTime(attempt int, retryTime time.Duration) time.Duration {
-	n := (math.Pow(2, float64(attempt)))
-	rand.Seed(time.Now().Unix())
-	rnd := time.Duration(rand.Intn(4)+1) * time.Millisecond
-	return (time.Duration(n) * retryTime) - rnd
+	n := math.Pow(2, float64(attempt-1))
+	retryPause := time.Duration(n) * retryTime
+	// large values of `attempt` cause overflow (above is zero), so test for <=0
+	if retryPause > MaxRetryInterval || retryPause <= 0 {
+		retryPause = MaxRetryInterval
+	}
+	rnd := (rand.Int63n(50) - 25) * retryTime.Milliseconds() / 100
+	return retryPause + time.Duration(rnd)*time.Millisecond
 }
 
 // waitWithTimeout blocks until all go-routines tracked by a WaitGroup are done,
