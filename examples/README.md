@@ -16,17 +16,30 @@ KAFKA_CONSUMED_GROUP | `kafka-example-consumer` | consumer group name used by ex
 
 ### TLS
 
-Currently, TLS is an option in the `producer` and `consumer-sequential` examples only.
+These environment variables are typical for DP apps, so their documentation refers here.
 
-TLS connections can be used in enabled examples by using the following additional environment variables:
+In the examples in this directory, the `producer` and `consumer-sequential` are TLS-ready.
 
-Environment Variable  | Default   | Description
----                   | ---       | ---
-KAFKA_SEC_PROTO       |           | when set to `TLS`, the example will use TLS connections (and only then are the below variables used)
-KAFKA_SEC_CA_CERTS    |           | path to CA cert file (e.g. `/etc/ssl/certs/Amazon_Root_CA_1.pem`)
-KAFKA_SEC_CLIENT_CERT |           | path to client cert file (optional)
-KAFKA_SEC_CLIENT_KEY  |           | path to client key file (optional)
-KAFKA_SEC_SKIP_VERIFY | false     | Skip verifying TLS certificate on connect (optional)
+TLS connections to Kafka can be used in TLS-ready examples/apps by using the following environment variables:
+
+Environment Variable  | Default   | Optional | Notes | Description
+---                   | ---       | ---      | ---   | ---
+KAFKA_SEC_PROTO       |           | yes      |       | when set to `TLS`, the code will use TLS connections, otherwise a plaintext connection is the default
+KAFKA_SEC_CLIENT_CERT |           | [1]      | [2]   | PEM value (or file path) containing client certificate
+KAFKA_SEC_CLIENT_KEY  |           | [1]      | [2]   | PEM value (or file path) containing client key
+KAFKA_SEC_SKIP_VERIFY | false     | [1]      |       | do not verify server certificate
+KAFKA_SEC_CA_CERTS    |           | [1]      | [3]   | path to CA cert file (e.g. `/etc/ssl/certs/Amazon_Root_CA_1.pem`)
+
+**Notes:**
+
+1. Optional: Value is ignored unless using TLS (i.e. when `KAFKA_SEC_PROTO` has a value enabling TLS)
+
+2. PEM variables contain one of:
+    - a PEM-format value starting with `-----BEGIN`
+        (use `\n` (sic) instead of newlines, which will be converted to newlines before use)
+    - any other value will be treated as a path to a file containing the given PEM
+
+3. `KAFKA_SEC_CA_CERTS` needs only be used when the _server certificate_ is from a non-standard Certificate Authority
 
 ## Run kafka cluster
 
