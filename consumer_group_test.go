@@ -40,7 +40,7 @@ func TestConsumerCreationError(t *testing.T) {
 			nil,
 		)
 		So(consumer, ShouldBeNil)
-		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Closer, Closed}})
+		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Consume, Closer, Closed}})
 	})
 }
 

@@ -10,6 +10,7 @@ import (
 const (
 	Errors       = "Errors"
 	Ready        = "Ready"
+	Consume      = "Consume"
 	Closer       = "Closer"
 	Closed       = "Closed"
 	Upstream     = "Upstream"
@@ -22,6 +23,7 @@ type ConsumerGroupChannels struct {
 	Upstream chan Message
 	Errors   chan error
 	Ready    chan struct{}
+	Consume  chan bool
 	Closer   chan struct{}
 	Closed   chan struct{}
 }
@@ -46,6 +48,9 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	}
 	if consumerChannels.Ready == nil {
 		missingChannels = append(missingChannels, Ready)
+	}
+	if consumerChannels.Consume == nil {
+		missingChannels = append(missingChannels, Consume)
 	}
 	if consumerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)
@@ -129,6 +134,7 @@ func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
 		Upstream: chUpstream,
 		Errors:   make(chan error),
 		Ready:    make(chan struct{}),
+		Consume:  make(chan bool),
 		Closer:   make(chan struct{}),
 		Closed:   make(chan struct{}),
 	}
