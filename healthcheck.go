@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
 
@@ -52,14 +52,14 @@ func getStatusFromError(err error) string {
 
 // healthcheck performs the healthcheck logic for a kafka producer.
 func (p *Producer) healthcheck(ctx context.Context) error {
-	err := healthcheck(ctx, p.brokers, p.topic)
+	err := healthcheck(ctx, p.brokers, p.topic, p.config)
 	if err != nil {
 		return err
 	}
 	// If Sarama client is not initialised, we need to initialise it
 	err = p.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama producer", log.WARN, log.Data{"topic": p.topic}, log.Error(err))
+		log.Warn(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.FormatErrors([]error{err}))
 		return ErrInitSarama
 	}
 	return nil
@@ -67,14 +67,14 @@ func (p *Producer) healthcheck(ctx context.Context) error {
 
 // healthcheck performs the healthcheck logic for a kafka consumer group.
 func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
-	err := healthcheck(ctx, cg.brokers, cg.topic)
+	err := healthcheck(ctx, cg.brokers, cg.topic, cg.config)
 	if err != nil {
 		return err
 	}
 	// If Sarama client is not initialised, we need to initialise it
 	err = cg.Initialise(ctx)
 	if err != nil {
-		log.Event(ctx, "error initialising sarama consumer-group", log.WARN, log.Data{"topic": cg.topic, "group": cg.group}, log.Error(err))
+		log.Warn(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.FormatErrors([]error{err}))
 		return ErrInitSarama
 	}
 	return nil
@@ -84,18 +84,18 @@ func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
 // brokers and asking for topic metadata. Possible errors:
 // - ErrBrokersNotReachable if a broker cannot be contacted.
 // - ErrInvalidBrokers if topic metadata is not returned by a broker.
-func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string) error {
+func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string, cfg *sarama.Config) error {
 
 	// Vars to keep track of validation state
 	unreachableBrokers := []string{}
 	invalidBrokers := []string{}
 	if len(brokers) == 0 {
-		return errors.New("No brokers defined")
+		return errors.New("no brokers defined")
 	}
 
 	// Validate all brokers
 	for _, broker := range brokers {
-		reachable, valid := validateBroker(ctx, broker, topic)
+		reachable, valid := validateBroker(ctx, broker, topic, cfg)
 		if !reachable {
 			unreachableBrokers = append(unreachableBrokers, broker.Addr())
 			continue
@@ -118,36 +118,67 @@ func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string) er
 	return nil
 }
 
-// validateBroker checks that the provider broker is reachable and the topic is in its metadata.
-func validateBroker(ctx context.Context, broker *sarama.Broker, topic string) (reachable, valid bool) {
-
-	// check if broker is connected
-	isConnected, _ := broker.Connected()
-
-	// try to open connection if it is not connected
-	if !isConnected {
-		log.Event(ctx, "broker not connected. Trying to open connection now", log.INFO, log.Data{"address": broker.Addr()})
-		err := broker.Open(sarama.NewConfig())
-		if err != nil {
-			log.Event(ctx, "failed to open connection with broker", log.WARN, log.Data{"address": broker.Addr()}, log.Error(err))
-			return false, false
-		}
+func ensureBrokerOpen(ctx context.Context, broker *sarama.Broker, cfg *sarama.Config) (err error) {
+	var isConnected bool
+	if isConnected, err = broker.Connected(); err != nil {
+		log.Warn(ctx, "broker reports connected error - ignoring", log.FormatErrors([]error{err}), log.Data{"address": broker.Addr()})
 	}
+	if !isConnected {
+		log.Info(ctx, "broker not connected: connecting", log.Data{"address": broker.Addr()})
+		err = broker.Open(cfg)
+	}
+	return
+}
+
+// validateBroker checks that the provider broker is reachable and the topic is in its metadata
+func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cfg *sarama.Config) (reachable, valid bool) {
+
+	var resp *sarama.MetadataResponse
+	var err error
+	logData := log.Data{"address": broker.Addr(), "topic": topic}
 
 	// Metadata request (will fail if connection cannot be established)
 	request := sarama.MetadataRequest{Topics: []string{topic}}
-	resp, err := broker.GetMetadata(&request)
-	if err != nil {
-		log.Event(ctx, "failed to obtain metadata from broker", log.WARN, log.Data{"address": broker.Addr(), "topic": topic}, log.Error(err))
-		return false, false
+
+	// note: `!reachable` also a loop condition
+	for retriesLeft := 1; retriesLeft >= 0 && !reachable; retriesLeft-- {
+		if err = ensureBrokerOpen(ctx, broker, cfg); err != nil {
+			if retriesLeft == 0 {
+				// will exit loop, err will cause failure
+				continue
+			}
+			log.Warn(ctx, "error opening broker - will retry", log.FormatErrors([]error{err}), logData)
+		}
+
+		if resp, err = broker.GetMetadata(&request); err != nil {
+			if retriesLeft > 0 {
+				errs := []error{err}
+				// want next retry to trigger broker.Open, so Close first
+				if err = broker.Close(); err != nil {
+					closeErrs := append(errs, err)
+					log.Warn(ctx, "failed to obtain metadata from broker - close also failed", logData, log.FormatErrors(closeErrs))
+				} else {
+					log.Warn(ctx, "failed to obtain metadata from broker, closed broker for retry", logData, log.FormatErrors(errs))
+				}
+			}
+			// when retriesLeft == 0, will exit loop and err will be returned
+		} else {
+			// GetMetadata success, this exits retry loop
+			reachable = true
+		}
+	}
+	// catch any errors during final retry loop
+	if err != nil || !reachable {
+		log.Warn(ctx, "failed to obtain metadata from broker", logData, log.FormatErrors([]error{err}))
+		return
 	}
 
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
-			return true, true
+			valid = true
+			return
 		}
 	}
 
-	return true, false
-
+	return
 }

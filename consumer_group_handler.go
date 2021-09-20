@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
 
@@ -30,7 +30,7 @@ func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
 	if *sh.state != Starting && *sh.state != Consuming {
 		return errors.New("wrong state to consume")
 	}
-	log.Event(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.INFO, log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
+	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close Ready channel (if it is not already closed)
 	select {
@@ -77,7 +77,7 @@ func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
 
 // Cleanup is run by Sarama at the end of a session, once all ConsumeClaim goroutines have exited
 func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
-	log.Event(session.Context(), "sarama consumer group session cleanup finished: all go-routines have completed", log.INFO, log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
+	log.Info(session.Context(), "sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
 	select {

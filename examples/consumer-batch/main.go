@@ -8,7 +8,7 @@ import (
 	"time"
 
 	kafka "github.com/ONSdigital/dp-kafka/v2"
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -38,7 +38,7 @@ func main() {
 	ctx := context.Background()
 
 	if err := run(ctx); err != nil {
-		log.Event(ctx, "fatal runtime error", log.Error(err), log.FATAL)
+		log.Fatal(ctx, "fatal runtime error", err)
 		os.Exit(1)
 	}
 }
@@ -72,12 +72,12 @@ func run(ctx context.Context) error {
 
 	// blocks until an os interrupt or a fatal error occurs
 	sig := <-signals
-	log.Event(ctx, "os signal received", log.Data{"signal": sig}, log.INFO)
+	log.Info(ctx, "os signal received", log.Data{"signal": sig})
 	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
 func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, error) {
-	log.Event(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.INFO, log.Data{"config": cfg})
+	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
 	// Create ConsumerGroup with channels and config
@@ -94,10 +94,10 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	// Consumer not initialised at creation time. We need to retry to initialise it.
 	if !cg.IsInitialised() {
 		if cfg.WaitForConsumerReady {
-			log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Waiting until we can initialise it.", log.WARN)
+			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Waiting until we can initialise it.")
 			waitForInitialised(ctx, cg.Channels())
 		} else {
-			log.Event(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Will be initialised later.", log.WARN)
+			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Will be initialised later.")
 			go waitForInitialised(ctx, cg.Channels())
 		}
 	}
@@ -106,7 +106,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	go func() {
 		for {
 			<-time.After(ticker)
-			log.Event(ctx, "[KAFKA-TEST] tick", log.INFO)
+			log.Info(ctx, "[KAFKA-TEST] tick")
 		}
 	}()
 
@@ -119,7 +119,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 // consume waits for messages to arrive to the upstream channel, appends them to a batch, and then, once the batch is full, processes the batch.
 // Note that the messages are released straight away, but not committed until the batch has been successfully processed.
 func consume(ctx context.Context, cfg *Config, upstream chan kafka.Message) {
-	log.Event(ctx, "started consuming")
+	log.Info(ctx, "started consuming")
 	var batch = []kafka.Message{}
 	for {
 		// get message from upstream channel
@@ -129,7 +129,7 @@ func consume(ctx context.Context, cfg *Config, upstream chan kafka.Message) {
 		}
 		consumeCount++
 		logData := log.Data{"consumeCount": consumeCount, "messageOffset": consumedMessage.Offset()}
-		log.Event(ctx, "[KAFKA-TEST] Received message", log.INFO, logData)
+		log.Info(ctx, "[KAFKA-TEST] Received message", logData)
 
 		// append message to batch
 		batch = append(batch, consumedMessage)
@@ -154,13 +154,13 @@ func processBatch(ctx context.Context, cfg *Config, logData log.Data, batch []ka
 	logData["batch_offsets"] = batchOffsets
 
 	// log before sleep
-	log.Event(ctx, "processing batch", log.INFO, logData)
+	log.Info(ctx, "processing batch", logData)
 
 	// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
 	sleepIfRequired(ctx, cfg, logData)
 
 	// log after sleep
-	log.Event(ctx, "batch processed", log.INFO, logData)
+	log.Info(ctx, "batch processed", logData)
 
 	// commit after successfully
 	commitBatch(batch)
@@ -179,7 +179,7 @@ func commitBatch(batch []kafka.Message) {
 }
 
 func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
-	log.Event(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout}, log.INFO)
+	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 
 	// track shutown gracefully closes up
@@ -188,28 +188,28 @@ func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulSh
 	// background graceful shutdown
 	go func() {
 		defer cancel()
-		log.Event(ctx, "[KAFKA-TEST] Closing kafka consumerGroup", log.INFO)
+		log.Info(ctx, "[KAFKA-TEST] Closing kafka consumerGroup")
 		if err := cg.Close(ctx); err != nil {
 			hasShutdownError = true
 		}
-		log.Event(ctx, "[KAFKA-TEST] Closed kafka consumerGroup", log.INFO)
+		log.Info(ctx, "[KAFKA-TEST] Closed kafka consumerGroup")
 	}()
 
 	// wait for timeout or success (via cancel)
 	<-ctx.Done()
 
 	if ctx.Err() == context.DeadlineExceeded {
-		log.Event(ctx, "[KAFKA-TEST] graceful shutdown timed out", log.WARN, log.Error(ctx.Err()))
+		log.Warn(ctx, "[KAFKA-TEST] graceful shutdown timed out", log.FormatErrors([]error{ctx.Err()}))
 		return ctx.Err()
 	}
 
 	if hasShutdownError {
 		err := errors.New("failed to shutdown gracefully")
-		log.Event(ctx, "failed to shutdown gracefully ", log.ERROR, log.Error(err))
+		log.Error(ctx, "failed to shutdown gracefully ", err)
 		return err
 	}
 
-	log.Event(ctx, "graceful shutdown was successful", log.INFO)
+	log.Info(ctx, "graceful shutdown was successful")
 	return nil
 }
 
@@ -228,10 +228,10 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 		logData["sleep"] = sleep
 	}
 
-	log.Event(ctx, "[KAFKA-TEST] Message consumed", log.INFO, logData)
+	log.Info(ctx, "[KAFKA-TEST] Message consumed", logData)
 	if sleep > time.Duration(0) {
 		time.Sleep(sleep)
-		log.Event(ctx, "[KAFKA-TEST] done sleeping", log.INFO)
+		log.Info(ctx, "[KAFKA-TEST] done sleeping")
 	}
 }
 
@@ -239,8 +239,8 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
 	select {
 	case <-cgChannels.Ready:
-		log.Event(ctx, "[KAFKA-TEST] Consumer is now initialised.", log.WARN)
+		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised.")
 	case <-cgChannels.Closer:
-		log.Event(ctx, "[KAFKA-TEST] Consumer is being closed.", log.WARN)
+		log.Warn(ctx, "[KAFKA-TEST] Consumer is being closed.")
 	}
 }

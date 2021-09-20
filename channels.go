@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 
-	"github.com/ONSdigital/log.go/log"
+	"github.com/ONSdigital/log.go/v2/log"
 )
 
 // channel names
@@ -71,7 +71,7 @@ func (consumerChannels *ConsumerGroupChannels) LogErrors(ctx context.Context, er
 		for {
 			select {
 			case err := <-consumerChannels.Errors:
-				log.Event(ctx, errMsg, log.ERROR, log.Error(err))
+				log.Error(ctx, errMsg, err)
 			case <-consumerChannels.Closer:
 				return
 			}
@@ -110,7 +110,7 @@ func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg 
 		for {
 			select {
 			case err := <-producerChannels.Errors:
-				log.Event(ctx, errMsg, log.ERROR, log.Error(err))
+				log.Error(ctx, errMsg, err)
 			case <-producerChannels.Closer:
 				return
 			}
