@@ -61,6 +61,8 @@ You can check if a producer/consumer is initialised by calling `IsInitialised()`
 
 Waiting for this channel is a convenient hook, but not a necessary requirement.
 
+Note that initialised consumers will be in 'Stopped' state until they receive 'true' from the Consume channel.
+
 ### Message production
 
 Messages are sent to Kafka by sending them to a producer Output channel, as byte arrays:

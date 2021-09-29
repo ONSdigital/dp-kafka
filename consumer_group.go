@@ -166,8 +166,9 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 }
 
 // StopListeningToConsumer stops any more messages being consumed off kafka topic
+// Note that this method is 'not recoverable' meaning that after you call it, you can't go back to consuming messages again.
+// If you intend to stop consuming messages temporarily, please send 'false' to the Consume channel instead.
 func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error) {
-
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
@@ -237,10 +238,8 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 // It retries to initialise the consumer with an exponential backoff retrial algorithm,
 // starting with a period `InitRetryPeriod`, until the consumer group is initialised or closed.
 func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
-
-	// Do nothing if consumer group already initialised
 	if cg.IsInitialised() {
-		return
+		return // do nothing if consumer group already initialised
 	}
 
 	cg.wgClose.Add(1)
@@ -269,131 +268,151 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	}()
 }
 
-// createConsumeLoop creates a goroutine to consume messages with an initialised consumer group.
-// It calls Consume(), to consume messages from sarama and sends them to the Upstream channel.
-// Failed Consumes are retried with an exponential backoff retrial algorithm.
-// In any case, if the Close channel is closed, this loop will end.
+// stoppedState represents the 'Stopped' stationary state.
+// It sets the state to Stopped and blocks until one of the following events happen:
+// - A 'true' value is received from the Consume channel: the state is set to 'Starting' and the func will return
+// - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
+func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
+	cg.state = Stopped
+	logData["state"] = Stopped
+
+	// close Ready channel (if it is not already closed)
+	select {
+	case <-cg.channels.Ready:
+	default:
+		close(cg.channels.Ready)
+	}
+
+	for {
+		select {
+		case <-cg.channels.Closer:
+			cg.state = Closing
+			logData["state"] = Closing
+			log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
+			return
+		case consume, ok := <-cg.channels.Consume:
+			if !ok {
+				cg.state = Closing
+				logData["state"] = Closing
+				log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
+				return
+			}
+			if consume {
+				cg.state = Starting
+				logData["state"] = Starting
+				return
+			}
+			// if consume is false, we re-iterate the select, as the state is already stopped
+		}
+	}
+}
+
+// startingState represents the 'Starting' transient state and 'Consuming' stationary state.
+// It sets the state to Starting and calls saramaCg.Consume in an infinite loop,
+// this will make the consumer consume messages again every time that a session is destroyed and created.
+// saramaCg.Consume will set the state to consuming while the session is active, and will set it back to 'Starting' when it finishes.
+// before calling consume again after a session finishes, we check if one of the following events has happened:
+// - A 'false' value is received from the Consume channel: the state is set to 'Starting' and the func will return
+// - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
+// If saramaCg.Consume fails, we retry after waiting some time (exponential backoff between retries).
+// If the consumer changes its state between retries, we abort the loop as described above.
+func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
+	cg.state = Starting
+	logData["state"] = Starting
+
+	// close Ready channel (if it is not already closed)
+	select {
+	case <-cg.channels.Ready:
+	default:
+		close(cg.channels.Ready)
+	}
+
+	consumeAttempt := 1
+	for {
+		if cg.state != Starting && cg.state != Consuming {
+			// state changed during cg.saramaCg.Consume
+			return
+		}
+		select {
+		case <-cg.channels.Closer:
+			cg.state = Closing
+			logData["state"] = Closing
+			log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
+			return
+		case consume, ok := <-cg.channels.Consume:
+			if !ok {
+				cg.state = Closing
+				logData["state"] = Closing
+				log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
+				return
+			}
+			if !consume {
+				cg.state = Stopping
+				logData["state"] = Stopping
+				return
+			}
+		default:
+			// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
+			// the consumer session will need to be recreated to get the new claims
+			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
+				log.Error(ctx, "error consuming", err, log.Data{"attempt": consumeAttempt})
+				select {
+				// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
+				case <-cg.channels.Closer:
+					cg.state = Closing
+					logData["state"] = Closing
+					log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
+					return
+				case consume, ok := <-cg.channels.Consume:
+					if !ok {
+						cg.state = Closing
+						logData["state"] = Closing
+						log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
+						return
+					}
+					if !consume {
+						cg.state = Stopping
+						logData["state"] = Stopping
+						return
+					}
+					// once the retrial time has expired, we try to consume again (continue the loop)
+				case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
+					consumeAttempt++
+				case <-ctx.Done():
+				}
+			} else {
+				// on successful consumption, reset the attempt counter
+				consumeAttempt = 1
+			}
+		}
+	}
+}
+
+// createConsumeLoop creates a goroutine for the consumer group once the sarama consumer has been initialised.
+// The consumer will initially be set at 'Stopped' sate.
 func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	if cg.state != Initialising {
 		log.Warn(ctx, "wrong state for createConsumeLoop", log.Data{"state": cg.state.String()})
 		return
 	}
-	cg.state = Starting
+	cg.state = Stopped // will not consume until we are told to do so by the Consume channel
 	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state}
-
-	// stoppedState is an aux func representing the 'Stopped' stationary state.
-	// It sets the state to Stopped and blocks until one of the following events happen:
-	// - A 'true' value is received from the Consume channel: the state is set to 'Starting' and the func will return
-	// - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
-	var stoppedState = func() {
-		cg.state = Stopped
-		logData["state"] = Stopped
-
-		for {
-			select {
-			case <-cg.channels.Closer:
-				cg.state = Closing
-				logData["state"] = Closing
-				log.Event(ctx, "closed kafka consumer consume loop via closer channel", log.INFO, logData)
-				return
-			case consume, ok := <-cg.channels.Consume:
-				if !ok {
-					cg.state = Closing
-					logData["state"] = Closing
-					log.Event(ctx, "closed kafka consumer consume loop because the Consume channel is closed", log.INFO, logData)
-					return
-				}
-				if consume {
-					cg.state = Starting
-					logData["state"] = Starting
-					return
-				}
-				// if consume is false, we re-iterate the select, as the state is already stopped
-			}
-		}
-	}
-
-	// consumeState is an aux func representing the 'Starting' transient state and 'Consuming' stationary state.
-	var consumeState = func() {
-		cg.state = Starting
-		logData["state"] = Starting
-
-		consumeAttempt := 1
-		for {
-			if cg.state != Starting && cg.state != Consuming {
-				// state changed during cg.saramaCg.Consume
-				return
-			}
-			select {
-			case <-cg.channels.Closer:
-				cg.state = Closing
-				logData["state"] = Closing
-				log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
-				return
-			case consume, ok := <-cg.channels.Consume:
-				if !ok {
-					cg.state = Closing
-					logData["state"] = Closing
-					log.Event(ctx, "closed kafka consumer consume loop because the Consume channel is closed", log.INFO, logData)
-					return
-				}
-				if !consume {
-					cg.state = Stopping
-					logData["state"] = Stopping
-					return
-				}
-			default:
-				// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
-				// the consumer session will need to be recreated to get the new claims
-				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
-					log.Error(ctx, "error consuming", err, log.Data{"attempt": consumeAttempt})
-					select {
-					// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
-					case <-cg.channels.Closer:
-						cg.state = Closing
-						logData["state"] = Closing
-						log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
-						return
-					case consume, ok := <-cg.channels.Consume:
-						if !ok {
-							cg.state = Closing
-							logData["state"] = Closing
-							log.Event(ctx, "closed kafka consumer consume loop because the Consume channel is closed", log.INFO, logData)
-							return
-						}
-						if !consume {
-							cg.state = Stopping
-							logData["state"] = Stopping
-							return
-						}
-					// once the retrial time has expired, we try to consume again (continue the loop)
-					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
-						consumeAttempt++
-					case <-ctx.Done():
-					}
-				} else {
-					// on successful consumption, reset the attempt counter
-					consumeAttempt = 1
-				}
-			}
-		}
-	}
 
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
-		log.Event(ctx, "starting kafka consumer listener loop", log.INFO, logData)
+		log.Info(ctx, "starting kafka consumer listener loop", logData)
 		for {
 			switch cg.state {
-			case Stopped, Stopping:
-				stoppedState()
+			case Stopping, Stopped:
+				cg.stoppedState(ctx, logData)
 			case Starting, Consuming:
-				consumeState()
+				cg.startingState(ctx, logData)
 			case Closing:
 				return
 			default:
 				logData["state"] = cg.state
-				log.Event(ctx, "wrong state, aborting consume loop", log.WARN, logData)
+				log.Warn(ctx, "wrong state, aborting consume loop", logData)
 			}
 		}
 	}()

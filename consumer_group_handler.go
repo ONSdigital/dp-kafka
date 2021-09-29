@@ -32,13 +32,6 @@ func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
 	}
 	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
-	// close Ready channel (if it is not already closed)
-	select {
-	case <-sh.channels.Ready:
-	default:
-		close(sh.channels.Ready)
-	}
-
 	*sh.state = Consuming
 
 	// Create a new chConsuming and a control go-routine

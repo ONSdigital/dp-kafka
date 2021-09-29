@@ -41,10 +41,6 @@ func TestSetup(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("Then the Ready channel is closed", func() {
-				validateChannelClosed(c, channels.Ready, true)
-			})
-
 			Convey("Then the state is set to 'Consuming'", func() {
 				So(*cgHandler.state, ShouldEqual, Consuming)
 			})
@@ -92,13 +88,15 @@ func TestControlRoutine(t *testing.T) {
 		close(channels.Ready)
 		cgHandler.chSessionConsuming = make(chan struct{})
 
+		// start control group in a go-routine
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cgHandler.controlRoutine()
+		}()
+
 		Convey("When the controlRoutine ends due to the 'Closer' channel being closed", func(c C) {
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				cgHandler.controlRoutine()
-			}()
 			close(channels.Closer)
 			wg.Wait()
 
@@ -109,12 +107,6 @@ func TestControlRoutine(t *testing.T) {
 		})
 
 		Convey("When the controlRoutine ends due to the 'Consume' channel being closed", func(c C) {
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				cgHandler.controlRoutine()
-			}()
 			close(channels.Consume)
 			wg.Wait()
 
@@ -125,12 +117,6 @@ func TestControlRoutine(t *testing.T) {
 		})
 
 		Convey("When the controlRoutine ends due to the 'Consume' channel receiving a 'false' value", func(c C) {
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				cgHandler.controlRoutine()
-			}()
 			channels.Consume <- false
 			wg.Wait()
 
@@ -141,12 +127,6 @@ func TestControlRoutine(t *testing.T) {
 		})
 
 		Convey("When the controlRoutine ends due to the 'chSessionConsuming' channel being closed", func(c C) {
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				cgHandler.controlRoutine()
-			}()
 			close(cgHandler.chSessionConsuming)
 			wg.Wait()
 
