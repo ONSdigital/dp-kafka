@@ -10,10 +10,10 @@ import (
 
 // saramaCgHandler consumer-group handler used by Sarama as a callback receiver
 type saramaCgHandler struct {
-	ctx         context.Context
-	channels    *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state       *ConsumerState         // State is shared with ConsumerGroup
-	chConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim
+	ctx                context.Context
+	channels           *ConsumerGroupChannels // Channels are shared with ConsumerGroup
+	state              *ConsumerState         // State is shared with ConsumerGroup
+	chSessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends for any reason
 }
 
 func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *ConsumerState) *saramaCgHandler {
@@ -44,35 +44,42 @@ func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
 	// Create a new chConsuming and a control go-routine
 	// which closes chConsuming when we need to stop consuming for any reason
 	// it sets the state according to the reason
-	sh.chConsuming = make(chan struct{})
-	go func() {
-		defer func() {
-			select {
-			case <-sh.chConsuming:
-			default:
-				close(sh.chConsuming)
-			}
-		}()
+	sh.chSessionConsuming = make(chan struct{})
+	go sh.controlRoutine()
+	return nil
+}
 
+// controlRoutine waits until we need to stop consuming for any reason,
+// and then it closes sh.shConsuming channel so that we will stop consuming new messages
+// - Closer channel closed: set state to 'Closing' and stop consuming
+// - Consume channel closed: set state to 'Closing' and stop consuming
+// - Received 'false' from consume channel: set state to 'Stoppig' and stop consuming
+// - shConsuming channel closed: abort control routine and stop consuming
+func (sh *saramaCgHandler) controlRoutine() {
+	defer func() {
 		select {
-		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
-			*sh.state = Closing
-			return
-		case consume, ok := <-sh.channels.Consume:
-			if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
-				*sh.state = Closing
-				return
-			}
-			if !consume { // Consume channel notifies that we should stop consuming new messages
-				*sh.state = Stopping
-				return
-			}
-		case <-sh.chConsuming:
-			return // if chConsuming is closed, this go-routine must exit
+		case <-sh.chSessionConsuming:
+		default:
+			close(sh.chSessionConsuming)
 		}
 	}()
 
-	return nil
+	select {
+	case <-sh.channels.Closer: // consumer group is closing (valid scenario)
+		*sh.state = Closing
+		return
+	case consume, ok := <-sh.channels.Consume:
+		if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
+			*sh.state = Closing
+			return
+		}
+		if !consume { // Consume channel notifies that we should stop consuming new messages
+			*sh.state = Stopping
+			return
+		}
+	case <-sh.chSessionConsuming:
+		return // if chConsuming is closed, this go-routine must exit
+	}
 }
 
 // Cleanup is run by Sarama at the end of a session, once all ConsumeClaim goroutines have exited
@@ -81,9 +88,9 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
 	select {
-	case <-sh.chConsuming:
+	case <-sh.chSessionConsuming:
 	default:
-		close(sh.chConsuming)
+		close(sh.chSessionConsuming)
 	}
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
@@ -108,7 +115,7 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 func (sh *saramaCgHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
-		case <-sh.chConsuming: // when chConsuming is closed, we need to stop consuming
+		case <-sh.chSessionConsuming: // when chConsuming is closed, we need to stop consuming
 			return nil
 		case message, ok := <-claim.Messages():
 			if !ok {
@@ -127,7 +134,7 @@ func (sh *saramaCgHandler) consumeMessage(msg SaramaMessage) {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
 		<-msg.upstreamDone // Wait until the message is released
 		return             // Message has been released
-	case <-sh.chConsuming:
-		return // chConsuming is closed, we need to stop consuming
+	case <-sh.chSessionConsuming:
+		return // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
 	}
 }

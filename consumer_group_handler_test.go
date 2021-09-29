@@ -19,9 +19,7 @@ var testClaims = map[string][]int32{testTopic: {1, 2, 3, 4, 5}}
 var saramaChannelBufferSize = 256
 
 func TestSetup(t *testing.T) {
-
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
-
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := Starting
@@ -37,6 +35,7 @@ func TestSetup(t *testing.T) {
 		Convey("In 'Starting' state and with Ready channel still open", func() {
 			*cgHandler.state = Starting
 			err := cgHandler.Setup(cgSession)
+			defer close(cgHandler.chSessionConsuming) // close chSessionConsuming channel to force the control go-routine to end
 
 			Convey("Then a nil error is returned", func() {
 				So(err, ShouldBeNil)
@@ -55,6 +54,7 @@ func TestSetup(t *testing.T) {
 			*cgHandler.state = Consuming
 			close(channels.Ready)
 			err := cgHandler.Setup(cgSession)
+			defer close(cgHandler.chSessionConsuming) // close chSessionConsuming channel to force the control go-routine to end
 
 			Convey("Then a nil error is returned", func() {
 				So(err, ShouldBeNil)
@@ -82,6 +82,82 @@ func TestSetup(t *testing.T) {
 	})
 }
 
+func TestControlRoutine(t *testing.T) {
+
+	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession mock in Consuming state and a newly created chSessionConsuming channel", t, func() {
+		bufferSize := 1
+		channels := CreateConsumerGroupChannels(bufferSize)
+		cgState := Consuming
+		cgHandler := NewSaramaCgHandler(ctx, channels, &cgState)
+		close(channels.Ready)
+		cgHandler.chSessionConsuming = make(chan struct{})
+
+		Convey("When the controlRoutine ends due to the 'Closer' channel being closed", func(c C) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cgHandler.controlRoutine()
+			}()
+			close(channels.Closer)
+			wg.Wait()
+
+			Convey("Then the state is set to 'Closing' and 'chSessionConsuming' channel is closed", func(c C) {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
+				c.So(*cgHandler.state, ShouldEqual, Closing)
+			})
+		})
+
+		Convey("When the controlRoutine ends due to the 'Consume' channel being closed", func(c C) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cgHandler.controlRoutine()
+			}()
+			close(channels.Consume)
+			wg.Wait()
+
+			Convey("Then the state is set to 'Closing' and 'chSessionConsuming' channel is closed", func(c C) {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
+				c.So(*cgHandler.state, ShouldEqual, Closing)
+			})
+		})
+
+		Convey("When the controlRoutine ends due to the 'Consume' channel receiving a 'false' value", func(c C) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cgHandler.controlRoutine()
+			}()
+			channels.Consume <- false
+			wg.Wait()
+
+			Convey("Then the state is set to 'Stopping' and 'chSessionConsuming' channel is closed", func(c C) {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
+				c.So(*cgHandler.state, ShouldEqual, Stopping)
+			})
+		})
+
+		Convey("When the controlRoutine ends due to the 'chSessionConsuming' channel being closed", func(c C) {
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cgHandler.controlRoutine()
+			}()
+			close(cgHandler.chSessionConsuming)
+			wg.Wait()
+
+			Convey("Then the state is not changed and 'chSessionConsuming' channel remains closed", func(c C) {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
+				c.So(*cgHandler.state, ShouldEqual, Consuming)
+			})
+		})
+	})
+}
+
 func TestCleanup(t *testing.T) {
 
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
@@ -99,7 +175,7 @@ func TestCleanup(t *testing.T) {
 		}
 
 		Convey("When Cleanup is called while in 'Consuming' state", func() {
-			cgHandler.chConsuming = make(chan struct{})
+			cgHandler.chSessionConsuming = make(chan struct{})
 			*cgHandler.state = Consuming
 			err := cgHandler.Cleanup(cgSession)
 
@@ -107,8 +183,8 @@ func TestCleanup(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("Then chConsuming channel is closed", func() {
-				validateChannelClosed(c, cgHandler.chConsuming, true)
+			Convey("Then chSessionConsuming channel is closed", func() {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
 			})
 
 			Convey("Then the state is set to 'Starting'", func() {
@@ -117,7 +193,7 @@ func TestCleanup(t *testing.T) {
 		})
 
 		Convey("When Cleanup is called while in 'Stopping' state", func() {
-			cgHandler.chConsuming = make(chan struct{})
+			cgHandler.chSessionConsuming = make(chan struct{})
 			*cgHandler.state = Stopping
 			err := cgHandler.Cleanup(cgSession)
 
@@ -125,8 +201,8 @@ func TestCleanup(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("Then chConsuming channel is closed", func() {
-				validateChannelClosed(c, cgHandler.chConsuming, true)
+			Convey("Then chSessionConsuming channel is closed", func() {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, true)
 			})
 
 			Convey("Then the state is not changed", func() {

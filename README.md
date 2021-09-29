@@ -9,6 +9,8 @@ unless the configuration argument has a non-nil `SecurityConfig` field.
 
 ## Life-cycle
 
+![ConsumerStateMachine](img/dp-kafka-state-machine.png)
+
 ### Creation
 
 Kafka producers and consumers can be created with constructors that accept the required channels and configuration. You may create the channels using `CreateProducerChannels` and `CreateConsumerChannels` respectively:
@@ -99,7 +101,11 @@ You may create a single go-routine to consume messages sequentially, or multiple
 
 You can consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
 
+Note that messages will only be consumed when the consumer is in 'Consuming' state.
+
 #### Message consumption deep dive
+
+![KafkaConcurrency](img/kafka-concurrency.png)
 
 Sarama creates as many go-routines as partitions are assigned to the consumer, for the topic being consumed.
 
@@ -112,9 +118,24 @@ Then Sarama will create 30 parallel go-routines, which this library uses in orde
 	<-msg.upstreamDone
 ```
 
+The consumer can consume messages from the Upstream channel in parallel, up to the maximum number of partitions that Sarama allocated to the consumer. In the example above, that would be a maximum of 30 messages in parallel.
+
 Each Sarama consumption go routine exists only during a particular session. Sessions are periodically destroyed and created by Sarama, according to Kafka events like a cluster re-balance (where the number of partitions assigned to a consumer may change). It is important that messages are released as soon as possible when this happens. The default message consumption timeout is 10 seconds in this scenario (determined by `config.Consumer.Group.Session.Timeout`).
 
 When a session finishes, we call Consume() again, which tries to establish a new session. If an error occurs trying to establish a new session, it will be retried following an exponential backoff strategy.
+
+### Start/Stop consumer
+
+The consumer can be stopped by sending a 'false' value to the Consume channel, and it can be started by sending a 'true' value.
+
+Whe a consumer receives the 'false' value from the Consume channel, it will finish processing any in-flight message and then finish the Sarama session.
+
+Then it will go on a 'Stopped' stationary state, where it will wait until it is started or closed.
+
+When a 'true' value is received form the Consume channel by a stopped consumer, the consumer will start again, creating a new Sarama session and going back to the 'Consuming' state.
+
+Sending 'true' to a consumer in 'Starting' / 'Consuming' state, or 'false' to a consumer in 'Stopping' / 'Stopped' state ha no effect.
+
 
 ### Closing
 
