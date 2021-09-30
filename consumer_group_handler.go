@@ -57,21 +57,23 @@ func (sh *saramaCgHandler) controlRoutine() {
 		}
 	}()
 
-	select {
-	case <-sh.channels.Closer: // consumer group is closing (valid scenario)
-		*sh.state = Closing
-		return
-	case consume, ok := <-sh.channels.Consume:
-		if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
+	for {
+		select {
+		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
 			*sh.state = Closing
 			return
+		case consume, ok := <-sh.channels.Consume:
+			if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
+				*sh.state = Closing
+				return
+			}
+			if !consume { // Consume channel notifies that we should stop consuming new messages
+				*sh.state = Stopping
+				return
+			}
+		case <-sh.chSessionConsuming:
+			return // if chConsuming is closed, this go-routine must exit
 		}
-		if !consume { // Consume channel notifies that we should stop consuming new messages
-			*sh.state = Stopping
-			return
-		}
-	case <-sh.chSessionConsuming:
-		return // if chConsuming is closed, this go-routine must exit
 	}
 }
 

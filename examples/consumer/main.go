@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	kafka "github.com/ONSdigital/dp-kafka/v2"
@@ -31,6 +33,14 @@ type Config struct {
 // period of time between tickers
 const ticker = 3 * time.Second
 
+// start-stop period and iterations in each state
+const (
+	startStop                 = 10 * time.Second
+	iterationsFromStopToStart = 2 // will result in 20 seconds in 'Stopping' / 'Stopped' state
+	iterationsFromStartToStop = 4 // will result in 40 seconds in 'Starting' / 'Started' state
+)
+
+// consumeCount keeps track of the total number of consumed messages
 var consumeCount = 0
 
 func main() {
@@ -45,7 +55,7 @@ func main() {
 
 func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, os.Kill)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// Read Config
 	cfg := &Config{
@@ -55,7 +65,7 @@ func run(ctx context.Context) error {
 		KafkaParallelMessages:   3,
 		ConsumedTopic:           "myTopic",
 		ConsumedGroup:           log.Namespace,
-		WaitForConsumerReady:    true,
+		WaitForConsumerReady:    false,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Snooze:                  true,
 		OverSleep:               false,
@@ -106,7 +116,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	go func() {
 		for {
 			<-time.After(ticker)
-			log.Info(ctx, "[KAFKA-TEST] tick")
+			log.Info(ctx, fmt.Sprintf("[KAFKA-TEST] tick - (%s)", cg.State().String()))
 		}
 	}()
 
@@ -115,12 +125,18 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 		go consume(ctx, cfg, w, cgChannels.Upstream)
 	}
 
+	// start consuming now
+	cg.Channels().Consume <- true
+
+	// create loop to start-stop the consumer periodically according to pre-defined constants
+	createStartStopLoop(ctx, cg)
+
 	return cg, nil
 }
 
 // consume waits for messages to arrive to the upstream channel and consumes them, in an infinite loop
 func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Message) {
-	log.Info(ctx, "worker started consuming", log.Data{"worker_id": id})
+	log.Info(ctx, "starting consumer worker", log.Data{"worker_id": id})
 	for {
 		consumedMessage, ok := <-upstream
 		if !ok {
@@ -178,6 +194,45 @@ func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulSh
 	return nil
 }
 
+// createStartStopLoop creates a loop that periodically sends true or false to the Consume channel
+// - A 'Starting'/'Consuming' consumer is sent true for iterationsFromStartToStop times, then false
+// - A 'Stopping'/'Stopped' consumer is sent false for iterationsFromStopToStart times, then true
+func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
+	cnt := 0
+	// consume start-stop loop
+	go func() {
+		for {
+			select {
+			case <-time.After(startStop):
+				cnt++
+				switch cg.State() {
+				case kafka.Starting, kafka.Consuming:
+					if cnt >= iterationsFromStartToStop {
+						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming")
+						cnt = 0
+						cg.Channels().Consume <- false
+					} else {
+						log.Info(ctx, "[KAFKA-TEST] START consuming (is already consuming)")
+						cg.Channels().Consume <- true
+					}
+				case kafka.Stopping, kafka.Stopped:
+					if cnt >= iterationsFromStopToStart {
+						log.Info(ctx, "[KAFKA-TEST] ++ START consuming")
+						cnt = 0
+						cg.Channels().Consume <- true
+					} else {
+						log.Info(ctx, "[KAFKA-TEST] STOP consuming that is already stopped")
+						cg.Channels().Consume <- false
+					}
+				default:
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
 // sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.
 // Snooze will cause a delay of 500ms, and OverSleep will cause a delay of the timeout plus 500 ms.
 // This function is for testing purposes only and should not be used in applications.
@@ -204,7 +259,8 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
 	select {
 	case <-cgChannels.Ready:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised.")
+		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised. Notify it to start consuming")
+		cgChannels.Consume <- true
 	case <-cgChannels.Closer:
 		log.Warn(ctx, "[KAFKA-TEST] Consumer is being closed.")
 	}

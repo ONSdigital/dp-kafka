@@ -126,6 +126,15 @@ func TestControlRoutine(t *testing.T) {
 			})
 		})
 
+		Convey("When the Consume channel receives a 'true' value", func(c C) {
+			channels.Consume <- true
+
+			Convey("Then the state is not changed 'Consuming' and the 'chSessionConsuming' channel is not closed", func(c C) {
+				validateChannelClosed(c, cgHandler.chSessionConsuming, false)
+				c.So(*cgHandler.state, ShouldEqual, Consuming)
+			})
+		})
+
 		Convey("When the controlRoutine ends due to the 'chSessionConsuming' channel being closed", func(c C) {
 			close(cgHandler.chSessionConsuming)
 			wg.Wait()
