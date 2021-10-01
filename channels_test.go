@@ -126,7 +126,6 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 			err := cCh.Validate()
 			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Consume, Closer, Closed}})
 		})
-
 	})
 }
 

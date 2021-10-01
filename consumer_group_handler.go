@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -12,11 +12,11 @@ import (
 type saramaCgHandler struct {
 	ctx                context.Context
 	channels           *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state              *ConsumerState         // State is shared with ConsumerGroup
+	state              *ConsumerStateMachine  // State is shared with ConsumerGroup
 	chSessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends for any reason
 }
 
-func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *ConsumerState) *saramaCgHandler {
+func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *ConsumerStateMachine) *saramaCgHandler {
 	return &saramaCgHandler{
 		ctx:      ctx,
 		channels: channels,
@@ -27,12 +27,10 @@ func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, st
 // Setup is run by Sarama at the beginning of a new session, before ConsumeClaim.
 // It will close the Ready channel if it is not already closed.
 func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
-	if *sh.state != Starting && *sh.state != Consuming {
-		return errors.New("wrong state to consume")
+	if err := sh.state.SetIf([]ConsumerState{Starting, Consuming}, Consuming); err != nil {
+		return fmt.Errorf("session setup failed, wrong state to start consuming: %w", err)
 	}
 	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
-
-	*sh.state = Consuming
 
 	// Create a new chConsuming and a control go-routine
 	// which closes chConsuming when we need to stop consuming for any reason
@@ -60,15 +58,15 @@ func (sh *saramaCgHandler) controlRoutine() {
 	for {
 		select {
 		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
-			*sh.state = Closing
+			sh.state.Set(Closing)
 			return
 		case consume, ok := <-sh.channels.Consume:
 			if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
-				*sh.state = Closing
+				sh.state.Set(Closing)
 				return
 			}
 			if !consume { // Consume channel notifies that we should stop consuming new messages
-				*sh.state = Stopping
+				sh.state.Set(Stopping)
 				return
 			}
 		case <-sh.chSessionConsuming:
@@ -90,9 +88,7 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)
-	if *sh.state == Consuming {
-		*sh.state = Starting
-	}
+	sh.state.SetIf([]ConsumerState{Consuming}, Starting)
 
 	return nil
 }

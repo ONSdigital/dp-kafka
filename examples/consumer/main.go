@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -18,13 +18,13 @@ const serviceName = "kafka-example-consumer"
 
 // Config is the kafka configuration for this example
 type Config struct {
-	Brokers                 []string      `envconfig:"KAFKA_ADDR"`
-	KafkaMaxBytes           int           `envconfig:"KAFKA_MAX_BYTES"`
-	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
-	KafkaParallelMessages   int           `envconfig:"KAFKA_PARALLEL_MESSAGES"`
-	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
-	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
-	WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
+	Brokers               []string `envconfig:"KAFKA_ADDR"`
+	KafkaMaxBytes         int      `envconfig:"KAFKA_MAX_BYTES"`
+	KafkaVersion          string   `envconfig:"KAFKA_VERSION"`
+	KafkaParallelMessages int      `envconfig:"KAFKA_PARALLEL_MESSAGES"`
+	ConsumedTopic         string   `envconfig:"KAFKA_CONSUMED_TOPIC"`
+	ConsumedGroup         string   `envconfig:"KAFKA_CONSUMED_GROUP"`
+	// WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
@@ -42,6 +42,7 @@ const (
 
 // consumeCount keeps track of the total number of consumed messages
 var consumeCount = 0
+var goRoutinesOffset = 0
 
 func main() {
 	log.Namespace = serviceName
@@ -59,13 +60,13 @@ func run(ctx context.Context) error {
 
 	// Read Config
 	cfg := &Config{
-		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
-		KafkaMaxBytes:           50 * 1024 * 1024,
-		KafkaVersion:            "1.0.2",
-		KafkaParallelMessages:   3,
-		ConsumedTopic:           "myTopic",
-		ConsumedGroup:           log.Namespace,
-		WaitForConsumerReady:    false,
+		Brokers:               []string{"localhost:9092", "localhost:9093", "localhost:9094"},
+		KafkaMaxBytes:         50 * 1024 * 1024,
+		KafkaVersion:          "1.0.2",
+		KafkaParallelMessages: 3,
+		ConsumedTopic:         "myTopic",
+		ConsumedGroup:         log.Namespace,
+		// WaitForConsumerReady:    false,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Snooze:                  true,
 		OverSleep:               false,
@@ -90,6 +91,8 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
 	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
+	goRoutinesOffset = runtime.NumGoroutine()
+
 	// Create ConsumerGroup with channels and config
 	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
 	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
@@ -100,36 +103,32 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 	// go-routine to log errors from error channel
 	cgChannels.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
-
-	// Consumer not initialised at creation time. We need to retry to initialise it.
-	if !cg.IsInitialised() {
-		if cfg.WaitForConsumerReady {
-			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Waiting until we can initialise it.")
-			waitForInitialised(ctx, cg.Channels())
-		} else {
-			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Will be initialised later.")
-			go waitForInitialised(ctx, cg.Channels())
-		}
-	}
+	goRoutinesOffset++
 
 	// eventLoop to consumer messages from Upstream channel by sending them the workers
 	go func() {
 		for {
 			<-time.After(ticker)
-			log.Info(ctx, fmt.Sprintf("[KAFKA-TEST] tick - (%s)", cg.State().String()))
+			log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
+				// "goroutines": runtime.NumGoroutine() - goRoutinesOffset,
+				"state": cg.State(),
+			})
 		}
 	}()
+	goRoutinesOffset++
 
 	// workers to consume messages in parallel
 	for w := 1; w <= cfg.KafkaParallelMessages; w++ {
 		go consume(ctx, cfg, w, cgChannels.Upstream)
 	}
+	goRoutinesOffset += cfg.KafkaParallelMessages
 
 	// start consuming now
 	cg.Channels().Consume <- true
 
 	// create loop to start-stop the consumer periodically according to pre-defined constants
 	createStartStopLoop(ctx, cg)
+	goRoutinesOffset++
 
 	return cg, nil
 }
@@ -204,25 +203,29 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 		for {
 			select {
 			case <-time.After(startStop):
+				logData := log.Data{
+					"goroutines": runtime.NumGoroutine() - goRoutinesOffset,
+					"state":      cg.State(),
+				}
 				cnt++
 				switch cg.State() {
-				case kafka.Starting, kafka.Consuming:
+				case kafka.Starting.String(), kafka.Consuming.String():
 					if cnt >= iterationsFromStartToStop {
-						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming")
+						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming", logData)
 						cnt = 0
-						cg.Channels().Consume <- false
+						cg.Stop()
 					} else {
-						log.Info(ctx, "[KAFKA-TEST] START consuming (is already consuming)")
-						cg.Channels().Consume <- true
+						log.Info(ctx, "[KAFKA-TEST] START consuming", logData)
+						cg.Start()
 					}
-				case kafka.Stopping, kafka.Stopped:
+				case kafka.Stopping.String(), kafka.Stopped.String():
 					if cnt >= iterationsFromStopToStart {
-						log.Info(ctx, "[KAFKA-TEST] ++ START consuming")
+						log.Info(ctx, "[KAFKA-TEST] ++ START consuming", logData)
 						cnt = 0
-						cg.Channels().Consume <- true
+						cg.Start()
 					} else {
-						log.Info(ctx, "[KAFKA-TEST] STOP consuming that is already stopped")
-						cg.Channels().Consume <- false
+						log.Info(ctx, "[KAFKA-TEST] STOP consuming", logData)
+						cg.Stop()
 					}
 				default:
 				}
@@ -252,16 +255,5 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 	if sleep > time.Duration(0) {
 		time.Sleep(sleep)
 		log.Info(ctx, "[KAFKA-TEST] done sleeping")
-	}
-}
-
-// waitForInitialised blocks until the consumer is initialised or closed
-func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
-	select {
-	case <-cgChannels.Ready:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised. Notify it to start consuming")
-		cgChannels.Consume <- true
-	case <-cgChannels.Closer:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is being closed.")
 	}
 }

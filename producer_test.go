@@ -117,7 +117,7 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeTrue)
-			validateChannelClosed(c, channels.Ready, true)
+			validateStructChanClosed(c, channels.Ready, true)
 		})
 
 		Convey("We cannot initialise producer again", func() {
@@ -158,8 +158,8 @@ func TestProducer(t *testing.T) {
 
 		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
 			producer.Close(ctx)
-			validateChannelClosed(c, channels.Closer, true)
-			validateChannelClosed(c, channels.Closed, true)
+			validateStructChanClosed(c, channels.Closer, true)
+			validateStructChanClosed(c, channels.Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
 		})
 
@@ -185,8 +185,62 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 	So(rxErr, ShouldResemble, expectedErr)
 }
 
-// validateChannelClosed validates that a channel is closed before a timeout expires
-func validateChannelClosed(c C, ch chan struct{}, expectedClosed bool) {
+// validateStructChanClosed validates that a channel is closed before a timeout expires
+func validateStructChanClosed(c C, ch chan struct{}, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateMessageChanClosed validates that a channel is closed before a timeout expires
+func validateMessageChanClosed(c C, ch chan Message, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateMessageChanClosed validates that a channel is closed before a timeout expires
+func validateErrorChanClosed(c C, ch chan error, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateBoolChanClosed validates that a bool channel is closed before a timeout expires
+func validateBoolChanClosed(c C, ch chan bool, expectedClosed bool) {
 	var (
 		closed  bool
 		timeout bool
@@ -221,7 +275,7 @@ func TestProducerNotInitialised(t *testing.T) {
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeFalse)
-			validateChannelClosed(c, channels.Ready, false)
+			validateStructChanClosed(c, channels.Ready, false)
 		})
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
@@ -241,8 +295,8 @@ func TestProducerNotInitialised(t *testing.T) {
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
 			producer.Close(ctx)
-			validateChannelClosed(c, channels.Closer, true)
-			validateChannelClosed(c, channels.Closed, true)
+			validateStructChanClosed(c, channels.Closer, true)
+			validateStructChanClosed(c, channels.Closed, true)
 		})
 
 	})

@@ -101,19 +101,9 @@ func TestConsumerMock(t *testing.T) {
 			So(readyClosed, ShouldBeTrue)
 		})
 
-		Convey("It can successfully stop listening", func() {
-			validateStopListening(consumerMock)
-		})
-
 		Convey("It can be successfully closed", func() {
 			validateCloseConsumer(consumerMock)
 		})
-
-		Convey("It can successfully stop listening and then close", func() {
-			validateStopListening(consumerMock)
-			validateCloseConsumer(consumerMock)
-		})
-
 	})
 
 	Convey("Given an initialised consumer mock", t, func() {
@@ -181,16 +171,7 @@ func TestConsumerMock(t *testing.T) {
 			So(receivedAll, ShouldBeTrue)
 		})
 
-		Convey("It can successfully stop listening", func() {
-			validateStopListening(consumerMock)
-		})
-
 		Convey("It can be successfully closed", func() {
-			validateCloseConsumer(consumerMock)
-		})
-
-		Convey("It can successfully stop listening and then close", func() {
-			validateStopListening(consumerMock)
 			validateCloseConsumer(consumerMock)
 		})
 	})
@@ -290,27 +271,6 @@ func validateCloseConsumer(consumerMock *MessageConsumer) {
 
 	So(closedUpstream, ShouldBeTrue)
 	So(closedErrors, ShouldBeTrue)
-	So(closedCloser, ShouldBeTrue)
-	So(closedClosed, ShouldBeTrue)
-}
-
-func validateStopListening(consumerMock *MessageConsumer) {
-	closedCloser := false
-	closedClosed := false
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
-		<-consumerMock.Channels().Closer
-		closedCloser = true
-		<-consumerMock.Channels().Closed
-		closedClosed = true
-	}()
-	consumerMock.StopListeningToConsumer(context.Background())
-	wg.Wait()
-
 	So(closedCloser, ShouldBeTrue)
 	So(closedClosed, ShouldBeTrue)
 }

@@ -240,7 +240,7 @@ func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChan
 	select {
 	case <-cgChannels.Ready:
 		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised.")
-	case <-cgChannels.Closer:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is being closed.")
+	case <-cgChannels.Closed:
+		log.Warn(ctx, "[KAFKA-TEST] Consumer is closed.")
 	}
 }
