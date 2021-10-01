@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 
@@ -75,7 +76,7 @@ func TestConsumerInitialised(t *testing.T) {
 			So(cgInitCalls, ShouldEqual, 1)
 		})
 
-		Convey("The consumer is in 'stopped' state", func() {
+		Convey("The consumer is in 'stopped' state by default", func() {
 			<-channels.Ready // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
 			So(consumer.state, ShouldEqual, Stopped)
 		})
@@ -152,6 +153,146 @@ func TestConsumerNotInitialised(t *testing.T) {
 			consumer.Close(ctx)
 			validateChannelClosed(c, channels.Closer, true)
 			validateChannelClosed(c, channels.Closed, true)
+		})
+	})
+}
+
+func TestStart(t *testing.T) {
+	Convey("Given a consumer group", t, func() {
+		channels := &ConsumerGroupChannels{
+			Consume: make(chan bool),
+		}
+		cg := &ConsumerGroup{
+			channels: channels,
+			mutex:    &sync.Mutex{},
+			wgClose:  &sync.WaitGroup{},
+		}
+
+		Convey("Calling Start in 'Initialising' state results 'Starting' initial state being set", func() {
+			cg.state = Initialising
+			err := cg.Start()
+			So(err, ShouldBeNil)
+			So(cg.initialState, ShouldEqual, Starting)
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Start in 'Stopping' state results in a 'false' value being sent to the Consume channel", func() {
+			cg.state = Stopping
+			var err error
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err = cg.Start()
+			}()
+
+			val := <-channels.Consume
+			wg.Wait()
+			So(err, ShouldBeNil)
+			So(val, ShouldBeTrue)
+		})
+
+		Convey("Calling Start in 'Stopped' state results in a 'false' value being sent to the Consume channel", func() {
+			cg.state = Stopped
+			var err error
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				err = cg.Start()
+			}()
+
+			val := <-channels.Consume
+			wg.Wait()
+			So(err, ShouldBeNil)
+			So(val, ShouldBeTrue)
+		})
+
+		Convey("Calling Start in 'Starting' state has no effect", func() {
+			cg.state = Starting
+			err := cg.Start()
+			So(err, ShouldBeNil)
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Start in 'Consuming' state has no effect", func() {
+			cg.state = Consuming
+			err := cg.Start()
+			So(err, ShouldBeNil)
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Start in 'Closing' state returns the expected error", func() {
+			cg.state = Closing
+			err := cg.Start()
+			So(err.Error(), ShouldResemble, "consummer cannot be started because it is closing")
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+	})
+}
+
+func TestStop(t *testing.T) {
+	Convey("Given a consumer group", t, func() {
+		channels := &ConsumerGroupChannels{
+			Consume: make(chan bool),
+		}
+		cg := &ConsumerGroup{
+			channels: channels,
+			mutex:    &sync.Mutex{},
+			wgClose:  &sync.WaitGroup{},
+		}
+
+		Convey("Calling Stop in 'Initialising' state results 'Stopped' initial state being set", func() {
+			cg.state = Initialising
+			cg.Stop()
+			So(cg.initialState, ShouldEqual, Stopped)
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Stop in 'Stopping' has no effect", func() {
+			cg.state = Stopping
+			cg.Stop()
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Stop in 'Stopped' state has no effect", func() {
+			cg.state = Stopped
+			cg.Stop()
+			So(len(channels.Consume), ShouldEqual, 0)
+		})
+
+		Convey("Calling Stop in 'Starting' results in a 'true' value being sent to the Consume channel", func() {
+			cg.state = Starting
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cg.Stop()
+			}()
+
+			val := <-channels.Consume
+			wg.Wait()
+			So(val, ShouldBeFalse)
+		})
+
+		Convey("Calling Stop in 'Consuming' results in a 'true' value being sent to the Consume channel", func() {
+			cg.state = Consuming
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cg.Stop()
+			}()
+
+			val := <-channels.Consume
+			wg.Wait()
+			So(val, ShouldBeFalse)
+		})
+
+		Convey("Calling Stop in 'Closing' state has no effect", func() {
+			cg.state = Closing
+			cg.Stop()
+			So(len(channels.Consume), ShouldEqual, 0)
 		})
 	})
 }
@@ -318,38 +459,101 @@ func TestConsumerStarting(t *testing.T) {
 }
 
 func TestConsumeLoop(t *testing.T) {
-	Convey("Given a Kafka createConsumeLoop", t, func(c C) {
+	Convey("Given an uninitialised consumer group where we call createConsumerLoop", t, func(c C) {
 		channels := CreateConsumerGroupChannels(1)
 		chConsumeCalled := make(chan struct{})
+		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cg := &ConsumerGroup{
+			state:        Initialising,
+			topic:        testTopic,
+			channels:     channels,
+			saramaCg:     saramaMock,
+			initialState: Stopped,
+			mutex:        &sync.Mutex{},
+			wgClose:      &sync.WaitGroup{},
+		}
+
+		Convey("Where createConsumeLoop is called", func() {
+			cg.createConsumeLoop(ctx)
+
+			Convey("Then the ready channel is closed", func(c C) {
+				validateChannelClosed(c, channels.Ready, true)
+			})
+
+			Convey("then the state is set to the initial state ('Stopped')", func() {
+				So(cg.state, ShouldEqual, Stopped)
+			})
+
+			Convey("when a 'true' value is sent to the Consume channel", func() {
+				channels.Consume <- true
+
+				Convey("then the the startingState loop sets the state to 'Starting' and sarama consumer starts consuming the expected topic", func() {
+					<-chConsumeCalled
+					So(cg.state, ShouldEqual, Starting)
+					So(saramaMock.ConsumeCalls()[0].Topics, ShouldResemble, []string{testTopic})
+				})
+			})
+
+			Convey("when the Closer channel is closed", func() {
+				close(channels.Closer)
+
+				Convey("then the state is set to 'Closing' and the loop finishes its execution", func() {
+					cg.wgClose.Wait()
+					So(cg.state, ShouldEqual, Closing)
+				})
+			})
+		})
+	})
+
+	Convey("Given a consumer group", t, func() {
+		invalidStates := []ConsumerState{Stopped, Starting, Consuming, Stopping, Closing}
+		for _, s := range invalidStates {
+			Convey(fmt.Sprintf("Then calling createConsumeLoop while in %s state has no effect", s.String()), func() {
+				cg := &ConsumerGroup{state: s}
+				cg.createConsumeLoop(ctx)
+				So(cg, ShouldResemble, &ConsumerGroup{state: s})
+			})
+		}
+	})
+}
+
+func TestCreateLoopUninitialised(t *testing.T) {
+	Convey("Given a consumer group in Initialising state", t, func() {
+		channels := CreateConsumerGroupChannels(1)
+		cg := &ConsumerGroup{
+			state:    Initialising,
 			channels: channels,
-			saramaCg: saramaConsumerGroupHappy(chConsumeCalled),
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
-		cg.createConsumeLoop(ctx)
-		<-channels.Ready // Wait until the initial loop is established (i.e. StoppedState)
 
-		Convey("then the state is set to 'Stopped'", func() {
-			So(cg.state, ShouldEqual, Stopped)
-		})
+		Convey("Where createLoopUninitialised is called", func() {
+			cg.createLoopUninitialised(ctx)
 
-		Convey("when a 'true' value is sent to the Consume channel", func() {
-			channels.Consume <- true
-
-			Convey("then the the startingState loop sets the state to 'Starting' and sarama consumer starts consuming", func() {
-				<-chConsumeCalled
-				So(cg.state, ShouldEqual, Starting)
-			})
-		})
-
-		Convey("when the Closer channel is closed", func() {
-			close(channels.Closer)
-
-			Convey("then the state is set to 'Closing' and the loop finishes its execution", func() {
+			Convey("Then closing the ready channel results in the loop ending its execution", func(c C) {
+				close(channels.Ready)
 				cg.wgClose.Wait()
-				So(cg.state, ShouldEqual, Closing)
 			})
+		})
+	})
+
+	Convey("Given a consumer group that already has an initialised Sarama client", t, func() {
+		channels := CreateConsumerGroupChannels(1)
+		chConsumeCalled := make(chan struct{})
+		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
+		cg := &ConsumerGroup{
+			state:        Initialising,
+			topic:        testTopic,
+			channels:     channels,
+			saramaCg:     saramaMock,
+			initialState: Stopped,
+			mutex:        &sync.Mutex{},
+			wgClose:      &sync.WaitGroup{},
+		}
+
+		Convey("Then calling createLoopUninitialised has no effect", func() {
+			cg.createLoopUninitialised(ctx)
+			cg.wgClose.Wait()
 		})
 	})
 }

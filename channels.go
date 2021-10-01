@@ -22,9 +22,9 @@ const (
 type ConsumerGroupChannels struct {
 	Upstream chan Message
 	Errors   chan error
-	Ready    chan struct{}
+	Ready    chan struct{} // TOO we may want to rename this to 'Initialised', as it may not be 'ready' to consume
 	Consume  chan bool
-	Closer   chan struct{}
+	Closer   chan struct{} // TODO we may want to delete this channel, and only use Consume to know when we need to close
 	Closed   chan struct{}
 }
 

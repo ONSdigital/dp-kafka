@@ -128,15 +128,25 @@ When a session finishes, we call Consume() again, which tries to establish a new
 
 ### Start/Stop consumer
 
-The consumer can be stopped by sending a 'false' value to the Consume channel, and it can be started by sending a 'true' value.
+The consumer can be stopped by sending a 'false' value to the Consume channel, and it can be started by sending a 'true' value:
 
-Whe a consumer receives the 'false' value from the Consume channel, it will finish processing any in-flight message and then finish the Sarama session.
+- Start a consumer
+```go
+channels.Consume <- true
+```
 
-Then it will go on a 'Stopped' stationary state, where it will wait until it is started or closed.
+- Stop a consumer
+```go
+channels.Consume <- false
+```
 
-When a 'true' value is received form the Consume channel by a stopped consumer, the consumer will start again, creating a new Sarama session and going back to the 'Consuming' state.
+When a consumer receives the `false` value from the Consume channel, it will be set to `Stopping` state, it will finish processing any in-flight message and then finish the Sarama session.
 
-Sending 'true' to a consumer in 'Starting' / 'Consuming' state, or 'false' to a consumer in 'Stopping' / 'Stopped' state ha no effect.
+Then it will go on a `Stopped` stationary state, where it will wait until it is started or closed.
+
+When a `true` value is received form the Consume channel by a stopped consumer, the consumer will bet set to `Starting` state, a new Sarama session will be created and it will go back to `Consuming` state once its ready to receive messages.
+
+Sending `true` to a consumer in `Starting`/`Consuming` state, or `false` to a consumer in `Stopping`/`Stopped` state ha no effect.
 
 
 ### Closing

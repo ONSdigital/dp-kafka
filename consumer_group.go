@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -50,7 +51,8 @@ type ConsumerGroup struct {
 	saramaCgInit    consumerGroupInitialiser
 	topic           string
 	group           string
-	state           ConsumerState
+	initialState    ConsumerState // target state for a consumer that is still being initialised
+	state           ConsumerState // current state
 	config          *sarama.Config
 	mutex           *sync.Mutex
 	wgClose         *sync.WaitGroup
@@ -89,6 +91,7 @@ func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group st
 		topic:        topic,
 		group:        group,
 		state:        Initialising,
+		initialState: Stopped,
 		config:       config,
 		mutex:        &sync.Mutex{},
 		wgClose:      &sync.WaitGroup{},
@@ -134,7 +137,6 @@ func (cg *ConsumerGroup) State() ConsumerState {
 
 // Initialise creates a new Sarama ConsumerGroup and the consumer/error loops, only if it was not already initialised.
 func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
-
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
@@ -143,14 +145,14 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 		return nil
 	}
 
-	if ctx == nil {
-		ctx = context.Background()
-	}
-
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.config)
 	if err != nil {
 		return err
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	// On Successful initialization, create sarama consumer handler, and loop goroutines (for messages and errors)
@@ -165,6 +167,53 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	return nil
 }
 
+// Start has different effects depending on the state:
+// - Initialising: the consumer will try to start consuming straight away once it's initialised
+// - Starting/Consumer: no change will happen
+// - Stopping/Stopped: the consumer will start start consuming
+// - Closing: an error will be returned
+func (cg *ConsumerGroup) Start() error {
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+
+	switch cg.state {
+	case Initialising:
+		cg.initialState = Starting // when the consumer is initialised, it will start straight away
+		return nil
+	case Stopping, Stopped:
+		cg.channels.Consume <- true
+		return nil
+	case Starting, Consuming:
+		return nil // already started, nothing to do
+	default: // Closing state
+		return fmt.Errorf("consummer cannot be started because it is closing")
+	}
+}
+
+// Stop has different effects depending on the state:
+// - Initialising: the consumer will remain in the Stopped state once initialised, without consuming messages
+// - Starting/Consumer: no change will happen
+// - Stopping/Stopped: the consumer will start start consuming
+// - Closing: an error will be returned
+func (cg *ConsumerGroup) Stop() {
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+
+	switch cg.state {
+	case Initialising:
+		cg.initialState = Stopped // when the consumer is initialised, it will do nothing
+		return
+	case Stopping, Stopped:
+		return // already stopped, nothing to do
+	case Starting, Consuming:
+		cg.channels.Consume <- false
+		return
+	default: // Closing state
+		return // the consumer is being closed, so it is already 'stopped'
+	}
+}
+
+// DEPRECATED
 // StopListeningToConsumer stops any more messages being consumed off kafka topic
 // Note that this method is 'not recoverable' meaning that after you call it, you can't go back to consuming messages again.
 // If you intend to stop consuming messages temporarily, please send 'false' to the Consume channel instead.
@@ -241,7 +290,6 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	if cg.IsInitialised() {
 		return // do nothing if consumer group already initialised
 	}
-
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
@@ -275,14 +323,6 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	cg.state = Stopped
 	logData["state"] = Stopped
-
-	// close Ready channel (if it is not already closed)
-	select {
-	case <-cg.channels.Ready:
-	default:
-		close(cg.channels.Ready)
-	}
-
 	for {
 		select {
 		case <-cg.channels.Closer:
@@ -319,14 +359,6 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	cg.state = Starting
 	logData["state"] = Starting
-
-	// close Ready channel (if it is not already closed)
-	select {
-	case <-cg.channels.Ready:
-	default:
-		close(cg.channels.Ready)
-	}
-
 	consumeAttempt := 1
 	for {
 		if cg.state != Starting && cg.state != Consuming {
@@ -395,7 +427,9 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 		log.Warn(ctx, "wrong state for createConsumeLoop", log.Data{"state": cg.state.String()})
 		return
 	}
-	cg.state = Stopped // will not consume until we are told to do so by the Consume channel
+
+	// Set initial state
+	cg.state = cg.initialState
 	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state}
 
 	cg.wgClose.Add(1)
@@ -416,6 +450,13 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 			}
 		}
 	}()
+
+	// close Ready channel (if it is not already closed)
+	select {
+	case <-cg.channels.Ready:
+	default:
+		close(cg.channels.Ready)
+	}
 }
 
 // createErrorLoop creates a goroutine to consume errors returned by Sarama to the Errors channel.
