@@ -15,11 +15,11 @@ var (
 	lockSaramaConsumerGroupMockErrors  sync.RWMutex
 )
 
-// SaramaConsumerGroupMock is a mock implementation of kafka.SaramaConsumerGroup.
+// SaramaConsumerGroupMock is a mock implementation of consumer.SaramaConsumerGroup.
 //
 //     func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroup
+//         // make and configure a mocked consumer.SaramaConsumerGroup
 //         mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
 //             CloseFunc: func() error {
 // 	               panic("mock out the Close method")
@@ -32,7 +32,7 @@ var (
 //             },
 //         }
 //
-//         // use mockedSaramaConsumerGroup in code that requires kafka.SaramaConsumerGroup
+//         // use mockedSaramaConsumerGroup in code that requires consumer.SaramaConsumerGroup
 //         // and then make assertions.
 //
 //     }

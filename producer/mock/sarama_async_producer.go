@@ -16,11 +16,11 @@ var (
 	lockSaramaAsyncProducerMockSuccesses  sync.RWMutex
 )
 
-// SaramaAsyncProducerMock is a mock implementation of kafka.SaramaAsyncProducer.
+// SaramaAsyncProducerMock is a mock implementation of producer.SaramaAsyncProducer.
 //
 //     func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaAsyncProducer
+//         // make and configure a mocked producer.SaramaAsyncProducer
 //         mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
 //             AsyncCloseFunc: func()  {
 // 	               panic("mock out the AsyncClose method")
@@ -39,7 +39,7 @@ var (
 //             },
 //         }
 //
-//         // use mockedSaramaAsyncProducer in code that requires kafka.SaramaAsyncProducer
+//         // use mockedSaramaAsyncProducer in code that requires producer.SaramaAsyncProducer
 //         // and then make assertions.
 //
 //     }

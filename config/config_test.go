@@ -1,10 +1,11 @@
-package kafka
+package config
 
 import (
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/ONSdigital/dp-kafka/v2/global"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -17,7 +18,7 @@ var (
 	testProducerRetryBackoffFunc = func(retries, maxRetries int) time.Duration { return time.Second }
 	testConsumerRetryBackoffFunc = func(retries int) time.Duration { return time.Second }
 	testKafkaVersion             = "1.0.2"
-	testOffsetNewest             = OffsetNewest
+	testOffsetNewest             = global.OffsetNewest
 )
 
 func TestProducerConfig(t *testing.T) {
@@ -28,7 +29,7 @@ func TestProducerConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("getProducerConfig with nil producerConfig results in the default sarama config being returned", func() {
-			config, err := getProducerConfig(nil)
+			config, err := GetProducerConfig(nil)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
 			So(config.Net.KeepAlive, ShouldEqual, 0)
@@ -43,7 +44,7 @@ func TestProducerConfig(t *testing.T) {
 				MaxMessageBytes: &testMaxMessageBytes,
 				RetryBackoff:    &testRetryBackoff,
 			}
-			config, err := getProducerConfig(pConfig)
+			config, err := GetProducerConfig(pConfig)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
 			So(config.Net.KeepAlive, ShouldEqual, 0)
@@ -66,7 +67,7 @@ func TestProducerConfig(t *testing.T) {
 					InsecureSkipVerify: true,
 				},
 			}
-			config, err := getProducerConfig(pConfig)
+			config, err := GetProducerConfig(pConfig)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, kafkaVersion)
 			So(config.Net.KeepAlive, ShouldEqual, testKeepAlive)
@@ -83,7 +84,7 @@ func TestProducerConfig(t *testing.T) {
 			pConfig := &ProducerConfig{
 				KafkaVersion: &wrongVersion,
 			}
-			config, err := getProducerConfig(pConfig)
+			config, err := GetProducerConfig(pConfig)
 			So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
 			So(config, ShouldBeNil)
 		})
@@ -97,7 +98,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("getConsumerGroupConfig with nil consumerGroupConfig results in the default sarama config being returned, with the compulsory hardcoded values", func() {
-			config, err := getConsumerGroupConfig(nil)
+			config, err := GetConsumerGroupConfig(nil)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
@@ -115,7 +116,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			cgConfig := &ConsumerGroupConfig{
 				RetryBackoff: &testRetryBackoff,
 			}
-			config, err := getConsumerGroupConfig(cgConfig)
+			config, err := GetConsumerGroupConfig(cgConfig)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
@@ -137,7 +138,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 				Offset:           &testOffsetNewest,
 				SecurityConfig:   &SecurityConfig{},
 			}
-			config, err := getConsumerGroupConfig(cgConfig)
+			config, err := GetConsumerGroupConfig(cgConfig)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, kafkaVersion)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
@@ -158,7 +159,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			cgConfig := &ConsumerGroupConfig{
 				KafkaVersion: &wrongVersion,
 			}
-			config, err := getConsumerGroupConfig(cgConfig)
+			config, err := GetConsumerGroupConfig(cgConfig)
 			So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
 			So(config, ShouldBeNil)
 		})
@@ -168,7 +169,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			cgConfig := &ConsumerGroupConfig{
 				Offset: &wrongOffset,
 			}
-			config, err := getConsumerGroupConfig(cgConfig)
+			config, err := GetConsumerGroupConfig(cgConfig)
 			So(err, ShouldResemble, errors.New("offset value incorrect"))
 			So(config, ShouldBeNil)
 		})

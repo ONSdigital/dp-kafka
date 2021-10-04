@@ -1,11 +1,16 @@
-package kafka
+package producer
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/mock"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/health"
+	healthMock "github.com/ONSdigital/dp-kafka/v2/health/mock"
+	"github.com/ONSdigital/dp-kafka/v2/producer/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -18,6 +23,11 @@ const TIMEOUT = 100 * time.Millisecond
 
 // ErrSaramaNoBrokers is the error returned by Sarama when trying to create an AsyncProducer without available brokers
 var ErrSaramaNoBrokers = errors.New("kafka: client has run out of available brokers to talk to (Is your cluster reachable?)")
+
+var (
+	ctx         = context.Background()
+	testBrokers = []string{"localhost:12300", "localhost:12301"}
+)
 
 // createSaramaChannels creates sarama channels for testing
 func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) {
@@ -73,7 +83,7 @@ func TestProducerMissingChannels(t *testing.T) {
 		producer, err := newProducer(
 			ctx, testBrokers, testTopic,
 			nil,
-			&ProducerConfig{KafkaVersion: &wrongVersion},
+			&config.ProducerConfig{KafkaVersion: &wrongVersion},
 			nil,
 		)
 		So(producer, ShouldBeNil)
@@ -117,7 +127,7 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeTrue)
-			validateStructChanClosed(c, channels.Ready, true)
+			validateChanClosed(c, channels.Ready, true)
 		})
 
 		Convey("We cannot initialise producer again", func() {
@@ -158,11 +168,10 @@ func TestProducer(t *testing.T) {
 
 		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
 			producer.Close(ctx)
-			validateStructChanClosed(c, channels.Closer, true)
-			validateStructChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, channels.Closer, true)
+			validateChanClosed(c, channels.Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
 		})
-
 	})
 }
 
@@ -185,62 +194,8 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 	So(rxErr, ShouldResemble, expectedErr)
 }
 
-// validateStructChanClosed validates that a channel is closed before a timeout expires
-func validateStructChanClosed(c C, ch chan struct{}, expectedClosed bool) {
-	var (
-		closed  bool
-		timeout bool
-	)
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			closed = true
-		}
-	case <-time.After(TIMEOUT):
-		timeout = true
-	}
-	c.So(timeout, ShouldNotEqual, expectedClosed)
-	c.So(closed, ShouldEqual, expectedClosed)
-}
-
-// validateMessageChanClosed validates that a channel is closed before a timeout expires
-func validateMessageChanClosed(c C, ch chan Message, expectedClosed bool) {
-	var (
-		closed  bool
-		timeout bool
-	)
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			closed = true
-		}
-	case <-time.After(TIMEOUT):
-		timeout = true
-	}
-	c.So(timeout, ShouldNotEqual, expectedClosed)
-	c.So(closed, ShouldEqual, expectedClosed)
-}
-
-// validateMessageChanClosed validates that a channel is closed before a timeout expires
-func validateErrorChanClosed(c C, ch chan error, expectedClosed bool) {
-	var (
-		closed  bool
-		timeout bool
-	)
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			closed = true
-		}
-	case <-time.After(TIMEOUT):
-		timeout = true
-	}
-	c.So(timeout, ShouldNotEqual, expectedClosed)
-	c.So(closed, ShouldEqual, expectedClosed)
-}
-
-// validateBoolChanClosed validates that a bool channel is closed before a timeout expires
-func validateBoolChanClosed(c C, ch chan bool, expectedClosed bool) {
+// validateChanClosed validates that a channel is closed before a timeout expires
+func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
 	var (
 		closed  bool
 		timeout bool
@@ -275,7 +230,7 @@ func TestProducerNotInitialised(t *testing.T) {
 			So(channels.Errors, ShouldEqual, channels.Errors)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeFalse)
-			validateStructChanClosed(c, channels.Ready, false)
+			validateChanClosed(c, channels.Ready, false)
 		})
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
@@ -295,9 +250,62 @@ func TestProducerNotInitialised(t *testing.T) {
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
 			producer.Close(ctx)
-			validateStructChanClosed(c, channels.Closer, true)
-			validateStructChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, channels.Closer, true)
+			validateChanClosed(c, channels.Closed, true)
+		})
+	})
+}
+
+func TestChecker(t *testing.T) {
+	Convey("Given a valid connected broker", t, func() {
+		mockBroker := &healthMock.SaramaBrokerMock{
+			AddrFunc: func() string {
+				return "localhost:9092"
+			},
+			ConnectedFunc: func() (bool, error) {
+				return true, nil
+			},
+			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
+				return &sarama.MetadataResponse{
+					Topics: []*sarama.TopicMetadata{
+						{Name: testTopic},
+					},
+				}, nil
+			},
+		}
+
+		Convey("And a consumer group connected to the same topic", func() {
+			p := &Producer{
+				topic:   testTopic,
+				brokers: []health.SaramaBroker{mockBroker},
+			}
+
+			Convey("Calling Checker updates the check struct OK state", func() {
+				checkState := healthcheck.NewCheckState(health.ServiceName)
+				t0 := time.Now()
+				p.Checker(ctx, checkState)
+				t1 := time.Now()
+				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+				So(checkState.Status(), ShouldEqual, healthcheck.StatusOK)
+				So(checkState.Message(), ShouldEqual, health.MsgHealthyProducer)
+			})
 		})
 
+		Convey("And a consumer group connected to a different topic", func() {
+			p := &Producer{
+				topic:   "wrongTopic",
+				brokers: []health.SaramaBroker{mockBroker},
+			}
+
+			Convey("Calling Checker updates the check struct to Critical state", func() {
+				checkState := healthcheck.NewCheckState(health.ServiceName)
+				t0 := time.Now()
+				p.Checker(ctx, checkState)
+				t1 := time.Now()
+				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+				So(checkState.Status(), ShouldEqual, healthcheck.StatusCritical)
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:9092]")
+			})
+		})
 	})
 }

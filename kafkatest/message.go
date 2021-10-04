@@ -3,10 +3,10 @@ package kafkatest
 import (
 	"sync"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 )
 
-var _ kafka.Message = (*Message)(nil)
+var _ message.Message = (*Message)(nil)
 
 // mInternal is an internal struct to keep track of the message mock state
 type mInternal struct {

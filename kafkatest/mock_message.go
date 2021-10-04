@@ -4,7 +4,7 @@
 package kafkatest
 
 import (
-	"github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"sync"
 )
 
@@ -18,15 +18,15 @@ var (
 	lockMessageMockUpstreamDone     sync.RWMutex
 )
 
-// Ensure, that MessageMock does implement kafka.Message.
+// Ensure, that MessageMock does implement message.Message.
 // If this is not the case, regenerate this file with moq.
-var _ kafka.Message = &MessageMock{}
+var _ message.Message = &MessageMock{}
 
-// MessageMock is a mock implementation of kafka.Message.
+// MessageMock is a mock implementation of message.Message.
 //
 //     func TestSomethingThatUsesMessage(t *testing.T) {
 //
-//         // make and configure a mocked kafka.Message
+//         // make and configure a mocked message.Message
 //         mockedMessage := &MessageMock{
 //             CommitFunc: func()  {
 // 	               panic("mock out the Commit method")
@@ -51,7 +51,7 @@ var _ kafka.Message = &MessageMock{}
 //             },
 //         }
 //
-//         // use mockedMessage in code that requires kafka.Message
+//         // use mockedMessage in code that requires message.Message
 //         // and then make assertions.
 //
 //     }

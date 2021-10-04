@@ -3,12 +3,14 @@ package main
 import (
 	"bufio"
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/global"
+	"github.com/ONSdigital/dp-kafka/v2/producer"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -80,13 +82,13 @@ func run(ctx context.Context) error {
 	return closeProducer(ctx, producer, cfg.GracefulShutdownTimeout)
 }
 
-func getProducerConfig(cfg *Config) *kafka.ProducerConfig {
-	pCfg := &kafka.ProducerConfig{
+func getProducerConfig(cfg *Config) *config.ProducerConfig {
+	pCfg := &config.ProducerConfig{
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
 		KafkaVersion:    &cfg.KafkaVersion,
 	}
 	if cfg.KafkaSecProtocol == "TLS" {
-		pCfg.SecurityConfig = kafka.GetSecurityConfig(
+		pCfg.SecurityConfig = config.GetSecurityConfig(
 			cfg.KafkaSecCACerts,
 			cfg.KafkaSecClientCert,
 			cfg.KafkaSecClientKey,
@@ -96,16 +98,16 @@ func getProducerConfig(cfg *Config) *kafka.ProducerConfig {
 	return pCfg
 }
 
-func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*kafka.Producer, error) {
+func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*producer.Producer, error) {
 	stdinChannel := make(chan string)
 
 	log.Info(ctx, "[KAFKA-TEST] Starting Producer (stdin sent to producer)", log.Data{"config": cfg})
-	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
+	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
 	// Create Producer with channels and config
-	pChannels := kafka.CreateProducerChannels()
+	pChannels := producer.CreateProducerChannels()
 	pConfig := getProducerConfig(cfg)
-	producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
+	producer, err := producer.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -169,20 +171,18 @@ func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*
 	return producer, nil
 }
 
-func closeProducer(ctx context.Context, producer *kafka.Producer, gracefulShutdownTimeout time.Duration) error {
+func closeProducer(ctx context.Context, producer *producer.Producer, gracefulShutdownTimeout time.Duration) error {
 	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 
 	// track shutown gracefully closes up
-	var hasShutdownError bool
+	var shutdownErr error = nil
 
 	// background graceful shutdown
 	go func() {
 		defer cancel()
 		log.Info(ctx, "[KAFKA-TEST] Closing kafka producer")
-		if err := producer.Close(ctx); err != nil {
-			hasShutdownError = true
-		}
+		shutdownErr = producer.Close(ctx)
 		log.Info(ctx, "[KAFKA-TEST] Closed kafka producer")
 	}()
 
@@ -194,8 +194,8 @@ func closeProducer(ctx context.Context, producer *kafka.Producer, gracefulShutdo
 		return ctx.Err()
 	}
 
-	if hasShutdownError {
-		err := errors.New("failed to shutdown gracefully")
+	if shutdownErr != nil {
+		err := fmt.Errorf("error while closing kafka producer: %w", shutdownErr)
 		log.Error(ctx, "failed to shutdown gracefully ", err)
 		return err
 	}
@@ -205,7 +205,7 @@ func closeProducer(ctx context.Context, producer *kafka.Producer, gracefulShutdo
 }
 
 // waitForInitialised blocks until the producer is initialised or closed
-func waitForInitialised(ctx context.Context, pChannels *kafka.ProducerChannels) {
+func waitForInitialised(ctx context.Context, pChannels *producer.ProducerChannels) {
 	select {
 	case <-pChannels.Ready:
 		log.Warn(ctx, "[KAFKA-TEST] Producer is now initialised.")

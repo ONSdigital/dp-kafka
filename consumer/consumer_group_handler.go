@@ -1,9 +1,10 @@
-package kafka
+package consumer
 
 import (
 	"context"
 	"fmt"
 
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
@@ -12,11 +13,11 @@ import (
 type saramaCgHandler struct {
 	ctx                context.Context
 	channels           *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state              *ConsumerStateMachine  // State is shared with ConsumerGroup
+	state              *StateMachine          // State is shared with ConsumerGroup
 	chSessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends for any reason
 }
 
-func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *ConsumerStateMachine) *saramaCgHandler {
+func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *saramaCgHandler {
 	return &saramaCgHandler{
 		ctx:      ctx,
 		channels: channels,
@@ -27,7 +28,7 @@ func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, st
 // Setup is run by Sarama at the beginning of a new session, before ConsumeClaim.
 // It will close the Ready channel if it is not already closed.
 func (sh *saramaCgHandler) Setup(session sarama.ConsumerGroupSession) error {
-	if err := sh.state.SetIf([]ConsumerState{Starting, Consuming}, Consuming); err != nil {
+	if err := sh.state.SetIf([]State{Starting, Consuming}, Consuming); err != nil {
 		return fmt.Errorf("session setup failed, wrong state to start consuming: %w", err)
 	}
 	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
@@ -88,7 +89,7 @@ func (sh *saramaCgHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)
-	sh.state.SetIf([]ConsumerState{Consuming}, Starting)
+	sh.state.SetIf([]State{Consuming}, Starting)
 
 	return nil
 }
@@ -108,23 +109,23 @@ func (sh *saramaCgHandler) ConsumeClaim(session sarama.ConsumerGroupSession, cla
 		select {
 		case <-sh.chSessionConsuming: // when chConsuming is closed, we need to stop consuming
 			return nil
-		case message, ok := <-claim.Messages():
+		case m, ok := <-claim.Messages():
 			if !ok {
 				return nil // claim ConsumerMessage channel is closed, stop consuming
 			}
 			// new message available to be consumed
-			sh.consumeMessage(SaramaMessage{message, session, make(chan struct{})})
+			sh.consumeMessage(message.NewSaramaMessage(m, session, make(chan struct{})))
 		}
 	}
 }
 
 // consumeMessage sends the message to the consumer Upstream channel, and waits for upstream done.
 // Note that this doesn't make the consumer synchronous: we still have other go-routines processing messages.
-func (sh *saramaCgHandler) consumeMessage(msg SaramaMessage) {
+func (sh *saramaCgHandler) consumeMessage(msg *message.SaramaMessage) {
 	select {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
-		<-msg.upstreamDone // Wait until the message is released
-		return             // Message has been released
+		<-msg.UpstreamDone() // Wait until the message is released
+		return               // Message has been released
 	case <-sh.chSessionConsuming:
 		return // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
 	}

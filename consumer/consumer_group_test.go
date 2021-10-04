@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"context"
@@ -6,17 +6,25 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/mock"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/consumer/mock"
+	"github.com/ONSdigital/dp-kafka/v2/health"
+	healthMock "github.com/ONSdigital/dp-kafka/v2/health/mock"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
 var (
-	testGroup = "testGroup"
-	errMock   = errors.New("sarama mock error")
-	ctx       = context.Background()
+	testGroup    = "testGroup"
+	errMock      = errors.New("sarama mock error")
+	ctx          = context.Background()
+	errNoBrokers = errors.New("kafka: client has run out of available brokers to talk to (Is your cluster reachable?)")
+	testBrokers  = []string{"localhost:12300", "localhost:12301"}
 )
 
 func TestConsumerCreationError(t *testing.T) {
@@ -26,7 +34,7 @@ func TestConsumerCreationError(t *testing.T) {
 		consumer, err := newConsumerGroup(
 			ctx, testBrokers, testTopic, testGroup,
 			nil,
-			&ConsumerGroupConfig{KafkaVersion: &wrongVersion},
+			&config.ConsumerGroupConfig{KafkaVersion: &wrongVersion},
 			nil,
 		)
 		So(consumer, ShouldBeNil)
@@ -37,7 +45,7 @@ func TestConsumerCreationError(t *testing.T) {
 		consumer, err := newConsumerGroup(
 			ctx, testBrokers, testTopic, testGroup,
 			&ConsumerGroupChannels{
-				Upstream: make(chan Message),
+				Upstream: make(chan message.Message),
 			},
 			nil,
 			nil,
@@ -86,8 +94,8 @@ func TestConsumerInitialised(t *testing.T) {
 				return nil
 			}
 			consumer.Close(ctx)
-			validateBoolChanClosed(c, channels.Consume, true)
-			validateStructChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, channels.Closer, true)
+			validateChanClosed(c, channels.Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
 		})
 	})
@@ -100,7 +108,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 		cgInitCalls := 0
 		cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
 			cgInitCalls++
-			return nil, ErrSaramaNoBrokers
+			return nil, errNoBrokers
 		}
 		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, channels, nil, cgInit)
 
@@ -115,14 +123,88 @@ func TestConsumerNotInitialised(t *testing.T) {
 
 		Convey("We can try to initialise the consumer again and the same error is returned", func() {
 			err = consumer.Initialise(ctx)
-			So(err, ShouldEqual, ErrSaramaNoBrokers)
+			So(err, ShouldEqual, errNoBrokers)
 			So(cgInitCalls, ShouldEqual, 2)
 		})
 
 		Convey("Closing the consumer closes the caller channels", func(c C) {
 			consumer.Close(ctx)
-			validateBoolChanClosed(c, channels.Consume, true)
-			validateStructChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, channels.Closer, true)
+			validateChanClosed(c, channels.Closed, true)
+		})
+	})
+}
+
+func TestState(t *testing.T) {
+	Convey("Given a consumer group with a state machine", t, func() {
+		cg := &ConsumerGroup{
+			state: NewConsumerStateMachine(Starting),
+		}
+
+		Convey("then State() returns the string represenation of the current state", func() {
+			So(cg.State(), ShouldEqual, Starting.String())
+		})
+	})
+
+	Convey("Given a consumer group without a state machine", t, func() {
+		cg := &ConsumerGroup{}
+
+		Convey("then State() returns an empty string", func() {
+			So(cg.State(), ShouldEqual, "")
+		})
+	})
+}
+
+func TestChecker(t *testing.T) {
+	Convey("Given a valid connected broker", t, func() {
+		mockBroker := &healthMock.SaramaBrokerMock{
+			AddrFunc: func() string {
+				return "localhost:9092"
+			},
+			ConnectedFunc: func() (bool, error) {
+				return true, nil
+			},
+			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
+				return &sarama.MetadataResponse{
+					Topics: []*sarama.TopicMetadata{
+						{Name: testTopic},
+					},
+				}, nil
+			},
+		}
+
+		Convey("And a consumer group connected to the same topic", func() {
+			cg := &ConsumerGroup{
+				topic:   testTopic,
+				brokers: []health.SaramaBroker{mockBroker},
+			}
+
+			Convey("Calling Checker updates the check struct OK state", func() {
+				checkState := healthcheck.NewCheckState(health.ServiceName)
+				t0 := time.Now()
+				cg.Checker(ctx, checkState)
+				t1 := time.Now()
+				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+				So(checkState.Status(), ShouldEqual, healthcheck.StatusOK)
+				So(checkState.Message(), ShouldEqual, health.MsgHealthyConsumerGroup)
+			})
+		})
+
+		Convey("And a consumer group connected to a different topic", func() {
+			cg := &ConsumerGroup{
+				topic:   "wrongTopic",
+				brokers: []health.SaramaBroker{mockBroker},
+			}
+
+			Convey("Calling Checker updates the check struct to Critical state", func() {
+				checkState := healthcheck.NewCheckState(health.ServiceName)
+				t0 := time.Now()
+				cg.Checker(ctx, checkState)
+				t1 := time.Now()
+				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+				So(checkState.Status(), ShouldEqual, healthcheck.StatusCritical)
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:9092]")
+			})
 		})
 	})
 }
@@ -282,11 +364,8 @@ func TestClose(t *testing.T) {
 				err := cg.Close(ctx)
 				So(err, ShouldBeNil)
 
-				Convey("Then all the expected channels being closed", func(c C) {
-					validateBoolChanClosed(c, channels.Consume, true)
-					validateMessageChanClosed(c, channels.Upstream, true)
-					validateErrorChanClosed(c, channels.Errors, true)
-					validateStructChanClosed(c, channels.Closed, true)
+				Convey("Then the Closed channel is closed", func(c C) {
+					validateChanClosed(c, channels.Closed, true)
 				})
 
 				Convey("Then the state is set to Closing", func(c C) {
@@ -491,7 +570,7 @@ func TestConsumeLoop(t *testing.T) {
 			cg.createConsumeLoop(ctx)
 
 			Convey("Then the ready channel is closed", func(c C) {
-				validateStructChanClosed(c, channels.Ready, true)
+				validateChanClosed(c, channels.Ready, true)
 			})
 
 			Convey("then the state is set to the initial state ('Stopped')", func() {
@@ -520,7 +599,7 @@ func TestConsumeLoop(t *testing.T) {
 	})
 
 	Convey("Given a consumer group", t, func() {
-		invalidStates := []ConsumerState{Stopped, Starting, Consuming, Stopping, Closing}
+		invalidStates := []State{Stopped, Starting, Consuming, Stopping, Closing}
 		st := NewConsumerStateMachine(Initialising)
 		for _, s := range invalidStates {
 			Convey(fmt.Sprintf("Then calling createConsumeLoop while in %s state has no effect", s.String()), func() {
@@ -607,4 +686,22 @@ func saramaConsumerGroupConsumeFails(consumeCalled chan struct{}) *mock.SaramaCo
 			return errMock
 		},
 	}
+}
+
+// validateChanClosed validates that a channel is closed before a timeout expires
+func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(testChanTimeout):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
 }

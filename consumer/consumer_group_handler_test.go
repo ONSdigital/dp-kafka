@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"context"
@@ -6,9 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/mock"
+	"github.com/ONSdigital/dp-kafka/v2/consumer/mock"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
+)
+
+const (
+	testTopic       = "testTopic"
+	testChanTimeout = 100 * time.Millisecond
 )
 
 // testClaims is a testing sarama claim corresponding to a topic with 5 assigned partitions
@@ -56,7 +62,7 @@ func TestSetup(t *testing.T) {
 			})
 
 			Convey("Then the Ready channel is closed", func() {
-				validateStructChanClosed(c, channels.Ready, true)
+				validateChanClosed(c, channels.Ready, true)
 			})
 
 			Convey("Then the state is set to 'Consuming'", func() {
@@ -70,7 +76,7 @@ func TestSetup(t *testing.T) {
 
 			Convey("Then the expected error is returned and no further action is taken", func() {
 				So(err.Error(), ShouldEqual, "session setup failed, wrong state to start consuming: state transition from Stopping to Consuming is not allowed")
-				validateStructChanClosed(c, channels.Ready, false)
+				validateChanClosed(c, channels.Ready, false)
 				So(cgHandler.state.Get(), ShouldEqual, Stopping)
 			})
 		})
@@ -100,7 +106,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Closing' and 'chSessionConsuming' channel is closed", func(c C) {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Closing)
 			})
 		})
@@ -110,7 +116,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Closing' and 'chSessionConsuming' channel is closed", func(c C) {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Closing)
 			})
 		})
@@ -120,7 +126,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Stopping' and 'chSessionConsuming' channel is closed", func(c C) {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Stopping)
 			})
 		})
@@ -129,7 +135,7 @@ func TestControlRoutine(t *testing.T) {
 			channels.Consume <- true
 
 			Convey("Then the state is not changed 'Consuming' and the 'chSessionConsuming' channel is not closed", func(c C) {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, false)
+				validateChanClosed(c, cgHandler.chSessionConsuming, false)
 				c.So(cgHandler.state.Get(), ShouldEqual, Consuming)
 			})
 		})
@@ -139,7 +145,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is not changed and 'chSessionConsuming' channel remains closed", func(c C) {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Consuming)
 			})
 		})
@@ -171,7 +177,7 @@ func TestCleanup(t *testing.T) {
 			})
 
 			Convey("Then chSessionConsuming channel is closed", func() {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 			})
 
 			Convey("Then the state is set to 'Starting'", func() {
@@ -189,7 +195,7 @@ func TestCleanup(t *testing.T) {
 			})
 
 			Convey("Then chSessionConsuming channel is closed", func() {
-				validateStructChanClosed(c, cgHandler.chSessionConsuming, true)
+				validateChanClosed(c, cgHandler.chSessionConsuming, true)
 			})
 
 			Convey("Then the state is not changed", func() {
@@ -378,7 +384,7 @@ func TestConsume(t *testing.T) {
 }
 
 // consume consumes any remaining messages. Returns the number of messages consumed when the channel is closed or after a timeout expires
-func consume(c C, ch chan Message) int {
+func consume(c C, ch chan message.Message) int {
 	numConsum := 0
 	for {
 		select {
@@ -387,9 +393,9 @@ func consume(c C, ch chan Message) int {
 				return numConsum
 			}
 			msg.CommitAndRelease()
-			validateStructChanClosed(c, msg.UpstreamDone(), true)
+			validateChanClosed(c, msg.UpstreamDone(), true)
 			numConsum++
-		case <-time.After(TIMEOUT):
+		case <-time.After(testChanTimeout):
 			return numConsum
 		}
 	}

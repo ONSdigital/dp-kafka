@@ -1,4 +1,4 @@
-package kafka
+package config
 
 import (
 	"crypto/tls"
@@ -17,6 +17,8 @@ const certPrefix = "-----BEGIN " // magic string for PEM/Cert/Key (when not file
 
 // ErrTLSCannotLoadCACerts is returned when the certs file cannot be loaded
 var ErrTLSCannotLoadCACerts = errors.New("cannot load CA Certs")
+
+var messageConsumeTimeout = time.Second * 10
 
 // ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
 // Any value that is not provied will use the default Sarama config value.
@@ -59,8 +61,8 @@ type SecurityConfig struct {
 	InsecureSkipVerify bool
 }
 
-// getProducerConfig creates a default sarama config and overwrites any values provided in pConfig
-func getProducerConfig(pConfig *ProducerConfig) (config *sarama.Config, err error) {
+// GetProducerConfig creates a default sarama config and overwrites any values provided in pConfig
+func GetProducerConfig(pConfig *ProducerConfig) (config *sarama.Config, err error) {
 	config = sarama.NewConfig()
 	if pConfig != nil {
 		if pConfig.KafkaVersion != nil {
@@ -90,8 +92,8 @@ func getProducerConfig(pConfig *ProducerConfig) (config *sarama.Config, err erro
 	return config, nil
 }
 
-// getConsumerGroupConfig creates a default sarama config and overwrites any values provided in cgConfig
-func getConsumerGroupConfig(cgConfig *ConsumerGroupConfig) (config *sarama.Config, err error) {
+// GetConsumerGroupConfig creates a default sarama config and overwrites any values provided in cgConfig
+func GetConsumerGroupConfig(cgConfig *ConsumerGroupConfig) (config *sarama.Config, err error) {
 	config = sarama.NewConfig()
 	config.Consumer.MaxWaitTime = 50 * time.Millisecond
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
@@ -126,8 +128,8 @@ func getConsumerGroupConfig(cgConfig *ConsumerGroupConfig) (config *sarama.Confi
 	return config, nil
 }
 
-// getAdminConfig creates a default sarama config and overwrites any values provided in pConfig
-func getAdminConfig(cfg *AdminConfig) (config *sarama.Config, err error) {
+// GetAdminConfig creates a default sarama config and overwrites any values provided in pConfig
+func GetAdminConfig(cfg *AdminConfig) (config *sarama.Config, err error) {
 	config = sarama.NewConfig()
 	if cfg != nil {
 		if cfg.KafkaVersion != nil {

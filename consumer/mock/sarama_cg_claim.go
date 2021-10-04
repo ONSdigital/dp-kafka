@@ -16,11 +16,11 @@ var (
 	lockSaramaConsumerGroupClaimMockTopic               sync.RWMutex
 )
 
-// SaramaConsumerGroupClaimMock is a mock implementation of kafka.SaramaConsumerGroupClaim.
+// SaramaConsumerGroupClaimMock is a mock implementation of consumer.SaramaConsumerGroupClaim.
 //
 //     func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroupClaim
+//         // make and configure a mocked consumer.SaramaConsumerGroupClaim
 //         mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
 //             HighWaterMarkOffsetFunc: func() int64 {
 // 	               panic("mock out the HighWaterMarkOffset method")
@@ -39,7 +39,7 @@ var (
 //             },
 //         }
 //
-//         // use mockedSaramaConsumerGroupClaim in code that requires kafka.SaramaConsumerGroupClaim
+//         // use mockedSaramaConsumerGroupClaim in code that requires consumer.SaramaConsumerGroupClaim
 //         // and then make assertions.
 //
 //     }

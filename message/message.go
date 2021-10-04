@@ -1,10 +1,10 @@
-package kafka
+package message
 
 import (
 	"github.com/Shopify/sarama"
 )
 
-//go:generate moq -out ./kafkatest/mock_message.go -pkg kafkatest . Message
+//go:generate moq -out ../kafkatest/mock_message.go -pkg kafkatest . Message
 
 // Message represents a single kafka message.
 type Message interface {
@@ -36,6 +36,14 @@ type SaramaMessage struct {
 	message      *sarama.ConsumerMessage
 	session      sarama.ConsumerGroupSession
 	upstreamDone chan struct{}
+}
+
+func NewSaramaMessage(m *sarama.ConsumerMessage, s sarama.ConsumerGroupSession, ud chan struct{}) *SaramaMessage {
+	return &SaramaMessage{
+		message:      m,
+		session:      s,
+		upstreamDone: ud,
+	}
 }
 
 // GetData returns the message contents.

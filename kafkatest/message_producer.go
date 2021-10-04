@@ -3,7 +3,7 @@ package kafkatest
 import (
 	"context"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/producer"
 )
 
 // MessageProducer is an extension of the moq Producer, with channels
@@ -16,20 +16,20 @@ type MessageProducer struct {
 // pInternal is an internal struct to keep track of the state and channels,
 // which also provides the mock methods.
 type pInternal struct {
-	pChannels     *kafka.ProducerChannels
+	pChannels     *producer.ProducerChannels
 	isInitialised bool
 }
 
 // NewMessageProducer creates a testing producer with new producerChannels.
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
 func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
-	pChannels := kafka.CreateProducerChannels()
+	pChannels := producer.CreateProducerChannels()
 	return NewMessageProducerWithChannels(pChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageProducerWithChannels creates a testing producer with the provided producerChannels.
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
-func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
+func NewMessageProducerWithChannels(pChannels *producer.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
 
 	internal := &pInternal{
 		isInitialised: false,
@@ -63,7 +63,7 @@ func (internal *pInternal) isInitialisedFunc() bool {
 	return internal.isInitialised
 }
 
-func (internal *pInternal) channelsFunc() *kafka.ProducerChannels {
+func (internal *pInternal) channelsFunc() *producer.ProducerChannels {
 	return internal.pChannels
 }
 

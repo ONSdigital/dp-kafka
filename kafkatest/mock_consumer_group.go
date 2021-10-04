@@ -6,7 +6,7 @@ package kafkatest
 import (
 	"context"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/consumer"
 	"sync"
 )
 
@@ -19,17 +19,17 @@ var (
 	lockIConsumerGroupMockStopListeningToConsumer sync.RWMutex
 )
 
-// Ensure, that IConsumerGroupMock does implement kafka.IConsumerGroup.
+// Ensure, that IConsumerGroupMock does implement consumer.IConsumerGroup.
 // If this is not the case, regenerate this file with moq.
-var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
+var _ consumer.IConsumerGroup = &IConsumerGroupMock{}
 
-// IConsumerGroupMock is a mock implementation of kafka.IConsumerGroup.
+// IConsumerGroupMock is a mock implementation of consumer.IConsumerGroup.
 //
 //     func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked kafka.IConsumerGroup
+//         // make and configure a mocked consumer.IConsumerGroup
 //         mockedIConsumerGroup := &IConsumerGroupMock{
-//             ChannelsFunc: func() *kafka.ConsumerGroupChannels {
+//             ChannelsFunc: func() *consumer.ConsumerGroupChannels {
 // 	               panic("mock out the Channels method")
 //             },
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
@@ -49,13 +49,13 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 //             },
 //         }
 //
-//         // use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
+//         // use mockedIConsumerGroup in code that requires consumer.IConsumerGroup
 //         // and then make assertions.
 //
 //     }
 type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
-	ChannelsFunc func() *kafka.ConsumerGroupChannels
+	ChannelsFunc func() *consumer.ConsumerGroupChannels
 
 	// CheckerFunc mocks the Checker method.
 	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
@@ -106,7 +106,7 @@ type IConsumerGroupMock struct {
 }
 
 // Channels calls ChannelsFunc.
-func (mock *IConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
+func (mock *IConsumerGroupMock) Channels() *consumer.ConsumerGroupChannels {
 	if mock.ChannelsFunc == nil {
 		panic("IConsumerGroupMock.ChannelsFunc: method is nil but IConsumerGroup.Channels was just called")
 	}

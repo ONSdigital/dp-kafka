@@ -5,9 +5,13 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/consumer"
+	"github.com/ONSdigital/dp-kafka/v2/global"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -45,7 +49,7 @@ func main() {
 
 func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, os.Kill)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	// Read Config
 	cfg := &Config{
@@ -76,14 +80,14 @@ func run(ctx context.Context) error {
 	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
-func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, error) {
+func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup, error) {
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
-	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
+	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
 	// Create ConsumerGroup with channels and config
-	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaBatchSize)
-	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
-	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
+	cgChannels := consumer.CreateConsumerGroupChannels(cfg.KafkaBatchSize)
+	cgConfig := &config.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
+	cg, err := consumer.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -118,9 +122,9 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 
 // consume waits for messages to arrive to the upstream channel, appends them to a batch, and then, once the batch is full, processes the batch.
 // Note that the messages are released straight away, but not committed until the batch has been successfully processed.
-func consume(ctx context.Context, cfg *Config, upstream chan kafka.Message) {
+func consume(ctx context.Context, cfg *Config, upstream chan message.Message) {
 	log.Info(ctx, "started consuming")
-	var batch = []kafka.Message{}
+	var batch = []message.Message{}
 	for {
 		// get message from upstream channel
 		consumedMessage, ok := <-upstream
@@ -137,7 +141,7 @@ func consume(ctx context.Context, cfg *Config, upstream chan kafka.Message) {
 		// if batch is full, process it
 		if len(batch) == cfg.KafkaBatchSize {
 			processBatch(ctx, cfg, logData, batch)
-			batch = []kafka.Message{}
+			batch = []message.Message{}
 		}
 
 		// release the message, so that the next one can be consumed
@@ -145,7 +149,7 @@ func consume(ctx context.Context, cfg *Config, upstream chan kafka.Message) {
 	}
 }
 
-func processBatch(ctx context.Context, cfg *Config, logData log.Data, batch []kafka.Message) {
+func processBatch(ctx context.Context, cfg *Config, logData log.Data, batch []message.Message) {
 	// Offsets of messages that are part of the batch
 	batchOffsets := []int64{}
 	for _, msg := range batch {
@@ -168,7 +172,7 @@ func processBatch(ctx context.Context, cfg *Config, logData log.Data, batch []ka
 
 // commitBatch marks all messages as consumed, and commits the last one (which will commit all offsets,
 // which might be different among partitions)
-func commitBatch(batch []kafka.Message) {
+func commitBatch(batch []message.Message) {
 	for i, msg := range batch {
 		if i < len(batch)-1 {
 			msg.Mark()
@@ -178,7 +182,7 @@ func commitBatch(batch []kafka.Message) {
 	}
 }
 
-func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
+func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
 	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 
@@ -236,7 +240,7 @@ func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
 }
 
 // waitForInitialised blocks until the consumer is initialised or closed
-func waitForInitialised(ctx context.Context, cgChannels *kafka.ConsumerGroupChannels) {
+func waitForInitialised(ctx context.Context, cgChannels *consumer.ConsumerGroupChannels) {
 	select {
 	case <-cgChannels.Ready:
 		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised.")

@@ -9,7 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/consumer"
+	"github.com/ONSdigital/dp-kafka/v2/global"
+	"github.com/ONSdigital/dp-kafka/v2/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -87,16 +90,16 @@ func run(ctx context.Context) error {
 	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
-func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, error) {
+func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup, error) {
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
-	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
+	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
 	goRoutinesOffset = runtime.NumGoroutine()
 
 	// Create ConsumerGroup with channels and config
-	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
-	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
+	cgChannels := consumer.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
+	cgConfig := &config.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
+	cg, err := consumer.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +137,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 }
 
 // consume waits for messages to arrive to the upstream channel and consumes them, in an infinite loop
-func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Message) {
+func consume(ctx context.Context, cfg *Config, id int, upstream chan message.Message) {
 	log.Info(ctx, "starting consumer worker", log.Data{"worker_id": id})
 	for {
 		consumedMessage, ok := <-upstream
@@ -158,7 +161,7 @@ func consume(ctx context.Context, cfg *Config, id int, upstream chan kafka.Messa
 	}
 }
 
-func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
+func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
 	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
 
@@ -196,7 +199,7 @@ func closeConsumerGroup(ctx context.Context, cg *kafka.ConsumerGroup, gracefulSh
 // createStartStopLoop creates a loop that periodically sends true or false to the Consume channel
 // - A 'Starting'/'Consuming' consumer is sent true for iterationsFromStartToStop times, then false
 // - A 'Stopping'/'Stopped' consumer is sent false for iterationsFromStopToStart times, then true
-func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
+func createStartStopLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
 	cnt := 0
 	// consume start-stop loop
 	go func() {
@@ -209,7 +212,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 				}
 				cnt++
 				switch cg.State() {
-				case kafka.Starting.String(), kafka.Consuming.String():
+				case consumer.Starting.String(), consumer.Consuming.String():
 					if cnt >= iterationsFromStartToStop {
 						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming", logData)
 						cnt = 0
@@ -218,7 +221,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 						log.Info(ctx, "[KAFKA-TEST] START consuming", logData)
 						cg.Start()
 					}
-				case kafka.Stopping.String(), kafka.Stopped.String():
+				case consumer.Stopping.String(), consumer.Stopped.String():
 					if cnt >= iterationsFromStopToStart {
 						log.Info(ctx, "[KAFKA-TEST] ++ START consuming", logData)
 						cnt = 0

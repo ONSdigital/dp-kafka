@@ -1,4 +1,4 @@
-package kafka
+package global
 
 import (
 	"testing"
@@ -21,7 +21,7 @@ func TestGetRetryTime(t *testing.T) {
 
 			for attempt := 1; attempt < 100; attempt++ {
 				// get computed interval
-				interval := getRetryTime(attempt, initialInterval)
+				interval := GetRetryTime(attempt, initialInterval)
 				interval_ms := interval.Milliseconds()
 
 				expectedInterval_ms := expectedInterval.Milliseconds()

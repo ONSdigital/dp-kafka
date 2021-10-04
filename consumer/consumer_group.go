@@ -1,4 +1,4 @@
-package kafka
+package consumer
 
 import (
 	"context"
@@ -6,15 +6,16 @@ import (
 	"sync"
 	"time"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/global"
+	"github.com/ONSdigital/dp-kafka/v2/health"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
 )
 
-var messageConsumeTimeout = time.Second * 10
-
-//go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
+//go:generate moq -out ../kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
 
 // IConsumerGroup is an interface representing a Kafka Consumer Group.
 type IConsumerGroup interface {
@@ -22,22 +23,22 @@ type IConsumerGroup interface {
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
 	StopListeningToConsumer(ctx context.Context) (err error)
-	Checker(ctx context.Context, state *health.CheckState) error
+	Checker(ctx context.Context, state *healthcheck.CheckState) error
 	Close(ctx context.Context) (err error)
 }
 
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
 	brokerAddrs     []string
-	brokers         []*sarama.Broker
+	brokers         []health.SaramaBroker
 	channels        *ConsumerGroupChannels
 	saramaCg        sarama.ConsumerGroup
 	saramaCgHandler *saramaCgHandler
 	saramaCgInit    consumerGroupInitialiser
 	topic           string
 	group           string
-	initialState    ConsumerState // target state for a consumer that is still being initialised
-	state           *ConsumerStateMachine
+	initialState    State // target state for a consumer that is still being initialised
+	state           *StateMachine
 	config          *sarama.Config
 	mutex           *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
 	wgClose         *sync.WaitGroup
@@ -45,19 +46,19 @@ type ConsumerGroup struct {
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
 func NewConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
-	channels *ConsumerGroupChannels, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error) {
+	channels *ConsumerGroupChannels, cgConfig *config.ConsumerGroupConfig) (*ConsumerGroup, error) {
 	return newConsumerGroup(ctx, brokerAddrs, topic, group, channels, cgConfig, saramaNewConsumerGroup)
 }
 
 func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
-	channels *ConsumerGroupChannels, cgConfig *ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
+	channels *ConsumerGroupChannels, cgConfig *config.ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	// Create config
-	config, err := getConsumerGroupConfig(cgConfig)
+	config, err := config.GetConsumerGroupConfig(cgConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group st
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
 		brokerAddrs:  brokerAddrs,
-		brokers:      []*sarama.Broker{},
+		brokers:      []health.SaramaBroker{},
 		channels:     channels,
 		topic:        topic,
 		group:        group,
@@ -117,7 +118,20 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 
 // State returns the state of the consumer group
 func (cg *ConsumerGroup) State() string {
+	if cg.state == nil {
+		return ""
+	}
 	return cg.state.String()
+}
+
+// Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
+func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+	if err := health.Healthcheck(ctx, cg.brokers, cg.topic, cg.config); err != nil {
+		state.Update(healthcheck.StatusCritical, err.Error(), 0)
+		return nil
+	}
+	state.Update(healthcheck.StatusOK, health.MsgHealthyConsumerGroup, 0)
+	return nil
 }
 
 // Initialise creates a new Sarama ConsumerGroup and the consumer/error loops, only if it was not already initialised.
@@ -222,7 +236,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	close(cg.channels.Consume)
 	close(cg.channels.Closer)
-	didTimeout := waitWithTimeout(ctx, cg.wgClose)
+	didTimeout := global.WaitWithTimeout(ctx, cg.wgClose)
 	if didTimeout {
 		err := ctx.Err()
 		log.Warn(ctx, "Close abandoned: context done", log.FormatErrors([]error{err}), logData)
@@ -267,7 +281,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
 				return
-			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
+			case <-time.After(global.GetRetryTime(initAttempt, global.InitRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising consumer group", err, log.Data{"attempt": initAttempt})
 					initAttempt++
@@ -394,7 +408,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
-				case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
+				case <-time.After(global.GetRetryTime(consumeAttempt, global.ConsumeErrRetryPeriod)):
 					consumeAttempt++
 				case <-ctx.Done():
 				}

@@ -3,7 +3,7 @@ package kafkatest
 import (
 	"context"
 
-	kafka "github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/consumer"
 )
 
 // MessageConsumer is an extension of the moq ConsumerGroup, with channels
@@ -16,20 +16,20 @@ type MessageConsumer struct {
 // cgInternal is an internal struct to keep track of the state and channels,
 // which also provides the mock methods.
 type cgInternal struct {
-	cgChannels    *kafka.ConsumerGroupChannels
+	cgChannels    *consumer.ConsumerGroupChannels
 	isInitialised bool
 }
 
 // NewMessageConsumer creates a testing consumer with new consumerGroupChannels.
 // isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
 func NewMessageConsumer(isInitialisedAtCreationTime bool) *MessageConsumer {
-	cgChannels := kafka.CreateConsumerGroupChannels(1)
+	cgChannels := consumer.CreateConsumerGroupChannels(1)
 	return NewMessageConsumerWithChannels(cgChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageConsumerWithChannels creates a testing consumer with the provided consumerGroupChannels
 // isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
-func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isInitialisedAtCreationTime bool) *MessageConsumer {
+func NewMessageConsumerWithChannels(cgChannels *consumer.ConsumerGroupChannels, isInitialisedAtCreationTime bool) *MessageConsumer {
 
 	internal := &cgInternal{
 		isInitialised: false,
@@ -64,7 +64,7 @@ func (internal *cgInternal) isInitialisedFunc() bool {
 	return internal.isInitialised
 }
 
-func (internal *cgInternal) channelsFunc() *kafka.ConsumerGroupChannels {
+func (internal *cgInternal) channelsFunc() *consumer.ConsumerGroupChannels {
 	return internal.cgChannels
 }
 

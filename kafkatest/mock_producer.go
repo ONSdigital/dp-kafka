@@ -6,7 +6,7 @@ package kafkatest
 import (
 	"context"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v2"
+	"github.com/ONSdigital/dp-kafka/v2/producer"
 	"sync"
 )
 
@@ -18,17 +18,17 @@ var (
 	lockIProducerMockIsInitialised sync.RWMutex
 )
 
-// Ensure, that IProducerMock does implement kafka.IProducer.
+// Ensure, that IProducerMock does implement producer.IProducer.
 // If this is not the case, regenerate this file with moq.
-var _ kafka.IProducer = &IProducerMock{}
+var _ producer.IProducer = &IProducerMock{}
 
-// IProducerMock is a mock implementation of kafka.IProducer.
+// IProducerMock is a mock implementation of producer.IProducer.
 //
 //     func TestSomethingThatUsesIProducer(t *testing.T) {
 //
-//         // make and configure a mocked kafka.IProducer
+//         // make and configure a mocked producer.IProducer
 //         mockedIProducer := &IProducerMock{
-//             ChannelsFunc: func() *kafka.ProducerChannels {
+//             ChannelsFunc: func() *producer.ProducerChannels {
 // 	               panic("mock out the Channels method")
 //             },
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
@@ -45,13 +45,13 @@ var _ kafka.IProducer = &IProducerMock{}
 //             },
 //         }
 //
-//         // use mockedIProducer in code that requires kafka.IProducer
+//         // use mockedIProducer in code that requires producer.IProducer
 //         // and then make assertions.
 //
 //     }
 type IProducerMock struct {
 	// ChannelsFunc mocks the Channels method.
-	ChannelsFunc func() *kafka.ProducerChannels
+	ChannelsFunc func() *producer.ProducerChannels
 
 	// CheckerFunc mocks the Checker method.
 	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
@@ -94,7 +94,7 @@ type IProducerMock struct {
 }
 
 // Channels calls ChannelsFunc.
-func (mock *IProducerMock) Channels() *kafka.ProducerChannels {
+func (mock *IProducerMock) Channels() *producer.ProducerChannels {
 	if mock.ChannelsFunc == nil {
 		panic("IProducerMock.ChannelsFunc: method is nil but IProducer.Channels was just called")
 	}

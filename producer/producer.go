@@ -1,24 +1,27 @@
-package kafka
+package producer
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v2/config"
+	"github.com/ONSdigital/dp-kafka/v2/global"
+	"github.com/ONSdigital/dp-kafka/v2/health"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
 )
 
-//go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
+//go:generate moq -out ../kafkatest/mock_producer.go -pkg kafkatest . IProducer
 
 // IProducer is an interface representing a Kafka Producer
 type IProducer interface {
 	Channels() *ProducerChannels
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
-	Checker(ctx context.Context, state *health.CheckState) error
+	Checker(ctx context.Context, state *healthcheck.CheckState) error
 	Close(ctx context.Context) (err error)
 }
 
@@ -27,7 +30,7 @@ type Producer struct {
 	producer     sarama.AsyncProducer
 	producerInit producerInitialiser
 	brokerAddrs  []string
-	brokers      []*sarama.Broker
+	brokers      []health.SaramaBroker
 	topic        string
 	channels     *ProducerChannels
 	config       *sarama.Config
@@ -38,19 +41,19 @@ type Producer struct {
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(ctx context.Context, brokerAddrs []string, topic string,
-	channels *ProducerChannels, pConfig *ProducerConfig) (producer *Producer, err error) {
+	channels *ProducerChannels, pConfig *config.ProducerConfig) (producer *Producer, err error) {
 	return newProducer(ctx, brokerAddrs, topic, channels, pConfig, saramaNewAsyncProducer)
 }
 
 func newProducer(ctx context.Context, brokerAddrs []string, topic string,
-	channels *ProducerChannels, pConfig *ProducerConfig, pInit producerInitialiser) (*Producer, error) {
+	channels *ProducerChannels, pConfig *config.ProducerConfig, pInit producerInitialiser) (*Producer, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
 	// Create Config
-	config, err := getProducerConfig(pConfig)
+	config, err := config.GetProducerConfig(pConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -65,6 +68,7 @@ func newProducer(ctx context.Context, brokerAddrs []string, topic string,
 	producer := &Producer{
 		producerInit: pInit,
 		brokerAddrs:  brokerAddrs,
+		brokers:      []health.SaramaBroker{},
 		topic:        topic,
 		config:       config,
 		mutex:        &sync.Mutex{},
@@ -95,6 +99,16 @@ func (p *Producer) Channels() *ProducerChannels {
 		return nil
 	}
 	return p.channels
+}
+
+// Checker checks health of Kafka producer and updates the provided CheckState accordingly
+func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+	if err := health.Healthcheck(ctx, p.brokers, p.topic, p.config); err != nil {
+		state.Update(healthcheck.StatusCritical, err.Error(), 0)
+		return nil
+	}
+	state.Update(healthcheck.StatusOK, health.MsgHealthyProducer, 0)
+	return nil
 }
 
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
@@ -146,7 +160,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	// closing the Closer channel will end the go-routines(if any)
 	close(p.channels.Closer)
 
-	didTimeout := waitWithTimeout(ctx, p.wgClose)
+	didTimeout := global.WaitWithTimeout(ctx, p.wgClose)
 	if didTimeout {
 		log.Warn(ctx, "shutdown context time exceeded, skipping graceful shutdown of producer")
 		return ErrShutdownTimedOut
@@ -200,7 +214,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case <-p.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka producer", log.Data{"topic": p.topic})
 				return
-			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
+			case <-time.After(global.GetRetryTime(initAttempt, global.InitRetryPeriod)):
 				if err := p.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
 					initAttempt++
@@ -220,7 +234,6 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 // If forwards messages from the output channel to the sarama producer input.
 // If the closer channel is closed, it ends the loop and closes Closed channel.
 func (p *Producer) createLoopInitialised(ctx context.Context) error {
-
 	// If sarama producer is not available, return error.
 	if !p.IsInitialised() {
 		return ErrInitSarama

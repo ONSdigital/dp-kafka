@@ -1,14 +1,14 @@
-package kafka
+package consumer
 
 import (
 	"fmt"
 	"sync"
 )
 
-type ConsumerState int
+type State int
 
 const (
-	Initialising ConsumerState = iota
+	Initialising State = iota
 	Stopped
 	Starting
 	Consuming
@@ -16,45 +16,45 @@ const (
 	Closing
 )
 
-func (s ConsumerState) String() string {
+func (s State) String() string {
 	return [...]string{"Initialising", "Stopped", "Starting", "Consuming", "Stopping", "Closing"}[s]
 }
 
-type ConsumerStateMachine struct {
-	state ConsumerState
+type StateMachine struct {
+	state State
 	mutex *sync.Mutex
 }
 
-func NewConsumerStateMachine(st ConsumerState) *ConsumerStateMachine {
-	return &ConsumerStateMachine{
+func NewConsumerStateMachine(st State) *StateMachine {
+	return &StateMachine{
 		state: st,
 		mutex: &sync.Mutex{},
 	}
 }
 
 // Get returns the current state
-func (sm *ConsumerStateMachine) Get() ConsumerState {
+func (sm *StateMachine) Get() State {
 	sm.mutex.Lock()
-	sm.mutex.Unlock()
+	defer sm.mutex.Unlock()
 	return sm.state
 }
 
 // String returns the string representation of the current state
-func (sm *ConsumerStateMachine) String() string {
+func (sm *StateMachine) String() string {
 	sm.mutex.Lock()
-	sm.mutex.Unlock()
+	defer sm.mutex.Unlock()
 	return sm.state.String()
 }
 
 // Set sets the state machine to the provided state value
-func (sm *ConsumerStateMachine) Set(newState ConsumerState) {
+func (sm *StateMachine) Set(newState State) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	sm.state = newState
 }
 
 // SetIf sets the state machine to the provided state value only if the current state is one of the values provided in the list
-func (sm *ConsumerStateMachine) SetIf(allowed []ConsumerState, newState ConsumerState) error {
+func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	transitionAllowed := false
@@ -72,7 +72,7 @@ func (sm *ConsumerStateMachine) SetIf(allowed []ConsumerState, newState Consumer
 }
 
 // SetIfNot sets the state machine to the provided state value only if the current state is NOT one of the values provided in the list
-func (sm *ConsumerStateMachine) SetIfNot(forbidden []ConsumerState, newState ConsumerState) error {
+func (sm *StateMachine) SetIfNot(forbidden []State, newState State) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 	transitionAllowed := true

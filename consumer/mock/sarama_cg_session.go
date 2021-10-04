@@ -20,11 +20,11 @@ var (
 	lockSaramaConsumerGroupSessionMockResetOffset  sync.RWMutex
 )
 
-// SaramaConsumerGroupSessionMock is a mock implementation of kafka.SaramaConsumerGroupSession.
+// SaramaConsumerGroupSessionMock is a mock implementation of consumer.SaramaConsumerGroupSession.
 //
 //     func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroupSession
+//         // make and configure a mocked consumer.SaramaConsumerGroupSession
 //         mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
 //             ClaimsFunc: func() map[string][]int32 {
 // 	               panic("mock out the Claims method")
@@ -52,7 +52,7 @@ var (
 //             },
 //         }
 //
-//         // use mockedSaramaConsumerGroupSession in code that requires kafka.SaramaConsumerGroupSession
+//         // use mockedSaramaConsumerGroupSession in code that requires consumer.SaramaConsumerGroupSession
 //         // and then make assertions.
 //
 //     }
