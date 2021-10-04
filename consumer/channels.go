@@ -3,7 +3,7 @@ package consumer
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v2/message"
+	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 

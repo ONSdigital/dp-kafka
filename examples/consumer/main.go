@@ -9,10 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/config"
-	"github.com/ONSdigital/dp-kafka/v2/consumer"
-	"github.com/ONSdigital/dp-kafka/v2/global"
-	"github.com/ONSdigital/dp-kafka/v2/message"
+	"github.com/ONSdigital/dp-kafka/v3/config"
+	"github.com/ONSdigital/dp-kafka/v3/consumer"
+	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )

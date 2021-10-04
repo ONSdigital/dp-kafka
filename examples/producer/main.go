@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/config"
-	"github.com/ONSdigital/dp-kafka/v2/global"
-	"github.com/ONSdigital/dp-kafka/v2/producer"
+	"github.com/ONSdigital/dp-kafka/v3/config"
+	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/producer"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )

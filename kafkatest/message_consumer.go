@@ -3,7 +3,7 @@ package kafkatest
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v2/consumer"
+	"github.com/ONSdigital/dp-kafka/v3/consumer"
 )
 
 // MessageConsumer is an extension of the moq ConsumerGroup, with channels

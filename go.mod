@@ -1,4 +1,4 @@
-module github.com/ONSdigital/dp-kafka/v2
+module github.com/ONSdigital/dp-kafka/v3
 
 go 1.15
 

@@ -6,7 +6,7 @@ package kafkatest
 import (
 	"context"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v2/producer"
+	"github.com/ONSdigital/dp-kafka/v3/producer"
 	"sync"
 )
 

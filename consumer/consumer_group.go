@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v2/config"
-	"github.com/ONSdigital/dp-kafka/v2/global"
-	"github.com/ONSdigital/dp-kafka/v2/health"
+	"github.com/ONSdigital/dp-kafka/v3/config"
+	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/health"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"

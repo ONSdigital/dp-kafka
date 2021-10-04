@@ -3,7 +3,7 @@ package consumer
 import (
 	"testing"
 
-	"github.com/ONSdigital/dp-kafka/v2/message"
+	"github.com/ONSdigital/dp-kafka/v3/message"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

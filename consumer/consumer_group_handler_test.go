@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v2/consumer/mock"
-	"github.com/ONSdigital/dp-kafka/v2/message"
+	"github.com/ONSdigital/dp-kafka/v3/consumer/mock"
+	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )

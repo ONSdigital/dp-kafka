@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v2/config"
-	"github.com/ONSdigital/dp-kafka/v2/health"
-	healthMock "github.com/ONSdigital/dp-kafka/v2/health/mock"
-	"github.com/ONSdigital/dp-kafka/v2/producer/mock"
+	"github.com/ONSdigital/dp-kafka/v3/config"
+	"github.com/ONSdigital/dp-kafka/v3/health"
+	healthMock "github.com/ONSdigital/dp-kafka/v3/health/mock"
+	"github.com/ONSdigital/dp-kafka/v3/producer/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
