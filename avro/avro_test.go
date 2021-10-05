@@ -364,7 +364,7 @@ func TestUnitGetNestedSchema(t *testing.T) {
 // Test unmarshalStringSlice function
 func TestUnitUnmarshalStringSlice(t *testing.T) {
 	Convey("Successfully unmarshal string slice", t, func() {
-		Convey("When the input has empty slices", func() {
+		Convey("When the input has empty slice", func() {
 			var s []interface{}
 
 			sliceString, err := unmarshalStringSlice(s)
