@@ -23,6 +23,12 @@ func ErrUnsupportedType(typ reflect.Kind) error {
 	return fmt.Errorf("Unsupported interface type: %v", typ)
 }
 
+// ErrUnableToAssertType is returned when the input value is not the
+// expected type when applying type assertion to an interface
+func ErrUnableToAssertType(pErr interface{}) error {
+	return fmt.Errorf("unable to assert type from input: %v", pErr)
+}
+
 // ErrUnsupportedFieldType is returned for unsupported field types.
 var ErrUnsupportedFieldType = errors.New("Unsupported field type")
 
@@ -392,7 +398,10 @@ func populateStructFromSchema(schema string, message []byte, typ reflect.Type, v
 			case reflect.Slice:
 				switch v.Field(i).Type().Elem().Kind() {
 				case reflect.String:
-					value = unmarshalStringSlice(value)
+					value, err = unmarshalStringSlice(value)
+					if err != nil {
+						return err
+					}
 				case reflect.Struct:
 					v, err = unmarshalStructSlice(value, v, i)
 					if err != nil {
@@ -471,13 +480,20 @@ func marshalStringMap(v reflect.Value, i int) map[string]string {
 	return stringMap
 }
 
-func unmarshalStringSlice(value interface{}) []string {
+func unmarshalStringSlice(value interface{}) (sliceString []string, err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = ErrUnableToAssertType(pErr)
+		}
+	}()
+
 	sliceInterface := value.([]interface{})
-	sliceString := make([]string, len(sliceInterface))
-	for _, val := range sliceInterface {
-		sliceString = append(sliceString, val.(string))
+	sliceString = make([]string, len(sliceInterface))
+	for i, val := range sliceInterface {
+		sliceString[i] = val.(string)
 	}
-	return sliceString
+
+	return sliceString, err
 }
 
 func unmarshalStructSlice(value interface{}, v reflect.Value, i int) (reflect.Value, error) {
