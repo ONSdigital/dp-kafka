@@ -361,7 +361,34 @@ func TestUnitGetNestedSchema(t *testing.T) {
 
 // TODO -- -- Test generateDecodedRecord function
 
-// TODO -- -- Test unmarshalStringSlice function
+// Test unmarshalStringSlice function
+func TestUnitUnmarshalStringSlice(t *testing.T) {
+	Convey("Successfully unmarshal string slice", t, func() {
+		stringArray := []string{"test string 1", "test string 2"}
+		s := make([]interface{}, len(stringArray))
+		for i, v := range stringArray {
+			s[i] = v
+		}
+
+		sliceString, err := unmarshalStringSlice(s)
+		So(err, ShouldBeNil)
+		So(sliceString, ShouldHaveLength, 2)
+		So(sliceString[0], ShouldEqual, "test string 1")
+		So(sliceString[1], ShouldEqual, "test string 2")
+	})
+
+	Convey("Gracefully fail to unmarshal string slice", t, func() {
+		Convey("When the input is of the wrong type", func() {
+			var s interface{}
+			expectedError := ErrUnableToAssertType(
+				"interface conversion: interface {} is nil, not []interface {}")
+
+			sliceString, err := unmarshalStringSlice(s)
+			So(err, ShouldResemble, expectedError)
+			So(sliceString, ShouldHaveLength, 0)
+		})
+	})
+}
 
 // TODO -- -- Test unmarshalStructSlice function
 
