@@ -32,9 +32,18 @@ func TestConsumerGroupConfig(t *testing.T) {
 			So(config.Net.KeepAlive, ShouldEqual, 0)
 			So(config.Consumer.Retry.Backoff, ShouldEqual, testRetryBackoff)
 			So(config.Consumer.Retry.BackoffFunc, ShouldBeNil)
+
+			Convey("And the default values are set for the non-kafka configuration", func() {
+				So(*cgConfig.NumWorkers, ShouldEqual, defaultNumWorkers)
+				So(*cgConfig.BatchSize, ShouldEqual, defaultBatchSize)
+				So(*cgConfig.BatchWaitTime, ShouldEqual, defaultBatchWaitTime)
+			})
 		})
 
 		Convey("getConsumerGroupConfig with a valid fully-populated consumerGroupConfig results in the expected values being overwritten in the default sarama config", func() {
+			numWorkers := 3
+			batchSize := 50
+			batchWaitTime := 500 * time.Millisecond
 			cgConfig := &ConsumerGroupConfig{
 				KafkaVersion:     &testKafkaVersion,
 				KeepAlive:        &testKeepAlive,
@@ -45,6 +54,9 @@ func TestConsumerGroupConfig(t *testing.T) {
 				Topic:            testTopic,
 				BrokerAddrs:      testBrokerAddrs,
 				GroupName:        testGroupName,
+				NumWorkers:       &numWorkers,
+				BatchSize:        &batchSize,
+				BatchWaitTime:    &batchWaitTime,
 			}
 			config, err := cgConfig.Get()
 			So(err, ShouldBeNil)
@@ -59,6 +71,12 @@ func TestConsumerGroupConfig(t *testing.T) {
 			So(config.Consumer.Offsets.Initial, ShouldEqual, testOffsetNewest)
 			So(config.Net.TLS.Enable, ShouldBeTrue)
 			So(config.Net.TLS.Config.InsecureSkipVerify, ShouldBeFalse)
+
+			Convey("And the default values are set for the non-kafka configuration", func() {
+				So(*cgConfig.NumWorkers, ShouldEqual, numWorkers)
+				So(*cgConfig.BatchSize, ShouldEqual, batchSize)
+				So(*cgConfig.BatchWaitTime, ShouldEqual, batchWaitTime)
+			})
 
 		})
 

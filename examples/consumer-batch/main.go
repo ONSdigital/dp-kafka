@@ -11,7 +11,6 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/consumer"
 	"github.com/ONSdigital/dp-kafka/v3/global"
-	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/kelseyhightower/envconfig"
 )
@@ -84,6 +83,11 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
 	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
+	// Create handler
+	handler := Handler{
+		cfg: cfg,
+	}
+
 	// Create ConsumerGroup config without handler
 	cgConfig := &config.ConsumerGroupConfig{
 		BrokerAddrs:  cfg.Brokers,
@@ -91,10 +95,11 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup
 		GroupName:    cfg.ConsumedGroup,
 		KafkaVersion: &cfg.KafkaVersion,
 	}
-	cg, err := consumer.NewConsumerGroup(ctx, cgConfig, nil)
+	cg, err := consumer.NewConsumerGroup(ctx, cgConfig)
 	if err != nil {
 		return nil, err
 	}
+	cg.RegisterBatchHandler(ctx, handler.handleBatch)
 
 	// go-routine to log errors from error channel
 	cg.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
@@ -112,72 +117,7 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup
 	// start consuming now
 	cg.Start()
 
-	// consume messages (main loop)
-	go consume(ctx, cfg, cg.Channels().Upstream)
-
 	return cg, nil
-}
-
-// consume waits for messages to arrive to the upstream channel, appends them to a batch, and then, once the batch is full, processes the batch.
-// Note that the messages are released straight away, but not committed until the batch has been successfully processed.
-func consume(ctx context.Context, cfg *Config, upstream chan message.Message) {
-	log.Info(ctx, "started consuming")
-	var batch = []message.Message{}
-	for {
-		// get message from upstream channel
-		consumedMessage, ok := <-upstream
-		if !ok {
-			break
-		}
-		consumeCount++
-		logData := log.Data{"consumeCount": consumeCount, "messageOffset": consumedMessage.Offset()}
-		log.Info(ctx, "[KAFKA-TEST] Received message", logData)
-
-		// append message to batch
-		batch = append(batch, consumedMessage)
-
-		// if batch is full, process it
-		if len(batch) == cfg.KafkaBatchSize {
-			processBatch(ctx, cfg, logData, batch)
-			batch = []message.Message{}
-		}
-
-		// release the message, so that the next one can be consumed
-		consumedMessage.Release()
-	}
-}
-
-func processBatch(ctx context.Context, cfg *Config, logData log.Data, batch []message.Message) {
-	// Offsets of messages that are part of the batch
-	batchOffsets := []int64{}
-	for _, msg := range batch {
-		batchOffsets = append(batchOffsets, msg.Offset())
-	}
-	logData["batch_offsets"] = batchOffsets
-
-	// log before sleep
-	log.Info(ctx, "processing batch", logData)
-
-	// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
-	sleepIfRequired(ctx, cfg, logData)
-
-	// log after sleep
-	log.Info(ctx, "batch processed", logData)
-
-	// commit after successfully
-	commitBatch(batch)
-}
-
-// commitBatch marks all messages as consumed, and commits the last one (which will commit all offsets,
-// which might be different among partitions)
-func commitBatch(batch []message.Message) {
-	for i, msg := range batch {
-		if i < len(batch)-1 {
-			msg.Mark()
-		} else {
-			msg.Commit()
-		}
-	}
 }
 
 func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
@@ -213,36 +153,4 @@ func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefu
 
 	log.Info(ctx, "graceful shutdown was successful")
 	return nil
-}
-
-// sleepIfRequired sleeps if config requires to do so, in order to simulate a delay.
-// Snooze will cause a delay of 500ms, and OverSleep will cause a delay of the timeout plus 500 ms.
-// This function is for testing purposes only and should not be used in applications.
-func sleepIfRequired(ctx context.Context, cfg *Config, logData log.Data) {
-	var sleep time.Duration
-	if cfg.Snooze || cfg.OverSleep {
-		// Snooze slows consumption for testing
-		sleep = 500 * time.Millisecond
-		if cfg.OverSleep {
-			// OverSleep tests taking more than shutdown timeout to process a message
-			sleep += cfg.GracefulShutdownTimeout + time.Second*2
-		}
-		logData["sleep"] = sleep
-	}
-
-	log.Info(ctx, "[KAFKA-TEST] Message consumed", logData)
-	if sleep > time.Duration(0) {
-		time.Sleep(sleep)
-		log.Info(ctx, "[KAFKA-TEST] done sleeping")
-	}
-}
-
-// waitForInitialised blocks until the consumer is initialised or closed
-func waitForInitialised(ctx context.Context, cgChannels *consumer.ConsumerGroupChannels) {
-	select {
-	case <-cgChannels.Ready:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is now initialised.")
-	case <-cgChannels.Closed:
-		log.Warn(ctx, "[KAFKA-TEST] Consumer is closed.")
-	}
 }

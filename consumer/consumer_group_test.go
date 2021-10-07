@@ -13,6 +13,7 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/consumer/mock"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	healthMock "github.com/ONSdigital/dp-kafka/v3/health/mock"
+	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -27,7 +28,6 @@ var (
 )
 
 func TestConsumerCreationError(t *testing.T) {
-
 	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
 		wrongVersion := "wrongVersion"
 		consumer, err := newConsumerGroup(
@@ -39,7 +39,6 @@ func TestConsumerCreationError(t *testing.T) {
 				BrokerAddrs:  testBrokers,
 			},
 			nil,
-			nil,
 		)
 		So(consumer, ShouldBeNil)
 		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
@@ -47,7 +46,6 @@ func TestConsumerCreationError(t *testing.T) {
 }
 
 func TestConsumerInitialised(t *testing.T) {
-
 	Convey("Given a correct initialization of a Kafka Consumer Group", t, func(c C) {
 		chConsumeCalled := make(chan struct{})
 		saramaConsumerGroupMock := saramaConsumerGroupHappy(chConsumeCalled)
@@ -64,7 +62,6 @@ func TestConsumerInitialised(t *testing.T) {
 				Topic:       testTopic,
 				GroupName:   testGroup,
 			},
-			nil,
 			cgInit)
 
 		Convey("Consumer is correctly created and initialised without error", func() {
@@ -114,7 +111,6 @@ func TestConsumerNotInitialised(t *testing.T) {
 				Topic:       testTopic,
 				GroupName:   testGroup,
 			},
-			nil,
 			cgInit)
 
 		Convey("Consumer is partially created with channels and checker, but it is not initialised", func() {
@@ -156,6 +152,124 @@ func TestState(t *testing.T) {
 
 		Convey("then State() returns an empty string", func() {
 			So(cg.State(), ShouldEqual, "")
+		})
+	})
+}
+
+func TestRegisterHandler(t *testing.T) {
+	Convey("Given a consumer group without any handler", t, func() {
+		cg := &ConsumerGroup{
+			mutex:      &sync.Mutex{},
+			channels:   CreateConsumerGroupChannels(1),
+			numWorkers: 1,
+		}
+
+		Convey("When a halder is successfully registered", func() {
+			var receivedMessage message.Message
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			testHandler := func(ctx context.Context, workerID int, msg message.Message) error {
+				defer wg.Done()
+				receivedMessage = msg
+				return nil
+			}
+			err := cg.RegisterHandler(ctx, testHandler)
+			So(err, ShouldBeNil)
+
+			Convey("Then the handler is called when a message is received from the Upstream channel", func() {
+				sentMessage := newMessage([]byte{2, 4, 8}, 7)
+				sentMessage.CommitAndReleaseFunc = func() {}
+				cg.channels.Upstream <- sentMessage
+				wg.Wait()
+				So(receivedMessage, ShouldEqual, sentMessage)
+			})
+		})
+	})
+
+	Convey("Given a consumer group with a handler already registered", t, func() {
+		cg := &ConsumerGroup{
+			mutex:   &sync.Mutex{},
+			handler: func(ctx context.Context, workerID int, msg message.Message) error { return nil },
+		}
+
+		Convey("Then trying to register another handler fails with the expected error", func() {
+			testHandler := func(ctx context.Context, workerID int, msg message.Message) error { return nil }
+			err := cg.RegisterHandler(ctx, testHandler)
+			So(err.Error(), ShouldEqual, "failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
+		})
+	})
+
+	Convey("Given a consumer group with a batch handler already registered", t, func() {
+		cg := &ConsumerGroup{
+			mutex:        &sync.Mutex{},
+			batchHandler: func(ctx context.Context, batch []message.Message) error { return nil },
+		}
+
+		Convey("Then trying to register another handler fails with the expected error", func() {
+			testHandler := func(ctx context.Context, workerID int, msg message.Message) error { return nil }
+			err := cg.RegisterHandler(ctx, testHandler)
+			So(err.Error(), ShouldEqual, "failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
+		})
+	})
+}
+
+func TestRegisterBatchHandler(t *testing.T) {
+	Convey("Given a consumer group without any handler", t, func() {
+		cg := &ConsumerGroup{
+			mutex:         &sync.Mutex{},
+			channels:      CreateConsumerGroupChannels(1),
+			batchSize:     2,
+			batchWaitTime: 100 * time.Millisecond,
+		}
+
+		Convey("When a batch halder is successfully registered", func() {
+			var receivedBatch []message.Message
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			testBatchHandler := func(ctx context.Context, batch []message.Message) error {
+				defer wg.Done()
+				receivedBatch = batch
+				return nil
+			}
+			err := cg.RegisterBatchHandler(ctx, testBatchHandler)
+			So(err, ShouldBeNil)
+
+			Convey("Then the batch handler is called when the batch is full from messages received from the Upstream channel", func() {
+				msg1 := newMessage([]byte{1, 3, 5}, 1)
+				msg1.ReleaseFunc = func() {}
+				msg2 := newMessage([]byte{2, 4, 6}, 2)
+				msg2.ReleaseFunc = func() {}
+				cg.channels.Upstream <- msg1
+				cg.channels.Upstream <- msg2
+				wg.Wait()
+				So(receivedBatch, ShouldResemble, []message.Message{msg1, msg2})
+			})
+		})
+	})
+
+	Convey("Given a consumer group with a handler already registered", t, func() {
+		cg := &ConsumerGroup{
+			mutex:   &sync.Mutex{},
+			handler: func(ctx context.Context, workerID int, msg message.Message) error { return nil },
+		}
+
+		Convey("Then trying to register a batch handler fails with the expected error", func() {
+			testBatchHandler := func(ctx context.Context, batch []message.Message) error { return nil }
+			err := cg.RegisterBatchHandler(ctx, testBatchHandler)
+			So(err.Error(), ShouldEqual, "failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
+		})
+	})
+
+	Convey("Given a consumer group with a batch handler already registered", t, func() {
+		cg := &ConsumerGroup{
+			mutex:        &sync.Mutex{},
+			batchHandler: func(ctx context.Context, batch []message.Message) error { return nil },
+		}
+
+		Convey("Then trying to register another batch handler fails with the expected error", func() {
+			testBatchHandler := func(ctx context.Context, batch []message.Message) error { return nil }
+			err := cg.RegisterBatchHandler(ctx, testBatchHandler)
+			So(err.Error(), ShouldEqual, "failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
 		})
 	})
 }

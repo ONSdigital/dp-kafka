@@ -8,8 +8,10 @@ import (
 )
 
 var (
-	defaultMessageConsumeTimeout = time.Second * 10
+	defaultMessageConsumeTimeout = 10 * time.Second
 	defaultNumWorkers            = 1
+	defaultBatchSize             = 1
+	defaultBatchWaitTime         = 200 * time.Millisecond
 )
 
 // ConsumerGroupConfig exposes the configurable parameters for a consumer group
@@ -30,10 +32,12 @@ type ConsumerGroupConfig struct {
 	MessageConsumeTimeout *time.Duration
 
 	// dp-kafka specific config overrides
-	NumWorkers  *int
-	Topic       string
-	GroupName   string
-	BrokerAddrs []string
+	NumWorkers    *int
+	BatchSize     *int
+	BatchWaitTime *time.Duration
+	Topic         string
+	GroupName     string
+	BrokerAddrs   []string
 }
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
@@ -80,6 +84,12 @@ func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
 	// Override any other optional value
 	if c.NumWorkers == nil {
 		c.NumWorkers = &defaultNumWorkers
+	}
+	if c.BatchSize == nil {
+		c.BatchSize = &defaultBatchSize
+	}
+	if c.BatchWaitTime == nil {
+		c.BatchWaitTime = &defaultBatchWaitTime
 	}
 
 	return cfg, nil

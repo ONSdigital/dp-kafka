@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/ONSdigital/dp-kafka/v3/message"
+	mock "github.com/ONSdigital/dp-kafka/v3/message/mock"
 )
 
 var _ message.Message = (*Message)(nil)
@@ -21,7 +22,7 @@ type mInternal struct {
 // Message allows a mock message to return the configured data, and capture whether commit has been called.
 type Message struct {
 	*mInternal
-	*MessageMock
+	*mock.MessageMock
 }
 
 // NewMessage returns a new mock message containing the given data.
@@ -36,7 +37,7 @@ func NewMessage(data []byte, offset int64) *Message {
 	}
 	return &Message{
 		internal,
-		&MessageMock{
+		&mock.MessageMock{
 			GetDataFunc:          internal.getDataFunc,
 			MarkFunc:             internal.markFunc,
 			CommitFunc:           internal.commitFunc,

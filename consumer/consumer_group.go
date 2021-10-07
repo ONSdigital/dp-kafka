@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -43,15 +44,18 @@ type ConsumerGroup struct {
 	mutex           *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
 	wgClose         *sync.WaitGroup
 	handler         Handler
+	batchHandler    BatchHandler
 	numWorkers      int
+	batchSize       int
+	batchWaitTime   time.Duration
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
-func NewConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, h Handler) (*ConsumerGroup, error) {
-	return newConsumerGroup(ctx, cgConfig, h, saramaNewConsumerGroup)
+func NewConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig) (*ConsumerGroup, error) {
+	return newConsumerGroup(ctx, cgConfig, saramaNewConsumerGroup)
 }
 
-func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, h Handler, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
+func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -62,21 +66,28 @@ func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig,
 		return nil, err
 	}
 
+	// upstream buffer size the maximum between number of workers and batch size
+	upstreamBufferSize := *cgConfig.NumWorkers
+	if *cgConfig.BatchSize > *cgConfig.NumWorkers {
+		upstreamBufferSize = *cgConfig.BatchSize
+	}
+
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
-		brokerAddrs:  cgConfig.BrokerAddrs,
-		brokers:      []health.SaramaBroker{},
-		channels:     CreateConsumerGroupChannels(*cgConfig.NumWorkers),
-		topic:        cgConfig.Topic,
-		group:        cgConfig.GroupName,
-		state:        NewConsumerStateMachine(Initialising),
-		initialState: Stopped,
-		saramaConfig: cfg,
-		mutex:        &sync.Mutex{},
-		wgClose:      &sync.WaitGroup{},
-		saramaCgInit: cgInit,
-		numWorkers:   *cgConfig.NumWorkers,
-		handler:      h,
+		brokerAddrs:   cgConfig.BrokerAddrs,
+		brokers:       []health.SaramaBroker{},
+		channels:      CreateConsumerGroupChannels(upstreamBufferSize),
+		topic:         cgConfig.Topic,
+		group:         cgConfig.GroupName,
+		state:         NewConsumerStateMachine(Initialising),
+		initialState:  Stopped,
+		saramaConfig:  cfg,
+		mutex:         &sync.Mutex{},
+		wgClose:       &sync.WaitGroup{},
+		saramaCgInit:  cgInit,
+		numWorkers:    *cgConfig.NumWorkers,
+		batchSize:     *cgConfig.BatchSize,
+		batchWaitTime: *cgConfig.BatchWaitTime,
 	}
 
 	// disable metrics to prevent memory leak on broker.Open()
@@ -111,6 +122,28 @@ func (cg *ConsumerGroup) State() string {
 		return ""
 	}
 	return cg.state.String()
+}
+
+func (cg *ConsumerGroup) RegisterHandler(ctx context.Context, h Handler) error {
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+	if cg.handler != nil || cg.batchHandler != nil {
+		return errors.New("failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
+	}
+	cg.handler = h
+	cg.listen(ctx)
+	return nil
+}
+
+func (cg *ConsumerGroup) RegisterBatchHandler(ctx context.Context, batchHandler BatchHandler) error {
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+	if cg.handler != nil || cg.batchHandler != nil {
+		return errors.New("failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
+	}
+	cg.batchHandler = batchHandler
+	cg.listenBatch(ctx)
+	return nil
 }
 
 // Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
@@ -455,9 +488,6 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 			}
 		}
 	}()
-
-	// start listening to the Upstream channel (one go-routine per worker)
-	cg.listen(ctx)
 }
 
 // createErrorLoop creates a goroutine to consume errors returned by Sarama to the Errors channel.
