@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ONSdigital/dp-kafka/v3/config"
@@ -48,7 +49,7 @@ func main() {
 
 func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Interrupt, os.Kill)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	var cancel context.CancelFunc
 	ctx, cancel = context.WithCancel(ctx)
 	go func() {
@@ -86,6 +87,8 @@ func getProducerConfig(cfg *Config) *config.ProducerConfig {
 	pCfg := &config.ProducerConfig{
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
 		KafkaVersion:    &cfg.KafkaVersion,
+		BrokerAddrs:     cfg.Brokers,
+		Topic:           cfg.ProducedTopic,
 	}
 	if cfg.KafkaSecProtocol == "TLS" {
 		pCfg.SecurityConfig = config.GetSecurityConfig(
@@ -107,7 +110,7 @@ func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*
 	// Create Producer with channels and config
 	pChannels := producer.CreateProducerChannels()
 	pConfig := getProducerConfig(cfg)
-	producer, err := producer.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
+	producer, err := producer.NewProducer(ctx, pConfig)
 	if err != nil {
 		return nil, err
 	}

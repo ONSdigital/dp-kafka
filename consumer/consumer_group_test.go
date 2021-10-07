@@ -13,7 +13,6 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/consumer/mock"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	healthMock "github.com/ONSdigital/dp-kafka/v3/health/mock"
-	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -32,33 +31,24 @@ func TestConsumerCreationError(t *testing.T) {
 	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
 		wrongVersion := "wrongVersion"
 		consumer, err := newConsumerGroup(
-			ctx, testBrokers, testTopic, testGroup,
-			nil,
-			&config.ConsumerGroupConfig{KafkaVersion: &wrongVersion},
-			nil,
-		)
-		So(consumer, ShouldBeNil)
-		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
-	})
-
-	Convey("Providing an incomplete ConsumerGroupChannels struct results in an ErrNoChannel error and consumer will not be initialised", t, func() {
-		consumer, err := newConsumerGroup(
-			ctx, testBrokers, testTopic, testGroup,
-			&ConsumerGroupChannels{
-				Upstream: make(chan message.Message),
+			ctx,
+			&config.ConsumerGroupConfig{
+				KafkaVersion: &wrongVersion,
+				Topic:        testTopic,
+				GroupName:    testGroup,
+				BrokerAddrs:  testBrokers,
 			},
 			nil,
 			nil,
 		)
 		So(consumer, ShouldBeNil)
-		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Consume, Closer, Closed}})
+		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
 	})
 }
 
 func TestConsumerInitialised(t *testing.T) {
 
 	Convey("Given a correct initialization of a Kafka Consumer Group", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
 		chConsumeCalled := make(chan struct{})
 		saramaConsumerGroupMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cgInitCalls := 0
@@ -67,13 +57,21 @@ func TestConsumerInitialised(t *testing.T) {
 			return saramaConsumerGroupMock, nil
 		}
 
-		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, channels, nil, cgInit)
+		consumer, err := newConsumerGroup(
+			ctx,
+			&config.ConsumerGroupConfig{
+				BrokerAddrs: testBrokers,
+				Topic:       testTopic,
+				GroupName:   testGroup,
+			},
+			nil,
+			cgInit)
 
 		Convey("Consumer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
 			So(consumer, ShouldNotBeNil)
-			So(channels.Upstream, ShouldEqual, channels.Upstream)
-			So(channels.Errors, ShouldEqual, channels.Errors)
+			So(consumer.Channels().Upstream, ShouldNotBeNil)
+			So(consumer.Channels().Errors, ShouldNotBeNil)
 			So(cgInitCalls, ShouldEqual, 1)
 			So(consumer.IsInitialised(), ShouldBeTrue)
 		})
@@ -85,7 +83,7 @@ func TestConsumerInitialised(t *testing.T) {
 		})
 
 		Convey("The consumer is in 'stopped' state by default", func() {
-			<-channels.Ready // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
+			<-consumer.Channels().Ready // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
 			So(consumer.state.Get(), ShouldEqual, Stopped)
 		})
 
@@ -94,8 +92,8 @@ func TestConsumerInitialised(t *testing.T) {
 				return nil
 			}
 			consumer.Close(ctx)
-			validateChanClosed(c, channels.Closer, true)
-			validateChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, consumer.Channels().Closer, true)
+			validateChanClosed(c, consumer.Channels().Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
 		})
 	})
@@ -104,19 +102,26 @@ func TestConsumerInitialised(t *testing.T) {
 func TestConsumerNotInitialised(t *testing.T) {
 
 	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
 		cgInitCalls := 0
 		cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
 			cgInitCalls++
 			return nil, errNoBrokers
 		}
-		consumer, err := newConsumerGroup(ctx, testBrokers, testTopic, testGroup, channels, nil, cgInit)
+		consumer, err := newConsumerGroup(
+			ctx,
+			&config.ConsumerGroupConfig{
+				BrokerAddrs: testBrokers,
+				Topic:       testTopic,
+				GroupName:   testGroup,
+			},
+			nil,
+			cgInit)
 
 		Convey("Consumer is partially created with channels and checker, but it is not initialised", func() {
 			So(err, ShouldBeNil)
 			So(consumer, ShouldNotBeNil)
-			So(channels.Upstream, ShouldEqual, channels.Upstream)
-			So(channels.Errors, ShouldEqual, channels.Errors)
+			So(consumer.Channels().Upstream, ShouldNotBeNil)
+			So(consumer.Channels().Errors, ShouldNotBeNil)
 			So(cgInitCalls, ShouldEqual, 1)
 			So(consumer.IsInitialised(), ShouldBeFalse)
 		})
@@ -129,8 +134,8 @@ func TestConsumerNotInitialised(t *testing.T) {
 
 		Convey("Closing the consumer closes the caller channels", func(c C) {
 			consumer.Close(ctx)
-			validateChanClosed(c, channels.Closer, true)
-			validateChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, consumer.Channels().Closer, true)
+			validateChanClosed(c, consumer.Channels().Closed, true)
 		})
 	})
 }

@@ -1,10 +1,7 @@
 package consumer
 
 import (
-	"context"
-
 	"github.com/ONSdigital/dp-kafka/v3/message"
-	"github.com/ONSdigital/log.go/v2/log"
 )
 
 // channel names
@@ -54,21 +51,6 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 		return &ErrNoChannel{ChannelNames: missingChannels}
 	}
 	return nil
-}
-
-// LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
-// Provided context and errMsg will be used in the log Event.
-func (consumerChannels *ConsumerGroupChannels) LogErrors(ctx context.Context, errMsg string) {
-	go func() {
-		for {
-			select {
-			case err := <-consumerChannels.Errors:
-				log.Error(ctx, errMsg, err)
-			case <-consumerChannels.Closer:
-				return
-			}
-		}
-	}()
 }
 
 // CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels.

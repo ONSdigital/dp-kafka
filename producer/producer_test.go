@@ -75,39 +75,24 @@ func GetFromSaramaChans(
 	}
 }
 
-// TestProducerMissingChannels checks wrong producer creation because of channels not provided by caller
-func TestProducerMissingChannels(t *testing.T) {
-
+func TestProducerWrongConfig(t *testing.T) {
 	Convey("Providing an invalid config (kafka version) results in an error being returned and consumer not being initialised", t, func() {
 		wrongVersion := "wrongVersion"
 		producer, err := newProducer(
-			ctx, testBrokers, testTopic,
-			nil,
-			&config.ProducerConfig{KafkaVersion: &wrongVersion},
+			ctx,
+			&config.ProducerConfig{
+				KafkaVersion: &wrongVersion,
+				BrokerAddrs:  testBrokers,
+				Topic:        testTopic,
+			},
 			nil,
 		)
 		So(producer, ShouldBeNil)
 		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
 	})
-
-	Convey("Providing an invalid ProducerChannels struct results in an ErrNoChannel error and producer will not be initialised", t, func() {
-		producer, err := newProducer(
-			ctx, testBrokers, testTopic,
-			&ProducerChannels{
-				Output: make(chan []byte),
-			},
-			nil,
-			nil,
-		)
-		So(producer, ShouldBeNil)
-		So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Closer, Closed}})
-		So(producer.IsInitialised(), ShouldBeFalse)
-	})
 }
 
-// TestProducer checks that messages, errors, and closing events are correctly directed to the expected channels
 func TestProducer(t *testing.T) {
-
 	Convey("Given a correct initialization of a Kafka Producer", t, func() {
 		chSaramaErr, chSaramaIn := createSaramaChannels()
 		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
@@ -116,18 +101,24 @@ func TestProducer(t *testing.T) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}
-		channels := CreateProducerChannels()
-		producer, err := newProducer(ctx, testBrokers, testTopic, channels, nil, pInit)
+		producer, err := newProducer(
+			ctx,
+			&config.ProducerConfig{
+				BrokerAddrs: testBrokers,
+				Topic:       testTopic,
+			},
+			pInit,
+		)
 
 		Convey("Producer is correctly created and initialised without error", func(c C) {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
-			So(channels.Output, ShouldEqual, channels.Output)
-			So(channels.Errors, ShouldEqual, channels.Errors)
+			So(producer.Channels().Output, ShouldEqual, producer.Channels().Output)
+			So(producer.Channels().Errors, ShouldEqual, producer.Channels().Errors)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeTrue)
-			validateChanClosed(c, channels.Ready, true)
+			validateChanClosed(c, producer.Channels().Ready, true)
 		})
 
 		Convey("We cannot initialise producer again", func() {
@@ -140,7 +131,7 @@ func TestProducer(t *testing.T) {
 
 			// Send message to local kafka output chan
 			message := "HELLO"
-			channels.Output <- []byte(message)
+			producer.Channels().Output <- []byte(message)
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -162,14 +153,14 @@ func TestProducer(t *testing.T) {
 				Err: errors.New("error text"),
 			}
 			chSaramaErr <- producerError
-			validateChannelReceivesError(channels.Errors, producerError)
+			validateChannelReceivesError(producer.Channels().Errors, producerError)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
 		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
 			producer.Close(ctx)
-			validateChanClosed(c, channels.Closer, true)
-			validateChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, producer.Channels().Closer, true)
+			validateChanClosed(c, producer.Channels().Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
 		})
 	})
@@ -213,24 +204,29 @@ func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
 }
 
 func TestProducerNotInitialised(t *testing.T) {
-
 	Convey("Given that Sarama fails to create a new AsyncProducer while we initialise our Producer", t, func() {
-		channels := CreateProducerChannels()
 		pInitCalls := 0
 		pInit := func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error) {
 			pInitCalls++
 			return nil, ErrSaramaNoBrokers
 		}
-		producer, err := newProducer(ctx, testBrokers, testTopic, channels, nil, pInit)
+		producer, err := newProducer(
+			ctx,
+			&config.ProducerConfig{
+				BrokerAddrs: testBrokers,
+				Topic:       testTopic,
+			},
+			pInit,
+		)
 
 		Convey("Producer is partially created with channels and checker and is not initialised", func(c C) {
 			So(err, ShouldBeNil)
 			So(producer, ShouldNotBeNil)
-			So(channels.Output, ShouldEqual, channels.Output)
-			So(channels.Errors, ShouldEqual, channels.Errors)
+			So(producer.Channels().Output, ShouldEqual, producer.Channels().Output)
+			So(producer.Channels().Errors, ShouldEqual, producer.Channels().Errors)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeFalse)
-			validateChanClosed(c, channels.Ready, false)
+			validateChanClosed(c, producer.Channels().Ready, false)
 		})
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
@@ -239,19 +235,19 @@ func TestProducerNotInitialised(t *testing.T) {
 			So(pInitCalls, ShouldEqual, 2)
 		})
 
-		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
+		Convey("Messages from the caller's output channel are redirected to Error channel", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			channels.Output <- []byte(message)
+			producer.Channels().Output <- []byte(message)
 
 			// Read and validate error
-			validateChannelReceivesError(channels.Errors, ErrUninitialisedProducer)
+			validateChannelReceivesError(producer.Channels().Errors, ErrUninitialisedProducer)
 		})
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
 			producer.Close(ctx)
-			validateChanClosed(c, channels.Closer, true)
-			validateChanClosed(c, channels.Closed, true)
+			validateChanClosed(c, producer.Channels().Closer, true)
+			validateChanClosed(c, producer.Channels().Closed, true)
 		})
 	})
 }

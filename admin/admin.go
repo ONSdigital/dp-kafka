@@ -25,8 +25,8 @@ type TopicAuthList struct {
 type Acls []*sarama.AclCreation
 
 // NewAdmin creates an admin-based client
-func NewAdmin(brokerAddrs []string, pConfig *config.AdminConfig) (sarama.ClusterAdmin, error) {
-	config, err := config.GetAdminConfig(pConfig)
+func NewAdmin(brokerAddrs []string, adminCfg *config.AdminConfig) (sarama.ClusterAdmin, error) {
+	config, err := adminCfg.Get()
 	if err != nil {
 		return nil, err
 	}

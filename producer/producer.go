@@ -40,26 +40,18 @@ type Producer struct {
 
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
-func NewProducer(ctx context.Context, brokerAddrs []string, topic string,
-	channels *ProducerChannels, pConfig *config.ProducerConfig) (producer *Producer, err error) {
-	return newProducer(ctx, brokerAddrs, topic, channels, pConfig, saramaNewAsyncProducer)
+func NewProducer(ctx context.Context, pConfig *config.ProducerConfig) (producer *Producer, err error) {
+	return newProducer(ctx, pConfig, saramaNewAsyncProducer)
 }
 
-func newProducer(ctx context.Context, brokerAddrs []string, topic string,
-	channels *ProducerChannels, pConfig *config.ProducerConfig, pInit producerInitialiser) (*Producer, error) {
+func newProducer(ctx context.Context, pConfig *config.ProducerConfig, pInit producerInitialiser) (*Producer, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Create Config
-	config, err := config.GetProducerConfig(pConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate provided channels and assign them to producer. ErrNoChannel should be considered fatal by caller.
-	err = channels.Validate()
+	// Create Sarama config and set any other default values
+	config, err := pConfig.Get()
 	if err != nil {
 		return nil, err
 	}
@@ -67,21 +59,20 @@ func newProducer(ctx context.Context, brokerAddrs []string, topic string,
 	// Producer initialised with provided brokers and topic
 	producer := &Producer{
 		producerInit: pInit,
-		brokerAddrs:  brokerAddrs,
+		brokerAddrs:  pConfig.BrokerAddrs,
+		channels:     CreateProducerChannels(),
 		brokers:      []health.SaramaBroker{},
-		topic:        topic,
+		topic:        pConfig.Topic,
 		config:       config,
 		mutex:        &sync.Mutex{},
 		wgClose:      &sync.WaitGroup{},
 	}
 
-	producer.channels = channels
-
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true
 
 	// Create broker objects
-	for _, addr := range brokerAddrs {
+	for _, addr := range pConfig.BrokerAddrs {
 		producer.brokers = append(producer.brokers, sarama.NewBroker(addr))
 	}
 
@@ -95,9 +86,6 @@ func newProducer(ctx context.Context, brokerAddrs []string, topic string,
 
 // Channels returns the Producer channels for this producer
 func (p *Producer) Channels() *ProducerChannels {
-	if p == nil {
-		return nil
-	}
 	return p.channels
 }
 
@@ -113,9 +101,6 @@ func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) e
 
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
 func (p *Producer) IsInitialised() bool {
-	if p == nil {
-		return false
-	}
 	return p.producer != nil
 }
 

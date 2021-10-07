@@ -84,38 +84,36 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
 	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
-	// Create ConsumerGroup with channels and config
-	cgChannels := consumer.CreateConsumerGroupChannels(cfg.KafkaBatchSize)
-	cgConfig := &config.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
-	cg, err := consumer.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
+	// Create ConsumerGroup config without handler
+	cgConfig := &config.ConsumerGroupConfig{
+		BrokerAddrs:  cfg.Brokers,
+		Topic:        cfg.ConsumedTopic,
+		GroupName:    cfg.ConsumedGroup,
+		KafkaVersion: &cfg.KafkaVersion,
+	}
+	cg, err := consumer.NewConsumerGroup(ctx, cgConfig, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// go-routine to log errors from error channel
-	cgChannels.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
-
-	// Consumer not initialised at creation time. We need to retry to initialise it.
-	if !cg.IsInitialised() {
-		if cfg.WaitForConsumerReady {
-			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Waiting until we can initialise it.")
-			waitForInitialised(ctx, cg.Channels())
-		} else {
-			log.Warn(ctx, "[KAFKA-TEST] Consumer could not be initialised at creation time. Will be initialised later.")
-			go waitForInitialised(ctx, cg.Channels())
-		}
-	}
+	cg.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
 
 	// eventLoop to consumer messages from Upstream channel by sending them the workers
 	go func() {
 		for {
 			<-time.After(ticker)
-			log.Info(ctx, "[KAFKA-TEST] tick")
+			log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
+				"state": cg.State(),
+			})
 		}
 	}()
 
+	// start consuming now
+	cg.Start()
+
 	// consume messages (main loop)
-	go consume(ctx, cfg, cgChannels.Upstream)
+	go consume(ctx, cfg, cg.Channels().Upstream)
 
 	return cg, nil
 }

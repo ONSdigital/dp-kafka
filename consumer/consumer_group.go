@@ -39,56 +39,51 @@ type ConsumerGroup struct {
 	group           string
 	initialState    State // target state for a consumer that is still being initialised
 	state           *StateMachine
-	config          *sarama.Config
+	saramaConfig    *sarama.Config
 	mutex           *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
 	wgClose         *sync.WaitGroup
+	handler         Handler
+	numWorkers      int
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
-func NewConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
-	channels *ConsumerGroupChannels, cgConfig *config.ConsumerGroupConfig) (*ConsumerGroup, error) {
-	return newConsumerGroup(ctx, brokerAddrs, topic, group, channels, cgConfig, saramaNewConsumerGroup)
+func NewConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, h Handler) (*ConsumerGroup, error) {
+	return newConsumerGroup(ctx, cgConfig, h, saramaNewConsumerGroup)
 }
 
-func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
-	channels *ConsumerGroupChannels, cgConfig *config.ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
-
+func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, h Handler, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	// Create config
-	config, err := config.GetConsumerGroupConfig(cgConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	// Validate provided channels and assign them to consumer group. ErrNoChannel should be considered fatal by caller.
-	err = channels.Validate()
+	// Create sarama config and set any other necessary values
+	cfg, err := cgConfig.Get()
 	if err != nil {
 		return nil, err
 	}
 
 	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
-		brokerAddrs:  brokerAddrs,
+		brokerAddrs:  cgConfig.BrokerAddrs,
 		brokers:      []health.SaramaBroker{},
-		channels:     channels,
-		topic:        topic,
-		group:        group,
+		channels:     CreateConsumerGroupChannels(*cgConfig.NumWorkers),
+		topic:        cgConfig.Topic,
+		group:        cgConfig.GroupName,
 		state:        NewConsumerStateMachine(Initialising),
 		initialState: Stopped,
-		config:       config,
+		saramaConfig: cfg,
 		mutex:        &sync.Mutex{},
 		wgClose:      &sync.WaitGroup{},
 		saramaCgInit: cgInit,
+		numWorkers:   *cgConfig.NumWorkers,
+		handler:      h,
 	}
 
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true
 
 	// Create broker objects
-	for _, addr := range brokerAddrs {
+	for _, addr := range cg.brokerAddrs {
 		cg.brokers = append(cg.brokers, sarama.NewBroker(addr))
 	}
 
@@ -102,17 +97,11 @@ func newConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group st
 
 // Channels returns the ConsumerGroup channels for this consumer group
 func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
-	if cg == nil {
-		return nil
-	}
 	return cg.channels
 }
 
 // IsInitialised returns true only if Sarama ConsumerGroup has been correctly initialised.
 func (cg *ConsumerGroup) IsInitialised() bool {
-	if cg == nil {
-		return false
-	}
 	return cg.saramaCg != nil
 }
 
@@ -126,7 +115,7 @@ func (cg *ConsumerGroup) State() string {
 
 // Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
 func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckState) error {
-	if err := health.Healthcheck(ctx, cg.brokers, cg.topic, cg.config); err != nil {
+	if err := health.Healthcheck(ctx, cg.brokers, cg.topic, cg.saramaConfig); err != nil {
 		state.Update(healthcheck.StatusCritical, err.Error(), 0)
 		return nil
 	}
@@ -145,7 +134,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	}
 
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
-	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.config)
+	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.saramaConfig)
 	if err != nil {
 		return err
 	}
@@ -210,6 +199,21 @@ func (cg *ConsumerGroup) Stop() {
 	default: // Closing state
 		return // the consumer is being closed, so it is already 'stopped'
 	}
+}
+
+// LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
+// Provided context and errMsg will be used in the log Event.
+func (cg *ConsumerGroup) LogErrors(ctx context.Context, errMsg string) {
+	go func() {
+		for {
+			select {
+			case err := <-cg.channels.Errors:
+				log.Error(ctx, errMsg, err)
+			case <-cg.channels.Closer:
+				return
+			}
+		}
+	}()
 }
 
 // Close safely closes the consumer and releases all resources.
@@ -432,6 +436,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	cg.state.Set(cg.initialState)
 	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state.String()}
 
+	// create loop according to state
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
@@ -450,6 +455,9 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 			}
 		}
 	}()
+
+	// start listening to the Upstream channel (one go-routine per worker)
+	cg.listen(ctx)
 }
 
 // createErrorLoop creates a goroutine to consume errors returned by Sarama to the Errors channel.

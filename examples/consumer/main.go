@@ -5,7 +5,6 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -21,13 +20,12 @@ const serviceName = "kafka-example-consumer"
 
 // Config is the kafka configuration for this example
 type Config struct {
-	Brokers               []string `envconfig:"KAFKA_ADDR"`
-	KafkaMaxBytes         int      `envconfig:"KAFKA_MAX_BYTES"`
-	KafkaVersion          string   `envconfig:"KAFKA_VERSION"`
-	KafkaParallelMessages int      `envconfig:"KAFKA_PARALLEL_MESSAGES"`
-	ConsumedTopic         string   `envconfig:"KAFKA_CONSUMED_TOPIC"`
-	ConsumedGroup         string   `envconfig:"KAFKA_CONSUMED_GROUP"`
-	// WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
+	Brokers                 []string      `envconfig:"KAFKA_ADDR"`
+	KafkaMaxBytes           int           `envconfig:"KAFKA_MAX_BYTES"`
+	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
+	KafkaParallelMessages   int           `envconfig:"KAFKA_PARALLEL_MESSAGES"`
+	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
+	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
@@ -45,7 +43,6 @@ const (
 
 // consumeCount keeps track of the total number of consumed messages
 var consumeCount = 0
-var goRoutinesOffset = 0
 
 func main() {
 	log.Namespace = serviceName
@@ -63,13 +60,12 @@ func run(ctx context.Context) error {
 
 	// Read Config
 	cfg := &Config{
-		Brokers:               []string{"localhost:9092", "localhost:9093", "localhost:9094"},
-		KafkaMaxBytes:         50 * 1024 * 1024,
-		KafkaVersion:          "1.0.2",
-		KafkaParallelMessages: 3,
-		ConsumedTopic:         "myTopic",
-		ConsumedGroup:         log.Namespace,
-		// WaitForConsumerReady:    false,
+		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
+		KafkaMaxBytes:           50 * 1024 * 1024,
+		KafkaVersion:            "1.0.2",
+		KafkaParallelMessages:   3,
+		ConsumedTopic:           "myTopic",
+		ConsumedGroup:           log.Namespace,
 		GracefulShutdownTimeout: 5 * time.Second,
 		Snooze:                  true,
 		OverSleep:               false,
@@ -90,75 +86,66 @@ func run(ctx context.Context) error {
 	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
 }
 
+type Handler struct {
+	cfg *Config
+}
+
+func (h *Handler) h(ctx context.Context, workerID int, msg message.Message) error {
+	consumeCount++
+	logData := log.Data{"consumeCount": consumeCount, "messageOffset": msg.Offset(), "worker_id": workerID}
+	log.Info(ctx, "[KAFKA-TEST] Received message", logData)
+
+	consumedData := msg.GetData()
+	logData["messageString"] = string(consumedData)
+	logData["messageRaw"] = consumedData
+	logData["messageLen"] = len(consumedData)
+
+	// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
+	sleepIfRequired(ctx, h.cfg, logData)
+	return nil
+}
+
 func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup, error) {
 	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
 	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
 
-	goRoutinesOffset = runtime.NumGoroutine()
+	// Create handler
+	ha := Handler{
+		cfg: cfg,
+	}
 
-	// Create ConsumerGroup with channels and config
-	cgChannels := consumer.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cgConfig := &config.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
-	cg, err := consumer.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
+	// Create ConsumerGroup with config
+	cgConfig := &config.ConsumerGroupConfig{
+		BrokerAddrs:  cfg.Brokers,
+		Topic:        cfg.ConsumedTopic,
+		GroupName:    cfg.ConsumedGroup,
+		KafkaVersion: &cfg.KafkaVersion,
+	}
+	cg, err := consumer.NewConsumerGroup(ctx, cgConfig, ha.h)
 	if err != nil {
 		return nil, err
 	}
 
 	// go-routine to log errors from error channel
-	cgChannels.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
-	goRoutinesOffset++
+	cg.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
 
-	// eventLoop to consumer messages from Upstream channel by sending them the workers
+	// ticker to show the consumer state periodically
 	go func() {
 		for {
 			<-time.After(ticker)
 			log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
-				// "goroutines": runtime.NumGoroutine() - goRoutinesOffset,
 				"state": cg.State(),
 			})
 		}
 	}()
-	goRoutinesOffset++
-
-	// workers to consume messages in parallel
-	for w := 1; w <= cfg.KafkaParallelMessages; w++ {
-		go consume(ctx, cfg, w, cgChannels.Upstream)
-	}
-	goRoutinesOffset += cfg.KafkaParallelMessages
 
 	// start consuming now
-	cg.Channels().Consume <- true
+	cg.Start()
 
 	// create loop to start-stop the consumer periodically according to pre-defined constants
 	createStartStopLoop(ctx, cg)
-	goRoutinesOffset++
 
 	return cg, nil
-}
-
-// consume waits for messages to arrive to the upstream channel and consumes them, in an infinite loop
-func consume(ctx context.Context, cfg *Config, id int, upstream chan message.Message) {
-	log.Info(ctx, "starting consumer worker", log.Data{"worker_id": id})
-	for {
-		consumedMessage, ok := <-upstream
-		if !ok {
-			break
-		}
-		consumeCount++
-		logData := log.Data{"consumeCount": consumeCount, "messageOffset": consumedMessage.Offset(), "worker_id": id}
-		log.Info(ctx, "[KAFKA-TEST] Received message", logData)
-
-		consumedData := consumedMessage.GetData()
-		logData["messageString"] = string(consumedData)
-		logData["messageRaw"] = consumedData
-		logData["messageLen"] = len(consumedData)
-
-		// Allows us to dictate the process for shutting down and how fast we consume messages in this example app, (should not be used in applications)
-		sleepIfRequired(ctx, cfg, logData)
-
-		consumedMessage.CommitAndRelease()
-		log.Info(ctx, "[KAFKA-TEST] committed and released message", logData)
-	}
 }
 
 func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
@@ -207,8 +194,7 @@ func createStartStopLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
 			select {
 			case <-time.After(startStop):
 				logData := log.Data{
-					"goroutines": runtime.NumGoroutine() - goRoutinesOffset,
-					"state":      cg.State(),
+					"state": cg.State(),
 				}
 				cnt++
 				switch cg.State() {
