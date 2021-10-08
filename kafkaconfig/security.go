@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"crypto/tls"
@@ -17,16 +17,16 @@ const certPrefix = "-----BEGIN " // magic string for PEM/Cert/Key (when not file
 // ErrTLSCannotLoadCACerts is returned when the certs file cannot be loaded
 var ErrTLSCannotLoadCACerts = errors.New("cannot load CA Certs")
 
-// SecurityConfig is common to producers and consumer configs, above
-type SecurityConfig struct {
+// Security is common to producers and consumer configs, above
+type Security struct {
 	RootCACerts        string
 	ClientCert         string
 	ClientKey          string
 	InsecureSkipVerify bool
 }
 
-func GetSecurityConfig(caCerts, clientCert, clientKey string, skipVerify bool) *SecurityConfig {
-	return &SecurityConfig{
+func GetSecurityConfig(caCerts, clientCert, clientKey string, skipVerify bool) *Security {
+	return &Security{
 		RootCACerts:        caCerts,
 		ClientCert:         clientCert,
 		ClientKey:          clientKey,
@@ -38,7 +38,7 @@ func expandNewlines(s string) string {
 	return strings.ReplaceAll(s, `\n`, "\n")
 }
 
-func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err error) {
+func addAnyTLS(tlsConfig *Security, saramaConfig *sarama.Config) (err error) {
 	if tlsConfig == nil {
 		return
 	}

@@ -70,21 +70,3 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 	sm.state = newState
 	return nil
 }
-
-// SetIfNot sets the state machine to the provided state value only if the current state is NOT one of the values provided in the list
-func (sm *StateMachine) SetIfNot(forbidden []State, newState State) error {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
-	transitionAllowed := true
-	for _, valid := range forbidden {
-		if sm.state == valid {
-			transitionAllowed = false
-			break
-		}
-	}
-	if !transitionAllowed {
-		return fmt.Errorf("state transition from %s to %s is not allowed", sm.state.String(), newState.String())
-	}
-	sm.state = newState
-	return nil
-}

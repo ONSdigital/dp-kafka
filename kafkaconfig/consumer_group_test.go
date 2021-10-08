@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("getConsumerGroupConfig with a consumerGroupConfig with some values results in the expected values being overwritten in the default sarama config", func() {
-			cgConfig := &ConsumerGroupConfig{
+			cgConfig := &ConsumerGroup{
 				RetryBackoff: &testRetryBackoff,
 				Topic:        testTopic,
 				BrokerAddrs:  testBrokerAddrs,
@@ -44,13 +44,13 @@ func TestConsumerGroupConfig(t *testing.T) {
 			numWorkers := 3
 			batchSize := 50
 			batchWaitTime := 500 * time.Millisecond
-			cgConfig := &ConsumerGroupConfig{
+			cgConfig := &ConsumerGroup{
 				KafkaVersion:     &testKafkaVersion,
 				KeepAlive:        &testKeepAlive,
 				RetryBackoff:     &testRetryBackoff,
 				RetryBackoffFunc: &testConsumerRetryBackoffFunc,
 				Offset:           &testOffsetNewest,
-				SecurityConfig:   &SecurityConfig{},
+				SecurityConfig:   &Security{},
 				Topic:            testTopic,
 				BrokerAddrs:      testBrokerAddrs,
 				GroupName:        testGroupName,
@@ -82,7 +82,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 
 		Convey("getConsumerGroupConfig with consumerGroupConfig containing an invalid kafka version returns the expected error", func() {
 			wrongVersion := "wrongVersion"
-			cgConfig := &ConsumerGroupConfig{
+			cgConfig := &ConsumerGroup{
 				KafkaVersion: &wrongVersion,
 				Topic:        testTopic,
 				BrokerAddrs:  testBrokerAddrs,
@@ -95,7 +95,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 
 		Convey("getConsumerGroupConfig with consumerGroupConfig containing an invalid offset returns the expected error", func() {
 			wrongOffset := int64(678)
-			cgConfig := &ConsumerGroupConfig{
+			cgConfig := &ConsumerGroup{
 				Offset:      &wrongOffset,
 				Topic:       testTopic,
 				BrokerAddrs: testBrokerAddrs,

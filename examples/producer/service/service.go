@@ -8,9 +8,9 @@ import (
 	"os"
 	"time"
 
-	kafkaConfig "github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/examples/producer/config"
 	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/producer"
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -25,15 +25,15 @@ type Service struct {
 	producer *producer.Producer
 }
 
-func getProducerConfig(cfg *config.Config) *kafkaConfig.ProducerConfig {
-	pCfg := &kafkaConfig.ProducerConfig{
+func getProducerConfig(cfg *config.Config) *kafkaconfig.Producer {
+	pCfg := &kafkaconfig.Producer{
 		MaxMessageBytes: &cfg.KafkaMaxBytes,
 		KafkaVersion:    &cfg.KafkaVersion,
 		BrokerAddrs:     cfg.Brokers,
 		Topic:           cfg.ProducedTopic,
 	}
 	if cfg.KafkaSecProtocol == "TLS" {
-		pCfg.SecurityConfig = kafkaConfig.GetSecurityConfig(
+		pCfg.SecurityConfig = kafkaconfig.GetSecurityConfig(
 			cfg.KafkaSecCACerts,
 			cfg.KafkaSecClientCert,
 			cfg.KafkaSecClientKey,
@@ -49,7 +49,7 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 	svc.cfg = cfg
 
 	// Create Producer with channels and config
-	svc.producer, err = producer.NewProducer(ctx, getProducerConfig(cfg))
+	svc.producer, err = producer.New(ctx, getProducerConfig(cfg))
 	if err != nil {
 		return fmt.Errorf("error creating kafka consumer: %w", err)
 	}

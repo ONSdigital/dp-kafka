@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"time"

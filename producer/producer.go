@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -29,13 +29,13 @@ type Producer struct {
 	wgClose      *sync.WaitGroup
 }
 
-// NewProducer returns a new producer instance using the provided config and channels.
+// New returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
-func NewProducer(ctx context.Context, pConfig *config.ProducerConfig) (producer *Producer, err error) {
+func New(ctx context.Context, pConfig *kafkaconfig.Producer) (producer *Producer, err error) {
 	return newProducer(ctx, pConfig, saramaNewAsyncProducer)
 }
 
-func newProducer(ctx context.Context, pConfig *config.ProducerConfig, pInit producerInitialiser) (*Producer, error) {
+func newProducer(ctx context.Context, pConfig *kafkaconfig.Producer, pInit producerInitialiser) (*Producer, error) {
 
 	if ctx == nil {
 		ctx = context.Background()

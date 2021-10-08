@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"time"
@@ -6,18 +6,18 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// AdminConfig exposes the optional configurable parameters for an admin client to overwrite default Sarama config values.
+// Admin exposes the optional configurable parameters for an admin client to overwrite default Sarama config values.
 // Any value that is not provied will use the default Sarama config value.
-type AdminConfig struct {
+type Admin struct {
 	KafkaVersion   *string
 	KeepAlive      *time.Duration
 	RetryBackoff   *time.Duration
 	RetryMax       *int
-	SecurityConfig *SecurityConfig
+	SecurityConfig *Security
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
-func (a *AdminConfig) Get() (cfg *sarama.Config, err error) {
+func (a *Admin) Get() (cfg *sarama.Config, err error) {
 	cfg = sarama.NewConfig()
 	if a.KafkaVersion != nil {
 		if cfg.Version, err = sarama.ParseKafkaVersion(*a.KafkaVersion); err != nil {
@@ -40,6 +40,6 @@ func (a *AdminConfig) Get() (cfg *sarama.Config, err error) {
 }
 
 // Validate that compulsory values are provided in config
-func (a *AdminConfig) Validate() (err error) {
+func (a *Admin) Validate() (err error) {
 	return nil
 }

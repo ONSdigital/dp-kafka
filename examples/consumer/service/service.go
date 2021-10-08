@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	kafkaConfig "github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/consumer"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/config"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/handler"
 	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
@@ -38,7 +38,7 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 	}
 
 	// Create kafka consumer, passing relevant config
-	svc.consumer, err = consumer.NewConsumerGroup(ctx, &kafkaConfig.ConsumerGroupConfig{
+	svc.consumer, err = consumer.New(ctx, &kafkaconfig.ConsumerGroup{
 		BrokerAddrs:  cfg.Brokers,
 		Topic:        cfg.ConsumedTopic,
 		GroupName:    cfg.ConsumedGroup,

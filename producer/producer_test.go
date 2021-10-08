@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	healthMock "github.com/ONSdigital/dp-kafka/v3/health/mock"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/producer/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -80,7 +80,7 @@ func TestProducerWrongConfig(t *testing.T) {
 		wrongVersion := "wrongVersion"
 		producer, err := newProducer(
 			ctx,
-			&config.ProducerConfig{
+			&kafkaconfig.Producer{
 				KafkaVersion: &wrongVersion,
 				BrokerAddrs:  testBrokers,
 				Topic:        testTopic,
@@ -103,7 +103,7 @@ func TestProducer(t *testing.T) {
 		}
 		producer, err := newProducer(
 			ctx,
-			&config.ProducerConfig{
+			&kafkaconfig.Producer{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 			},
@@ -212,7 +212,7 @@ func TestProducerNotInitialised(t *testing.T) {
 		}
 		producer, err := newProducer(
 			ctx,
-			&config.ProducerConfig{
+			&kafkaconfig.Producer{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 			},

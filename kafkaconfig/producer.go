@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"errors"
@@ -7,9 +7,9 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
+// Producer exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
 // Any value that is not provied will use the default Sarama config value.
-type ProducerConfig struct {
+type Producer struct {
 	// Sarama config overrides
 	KafkaVersion     *string
 	MaxMessageBytes  *int
@@ -17,7 +17,7 @@ type ProducerConfig struct {
 	KeepAlive        *time.Duration
 	RetryBackoff     *time.Duration
 	RetryBackoffFunc *func(retries, maxRetries int) time.Duration
-	SecurityConfig   *SecurityConfig
+	SecurityConfig   *Security
 
 	// dp-kafka specific config
 	Topic       string
@@ -25,7 +25,7 @@ type ProducerConfig struct {
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
-func (p *ProducerConfig) Get() (cfg *sarama.Config, err error) {
+func (p *Producer) Get() (cfg *sarama.Config, err error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (p *ProducerConfig) Get() (cfg *sarama.Config, err error) {
 }
 
 // Validate that compulsory values are provided in config
-func (p *ProducerConfig) Validate() (err error) {
+func (p *Producer) Validate() (err error) {
 	if p.Topic == "" {
 		return errors.New("topic is compulsory but was not provided in config")
 	}

@@ -28,7 +28,7 @@ func TestSetup(t *testing.T) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := NewConsumerStateMachine(Starting)
-		cgHandler := NewSaramaCgHandler(ctx, channels, cgState)
+		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
 			MemberIDFunc: func() string { return "123456789" },
@@ -89,7 +89,7 @@ func TestControlRoutine(t *testing.T) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := NewConsumerStateMachine(Consuming)
-		cgHandler := NewSaramaCgHandler(ctx, channels, cgState)
+		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		close(channels.Ready)
 		cgHandler.chSessionConsuming = make(chan struct{})
 
@@ -158,7 +158,7 @@ func TestCleanup(t *testing.T) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := NewConsumerStateMachine(Consuming)
-		cgHandler := NewSaramaCgHandler(ctx, channels, cgState)
+		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
 			MemberIDFunc: func() string { return "123456789" },
@@ -213,7 +213,7 @@ func TestConsume(t *testing.T) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := NewConsumerStateMachine(Consuming)
-		cgHandler := NewSaramaCgHandler(ctx, channels, cgState)
+		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
 			MemberIDFunc: func() string { return "123456789" },

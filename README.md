@@ -23,10 +23,18 @@ Kafka producers and consumers can be created with constructors that accept the r
 ```
 
 ```go
-	// Create ConsumerGroup with channels and config
-	cgChannels := kafka.CreateConsumerGroupChannels(cfg.KafkaParallelMessages)
-	cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &cfg.KafkaVersion}
-	cg, err := kafka.NewConsumerGroup(ctx, cfg.Brokers, cfg.ConsumedTopic, cfg.ConsumedGroup, cgChannels, cgConfig)
+import (
+	kafkaConfig "github.com/ONSdigital/dp-kafka/v3/config"
+)
+
+// Create kafka consumer, passing relevant config
+cg, err := consumer.NewConsumerGroup(ctx, &kafkaConfig.ConsumerGroupConfig{
+	BrokerAddrs:  cfg.Brokers,       // compulsory
+	Topic:        cfg.ConsumedTopic, // compulsory
+	GroupName:    cfg.ConsumedGroup, // compulsory
+	KafkaVersion: &cfg.KafkaVersion,
+	NumWorkers:   &cfg.KafkaParallelMessages,
+})
 ```
 
 For consumers, you can specify the batch size that determines the number of messages to be stored in the Upstream channel. It is recommended to provide a batch size equal to the number of parallel messages that are consumed.

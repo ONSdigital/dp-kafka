@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ func TestProducerConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("getProducerConfig with a producerConfig with some values results in the expected values being overwritten in the default sarama config", func() {
-			pConfig := &ProducerConfig{
+			pConfig := &Producer{
 				MaxMessageBytes: &testMaxMessageBytes,
 				RetryBackoff:    &testRetryBackoff,
 				Topic:           testTopic,
@@ -33,14 +33,14 @@ func TestProducerConfig(t *testing.T) {
 		})
 
 		Convey("getProducerConfig with a valid fully-populated producerConfig results in the expected values being overwritten in the default sarama config", func() {
-			pConfig := &ProducerConfig{
+			pConfig := &Producer{
 				KafkaVersion:     &testKafkaVersion,
 				MaxMessageBytes:  &testMaxMessageBytes,
 				KeepAlive:        &testKeepAlive,
 				RetryMax:         &testRetryMax,
 				RetryBackoff:     &testRetryBackoff,
 				RetryBackoffFunc: &testProducerRetryBackoffFunc,
-				SecurityConfig: &SecurityConfig{
+				SecurityConfig: &Security{
 					InsecureSkipVerify: true,
 				},
 				Topic:       testTopic,
@@ -60,7 +60,7 @@ func TestProducerConfig(t *testing.T) {
 
 		Convey("getProducerConfig with producerConfig containing an invalid kafka version returns the expected error", func() {
 			wrongVersion := "wrongVersion"
-			pConfig := &ProducerConfig{
+			pConfig := &Producer{
 				KafkaVersion: &wrongVersion,
 				Topic:        testTopic,
 				BrokerAddrs:  testBrokerAddrs,
@@ -71,7 +71,7 @@ func TestProducerConfig(t *testing.T) {
 		})
 
 		Convey("getProducerConfig with producerConfig without a compulsory value returns the expected error", func() {
-			pConfig := &ProducerConfig{
+			pConfig := &Producer{
 				Topic: testTopic,
 			}
 			config, err := pConfig.Get()
@@ -83,7 +83,7 @@ func TestProducerConfig(t *testing.T) {
 
 func TestProducerValidate(t *testing.T) {
 	Convey("Validating a producer config without BrokerAddrs returns the expected error", t, func() {
-		pConfig := &ProducerConfig{
+		pConfig := &Producer{
 			Topic: testTopic,
 		}
 		err := pConfig.Validate()
@@ -91,7 +91,7 @@ func TestProducerValidate(t *testing.T) {
 	})
 
 	Convey("Validating a producer config without Topic returns the expected error", t, func() {
-		pConfig := &ProducerConfig{
+		pConfig := &Producer{
 			BrokerAddrs: testBrokerAddrs,
 		}
 		err := pConfig.Validate()

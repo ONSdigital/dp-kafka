@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/consumer/mock"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	healthMock "github.com/ONSdigital/dp-kafka/v3/health/mock"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -32,7 +32,7 @@ func TestConsumerCreationError(t *testing.T) {
 		wrongVersion := "wrongVersion"
 		consumer, err := newConsumerGroup(
 			ctx,
-			&config.ConsumerGroupConfig{
+			&kafkaconfig.ConsumerGroup{
 				KafkaVersion: &wrongVersion,
 				Topic:        testTopic,
 				GroupName:    testGroup,
@@ -57,7 +57,7 @@ func TestConsumerInitialised(t *testing.T) {
 
 		consumer, err := newConsumerGroup(
 			ctx,
-			&config.ConsumerGroupConfig{
+			&kafkaconfig.ConsumerGroup{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 				GroupName:   testGroup,
@@ -106,7 +106,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 		}
 		consumer, err := newConsumerGroup(
 			ctx,
-			&config.ConsumerGroupConfig{
+			&kafkaconfig.ConsumerGroup{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 				GroupName:   testGroup,

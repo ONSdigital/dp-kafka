@@ -1,6 +1,6 @@
 # dp-kafka usage examples
 
-This folder contains some examples of typical usages of this library, as well as a docker-compose file to run a kafka cluster with 3 kafka nodes and a single zookeeper node. Source: [WurstMeister](https://github.com/wurstmeister/kafka-docker).
+This folder contains some examples of typical usages of this library.
 
 ## Configuration
 
@@ -44,14 +44,6 @@ KAFKA_SEC_CA_CERTS    |           | [1]      | [3]   | path to CA cert file (e.g
 ## Run kafka cluster
 
 You can run the default kafka cluster, with a single broker, that comes with dp-compose.
-
-Or alternatively, you can run a 3-node kafka cluster by starting docker-compose with the provided compose file:
-
-```sh
-$ docker-compose --file ./docker-compose-kafka-cluster.yml up
-```
-
-The kafka brokers are accessible on `localhost`, ports `9092`, `9093` and `9094`
 
 ### Create topic with partitions
 
@@ -108,29 +100,16 @@ $ go run main.go
 
 See [above](#Create-a-topic-using-the-example-producer) for using the producer to create a topic.
 
-## Consumer (sequential)
-
-The [sequential consumer example](consumer-sequential/main.go) creates a kafka consumer that consumes messages one at a time.
-
-It has a configurable sleep during message consumption, so that you can test scenarios with consumption delays.
-
-You can run this example like so:
-
-```sh
-$ cd consumer-sequential
-$ go run main.go
-```
-
 ## Consumer (concurrent)
 
-The [concurrent consumer example](consumer-concurrent/main.go) creates a kafka consumer that consumes messages concurrently, with 3 parallel workers.
+The [consumer example](consumer/main.go) creates a kafka consumer that consumes messages concurrently, with 3 parallel workers by default (configurable).
 
 It has a configurable sleep during message consumption, so that you can test scenarios with consumption delays.
 
 You can run this example like so:
 
 ```sh
-$ cd consumer-concurrent
+$ cd consumer
 $ go run main.go
 ```
 

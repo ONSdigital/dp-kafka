@@ -3,7 +3,7 @@ package admin
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v3/config"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
@@ -25,7 +25,7 @@ type TopicAuthList struct {
 type Acls []*sarama.AclCreation
 
 // NewAdmin creates an admin-based client
-func NewAdmin(brokerAddrs []string, adminCfg *config.AdminConfig) (sarama.ClusterAdmin, error) {
+func NewAdmin(brokerAddrs []string, adminCfg *kafkaconfig.Admin) (sarama.ClusterAdmin, error) {
 	config, err := adminCfg.Get()
 	if err != nil {
 		return nil, err

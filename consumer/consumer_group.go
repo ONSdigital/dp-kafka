@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -23,7 +23,7 @@ type ConsumerGroup struct {
 	brokers         []health.SaramaBroker
 	channels        *Channels
 	saramaCg        sarama.ConsumerGroup
-	saramaCgHandler *saramaCgHandler
+	saramaCgHandler *saramaHandler
 	saramaCgInit    consumerGroupInitialiser
 	topic           string
 	group           string
@@ -39,12 +39,12 @@ type ConsumerGroup struct {
 	batchWaitTime   time.Duration
 }
 
-// NewConsumerGroup creates a new consumer group with the provided parameters
-func NewConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig) (*ConsumerGroup, error) {
+// New creates a new consumer group with the provided parameters
+func New(ctx context.Context, cgConfig *kafkaconfig.ConsumerGroup) (*ConsumerGroup, error) {
 	return newConsumerGroup(ctx, cgConfig, saramaNewConsumerGroup)
 }
 
-func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
+func newConsumerGroup(ctx context.Context, cgConfig *kafkaconfig.ConsumerGroup, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -166,7 +166,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	}
 
 	// On Successful initialization, create sarama consumer handler, and loop goroutines (for messages and errors)
-	cg.saramaCgHandler = NewSaramaCgHandler(ctx, cg.channels, cg.state)
+	cg.saramaCgHandler = newSaramaHandler(ctx, cg.channels, cg.state)
 	cg.saramaCg = saramaConsumerGroup
 	cg.createConsumeLoop(ctx)
 	cg.createErrorLoop(ctx)

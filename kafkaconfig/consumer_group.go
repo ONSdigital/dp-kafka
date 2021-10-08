@@ -1,4 +1,4 @@
-package config
+package kafkaconfig
 
 import (
 	"errors"
@@ -14,21 +14,21 @@ var (
 	defaultBatchWaitTime         = 200 * time.Millisecond
 )
 
-// ConsumerGroupConfig exposes the configurable parameters for a consumer group
+// ConsumerGroup exposes the configurable parameters for a consumer group
 // to overwrite default config values and any other defult config values set by dp-kafka.
 // Any value that is not provied will use the default Sarama config value, or the default dp-kafka value.
 // The only 3 compulsory values are:
 // - Topic
 // - GroupName
 // - BrokerAddrs
-type ConsumerGroupConfig struct {
+type ConsumerGroup struct {
 	// Sarama config overrides
 	KafkaVersion          *string
 	KeepAlive             *time.Duration
 	RetryBackoff          *time.Duration
 	RetryBackoffFunc      *func(retries int) time.Duration
 	Offset                *int64
-	SecurityConfig        *SecurityConfig
+	SecurityConfig        *Security
 	MessageConsumeTimeout *time.Duration
 
 	// dp-kafka specific config overrides
@@ -42,7 +42,7 @@ type ConsumerGroupConfig struct {
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
 // If any required value is not provided or any override is invalid, an error will be returned
-func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
+func (c *ConsumerGroup) Get() (cfg *sarama.Config, err error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
@@ -96,7 +96,7 @@ func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
 }
 
 // Validate that compulsory values are provided in config
-func (c *ConsumerGroupConfig) Validate() (err error) {
+func (c *ConsumerGroup) Validate() (err error) {
 	if c.Topic == "" {
 		return errors.New("topic is compulsory but was not provided in config")
 	}
