@@ -99,6 +99,21 @@ func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) e
 	return nil
 }
 
+// LogErrors creates a go-routine that waits on Errors channel and logs any error received.
+// It exits on Closer channel closed.
+func (p *Producer) LogErrors(ctx context.Context) {
+	go func() {
+		for {
+			select {
+			case err := <-p.channels.Errors:
+				log.Error(ctx, "kafka producer error", err, log.Data{"topic": p.topic})
+			case <-p.channels.Closer:
+				return
+			}
+		}
+	}()
+}
+
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
 func (p *Producer) IsInitialised() bool {
 	return p.producer != nil

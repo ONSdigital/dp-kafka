@@ -2,39 +2,17 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/ONSdigital/dp-kafka/v3/config"
-	"github.com/ONSdigital/dp-kafka/v3/consumer"
-	"github.com/ONSdigital/dp-kafka/v3/global"
+	"github.com/ONSdigital/dp-kafka/v3/examples/consumer-batch/config"
+	"github.com/ONSdigital/dp-kafka/v3/examples/consumer-batch/service"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/kelseyhightower/envconfig"
 )
 
 const serviceName = "kafka-example-consumer"
-
-// Config is the kafka configuration for this example
-type Config struct {
-	Brokers                 []string      `envconfig:"KAFKA_ADDR"`
-	KafkaMaxBytes           int           `envconfig:"KAFKA_MAX_BYTES"`
-	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
-	KafkaBatchSize          int           `envconfig:"KAFKA_BATCH_SIZE"`
-	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
-	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
-	WaitForConsumerReady    bool          `envconfig:"KAFKA_WAIT_CONSUMER_READY"`
-	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
-	Snooze                  bool          `envconfig:"SNOOZE"`
-	OverSleep               bool          `envconfig:"OVERSLEEP"`
-}
-
-// period of time between tickers
-const ticker = 3 * time.Second
-
-var consumeCount = 0
 
 func main() {
 	log.Namespace = serviceName
@@ -50,107 +28,28 @@ func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
-	// Read Config
-	cfg := &Config{
-		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
-		KafkaMaxBytes:           50 * 1024 * 1024,
-		KafkaVersion:            "1.0.2",
-		KafkaBatchSize:          10,
-		ConsumedTopic:           "myTopic",
-		ConsumedGroup:           log.Namespace,
-		WaitForConsumerReady:    true,
-		GracefulShutdownTimeout: 5 * time.Second,
-		Snooze:                  true,
-		OverSleep:               false,
-	}
-	if err := envconfig.Process("", cfg); err != nil {
-		return err
+	// Read config
+	cfg, err := config.Get()
+	if err != nil {
+		return fmt.Errorf("unable to retrieve configuration: %w", err)
 	}
 
-	// run kafka Consumer Group
-	consumerGroup, err := runConsumerGroup(ctx, cfg)
-	if err != nil {
-		return err
+	// init and start service, which contains the kafka consumer
+	svc := service.Service{}
+	if err := svc.Init(ctx, cfg); err != nil {
+		return fmt.Errorf("error initialising service: %w", err)
+	}
+	if err := svc.Start(ctx); err != nil {
+		return fmt.Errorf("error starting service: %w", err)
 	}
 
 	// blocks until an os interrupt or a fatal error occurs
 	sig := <-signals
+
+	// graceful shutdown
 	log.Info(ctx, "os signal received", log.Data{"signal": sig})
-	return closeConsumerGroup(ctx, consumerGroup, cfg.GracefulShutdownTimeout)
-}
-
-func runConsumerGroup(ctx context.Context, cfg *Config) (*consumer.ConsumerGroup, error) {
-	log.Info(ctx, "[KAFKA-TEST] Starting ConsumerGroup (messages sent to stdout)", log.Data{"config": cfg})
-	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes))
-
-	// Create handler
-	handler := Handler{
-		cfg: cfg,
+	if err := svc.Close(ctx); err != nil {
+		return fmt.Errorf("error closing service: %w", err)
 	}
-
-	// Create ConsumerGroup config without handler
-	cgConfig := &config.ConsumerGroupConfig{
-		BrokerAddrs:  cfg.Brokers,
-		Topic:        cfg.ConsumedTopic,
-		GroupName:    cfg.ConsumedGroup,
-		KafkaVersion: &cfg.KafkaVersion,
-	}
-	cg, err := consumer.NewConsumerGroup(ctx, cgConfig)
-	if err != nil {
-		return nil, err
-	}
-	cg.RegisterBatchHandler(ctx, handler.handleBatch)
-
-	// go-routine to log errors from error channel
-	cg.LogErrors(ctx, "[KAFKA-TEST] ConsumerGroup error")
-
-	// eventLoop to consumer messages from Upstream channel by sending them the workers
-	go func() {
-		for {
-			<-time.After(ticker)
-			log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
-				"state": cg.State(),
-			})
-		}
-	}()
-
-	// start consuming now
-	cg.Start()
-
-	return cg, nil
-}
-
-func closeConsumerGroup(ctx context.Context, cg *consumer.ConsumerGroup, gracefulShutdownTimeout time.Duration) error {
-	log.Info(ctx, "commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": gracefulShutdownTimeout})
-	ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownTimeout)
-
-	// track shutown gracefully closes up
-	var hasShutdownError bool
-
-	// background graceful shutdown
-	go func() {
-		defer cancel()
-		log.Info(ctx, "[KAFKA-TEST] Closing kafka consumerGroup")
-		if err := cg.Close(ctx); err != nil {
-			hasShutdownError = true
-		}
-		log.Info(ctx, "[KAFKA-TEST] Closed kafka consumerGroup")
-	}()
-
-	// wait for timeout or success (via cancel)
-	<-ctx.Done()
-
-	if ctx.Err() == context.DeadlineExceeded {
-		log.Warn(ctx, "[KAFKA-TEST] graceful shutdown timed out", log.FormatErrors([]error{ctx.Err()}))
-		return ctx.Err()
-	}
-
-	if hasShutdownError {
-		err := errors.New("failed to shutdown gracefully")
-		log.Error(ctx, "failed to shutdown gracefully ", err)
-		return err
-	}
-
-	log.Info(ctx, "graceful shutdown was successful")
 	return nil
 }

@@ -16,7 +16,8 @@ type Config struct {
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
-	KafkaParallelMessages   int           `envconfig:"KAFKA_PARALLEL_MESSAGES"`
+	BatchSize               int           `envconfig:"KAFKA_BATCH_SIZE"`
+	BatchWaitTime           time.Duration `envconfig:"KAFKA_BATCH_WAIT_TIME"`
 }
 
 var cfg *Config
@@ -35,7 +36,8 @@ func Get() (*Config, error) {
 		GracefulShutdownTimeout: 5 * time.Second,
 		Snooze:                  true,
 		OverSleep:               false,
-		KafkaParallelMessages:   3,
+		BatchSize:               3,
+		BatchWaitTime:           1 * time.Second,
 	}
 
 	return cfg, envconfig.Process("", cfg)

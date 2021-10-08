@@ -1,11 +1,5 @@
 package producer
 
-import (
-	"context"
-
-	"github.com/ONSdigital/log.go/v2/log"
-)
-
 // channel names
 const (
 	Errors       = "Errors"
@@ -49,21 +43,6 @@ func (producerChannels *ProducerChannels) Validate() error {
 		return &ErrNoChannel{ChannelNames: missingChannels}
 	}
 	return nil
-}
-
-// LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
-// Provided context and errMsg will be used in the log Event.
-func (producerChannels *ProducerChannels) LogErrors(ctx context.Context, errMsg string) {
-	go func() {
-		for {
-			select {
-			case err := <-producerChannels.Errors:
-				log.Error(ctx, errMsg, err)
-			case <-producerChannels.Closer:
-				return
-			}
-		}
-	}()
 }
 
 // CreateProducerChannels initialises a ProducerChannels with new channels.

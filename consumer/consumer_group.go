@@ -72,7 +72,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig,
 		upstreamBufferSize = *cgConfig.BatchSize
 	}
 
-	// ConsumerGroup initialised with provided brokerAddrs, topic, group and sync
+	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
 		brokerAddrs:   cgConfig.BrokerAddrs,
 		brokers:       []health.SaramaBroker{},
@@ -93,12 +93,12 @@ func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig,
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true
 
-	// Create broker objects
+	// create broker objects
 	for _, addr := range cg.brokerAddrs {
 		cg.brokers = append(cg.brokers, sarama.NewBroker(addr))
 	}
 
-	// Initialise consumer group, and log any error
+	// initialise consumer group
 	err = cg.Initialise(ctx)
 	if err != nil {
 		cg.createLoopUninitialised(ctx)
@@ -234,14 +234,14 @@ func (cg *ConsumerGroup) Stop() {
 	}
 }
 
-// LogErrors creates a go-routine that waits on chErrors channel and logs any error received. It exits on chCloser channel event.
-// Provided context and errMsg will be used in the log Event.
-func (cg *ConsumerGroup) LogErrors(ctx context.Context, errMsg string) {
+// LogErrors creates a go-routine that waits on Errors channel and logs any error received.
+// It exits on Closer channel closed.
+func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 	go func() {
 		for {
 			select {
 			case err := <-cg.channels.Errors:
-				log.Error(ctx, errMsg, err)
+				log.Error(ctx, "kafka consumer-group error", err, log.Data{"topic": cg.topic, "group_name": cg.group})
 			case <-cg.channels.Closer:
 				return
 			}
