@@ -14,7 +14,7 @@ import (
 
 const (
 	testTopic       = "testTopic"
-	testChanTimeout = 1000 * time.Millisecond
+	testChanTimeout = 100 * time.Millisecond
 )
 
 // testClaims is a testing sarama claim corresponding to a topic with 5 assigned partitions

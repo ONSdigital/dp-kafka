@@ -35,7 +35,7 @@ You can provide an optional config parameter to the constructor (`ProducerConfig
 
 The constructor tries to initialise the producer/consumer by creating the underlying Sarama client, but failing to initialise it is not considered a fatal error, hence the constructor will not error.
 
-please, note that if you do not provide the necessary channels, an `ErrNoChannel` error will be returned by the constructors, which must be considered fatal.
+please, note that if you do not provide the necessary channels, an error will be returned by the constructors, containing the information of the channels that are missing, which must be considered fatal.
 
 ### Initialisation
 

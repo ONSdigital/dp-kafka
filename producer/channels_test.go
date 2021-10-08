@@ -1,8 +1,11 @@
 package producer
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
+	"github.com/ONSdigital/log.go/v2/log"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -41,7 +44,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Closed: chClosed,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Output}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Output}},
+			))
 		})
 
 		Convey("Missing Errors channel in ProducerChannels results in an ErrNoChannel error", func() {
@@ -52,7 +58,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Closed: chClosed,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Errors}},
+			))
 		})
 
 		Convey("Missing Ready channel in ProducerChannels results in an ErrNoChannel error", func() {
@@ -63,7 +72,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Closed: chClosed,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Ready}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Ready}},
+			))
 		})
 
 		Convey("Missing Closer channel in ProducerChannels results in an ErrNoChannel error", func() {
@@ -74,7 +86,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Closed: chClosed,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Closer}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Closer}},
+			))
 		})
 
 		Convey("Missing Closed channel in ProducerChannels results in an ErrNoChannel error", func() {
@@ -85,7 +100,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Closer: chCloser,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Closed}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Closed}},
+			))
 		})
 
 		Convey("Missing multiple channels in ProducerChannels results in an ErrNoChannel error", func() {
@@ -93,7 +111,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 				Output: chOutput,
 			}
 			err := pCh.Validate()
-			So(err, ShouldResemble, &ErrNoChannel{ChannelNames: []string{Errors, Ready, Closer, Closed}})
+			So(err, ShouldResemble, kafkaerror.NewError(
+				errors.New("failed to validate producer because some channels are missing"),
+				log.Data{"missing_channels": []string{Errors, Ready, Closer, Closed}},
+			))
 		})
 
 	})

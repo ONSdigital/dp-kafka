@@ -11,6 +11,7 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
@@ -241,7 +242,10 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 		for {
 			select {
 			case err := <-cg.channels.Errors:
-				log.Error(ctx, "kafka consumer-group error", err, log.Data{"topic": cg.topic, "group_name": cg.group})
+				logData := kafkaerror.UnwrapLogData(err)
+				logData["topic"] = cg.topic
+				logData["group_name"] = cg.group
+				log.Error(ctx, "kafka consumer-group error", err, logData)
 			case <-cg.channels.Closer:
 				return
 			}

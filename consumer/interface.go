@@ -21,7 +21,3 @@ type consumerGroupInitialiser = func(addrs []string, groupID string, config *sar
 var saramaNewConsumerGroup = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
 	return sarama.NewConsumerGroup(addrs, groupID, config)
 }
-
-type dataLogger interface {
-	LogData() map[string]interface{}
-}

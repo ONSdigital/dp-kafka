@@ -1,7 +1,11 @@
 package consumer
 
 import (
+	"errors"
+
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/dp-kafka/v3/message"
+	"github.com/ONSdigital/log.go/v2/log"
 )
 
 // channel names
@@ -26,7 +30,7 @@ type ConsumerGroupChannels struct {
 	Closed   chan struct{}
 }
 
-// Validate returns ErrNoChannel if any consumer channel is nil
+// Validate returns an Error with a list of missing channels if any consumer channel is nil
 func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	missingChannels := []string{}
 	if consumerChannels.Upstream == nil {
@@ -48,7 +52,10 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 		missingChannels = append(missingChannels, Closed)
 	}
 	if len(missingChannels) > 0 {
-		return &ErrNoChannel{ChannelNames: missingChannels}
+		return kafkaerror.NewError(
+			errors.New("failed to validate consumer group because some channels are missing"),
+			log.Data{"missing_channels": missingChannels},
+		)
 	}
 	return nil
 }

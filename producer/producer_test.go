@@ -241,7 +241,7 @@ func TestProducerNotInitialised(t *testing.T) {
 			producer.Channels().Output <- []byte(message)
 
 			// Read and validate error
-			validateChannelReceivesError(producer.Channels().Errors, ErrUninitialisedProducer)
+			validateChannelReceivesError(producer.Channels().Errors, errors.New("producer is not initialised"))
 		})
 
 		Convey("Closing the producer closes the caller channels", func(c C) {

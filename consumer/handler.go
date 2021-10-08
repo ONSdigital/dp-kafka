@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -35,7 +36,7 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 
 				if err := cg.handler(context.Background(), workerID, msg); err != nil {
 					log.Error(ctx, "failed to handle message", err, log.Data{
-						"log_data": unwrapLogData(err), // this will unwrap any logData present in the error
+						"log_data": kafkaerror.UnwrapLogData(err), // this will unwrap any logData present in the error
 					})
 				}
 
@@ -78,7 +79,7 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 					log.Info(ctx, "batch is full - processing batch", log.Data{"batchsize": batch.Size()})
 					if err := cg.batchHandler(ctx, batch.messages); err != nil {
 						log.Error(ctx, "failed to handle message", err, log.Data{
-							"log_data": unwrapLogData(err), // this will unwrap any logData present in the error
+							"log_data": kafkaerror.UnwrapLogData(err), // this will unwrap any logData present in the error
 						})
 					}
 					batch.Commit() // mark all messages, commit session and empty batch
@@ -94,7 +95,7 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 				log.Info(ctx, "batch wait time reached - processing batch", log.Data{"batchsize": batch.Size()})
 				if err := cg.batchHandler(ctx, batch.messages); err != nil {
 					log.Error(ctx, "failed to handle message", err, log.Data{
-						"log_data": unwrapLogData(err), // this will unwrap any logData present in the error
+						"log_data": kafkaerror.UnwrapLogData(err), // this will unwrap any logData present in the error
 					})
 				}
 				batch.Commit() // mark all messages, commit session and empty batch

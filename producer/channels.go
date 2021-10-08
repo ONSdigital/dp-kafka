@@ -1,5 +1,12 @@
 package producer
 
+import (
+	"errors"
+
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
+	"github.com/ONSdigital/log.go/v2/log"
+)
+
 // channel names
 const (
 	Errors       = "Errors"
@@ -21,7 +28,7 @@ type ProducerChannels struct {
 	Closed chan struct{}
 }
 
-// Validate returns ErrNoChannel if any producer channel is nil
+// Validate returns an error with a list of missing channels if any producer channel is nil
 func (producerChannels *ProducerChannels) Validate() error {
 	missingChannels := []string{}
 	if producerChannels.Output == nil {
@@ -40,7 +47,10 @@ func (producerChannels *ProducerChannels) Validate() error {
 		missingChannels = append(missingChannels, Closed)
 	}
 	if len(missingChannels) > 0 {
-		return &ErrNoChannel{ChannelNames: missingChannels}
+		return kafkaerror.NewError(
+			errors.New("failed to validate producer because some channels are missing"),
+			log.Data{"missing_channels": missingChannels},
+		)
 	}
 	return nil
 }

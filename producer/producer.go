@@ -2,6 +2,7 @@ package producer
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/config"
 	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
+	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
@@ -106,7 +108,9 @@ func (p *Producer) LogErrors(ctx context.Context) {
 		for {
 			select {
 			case err := <-p.channels.Errors:
-				log.Error(ctx, "kafka producer error", err, log.Data{"topic": p.topic})
+				logData := kafkaerror.UnwrapLogData(err)
+				logData["topic"] = p.topic
+				log.Error(ctx, "kafka producer error", err, logData)
 			case <-p.channels.Closer:
 				return
 			}
@@ -163,7 +167,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	didTimeout := global.WaitWithTimeout(ctx, p.wgClose)
 	if didTimeout {
 		log.Warn(ctx, "shutdown context time exceeded, skipping graceful shutdown of producer")
-		return ErrShutdownTimedOut
+		return errors.New("shutdown context timed out")
 	}
 
 	logData := log.Data{"topic": p.topic}
@@ -207,8 +211,8 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		for {
 			select {
 			case message := <-p.channels.Output:
-				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{ErrUninitialisedProducer}))
-				p.channels.Errors <- ErrUninitialisedProducer
+				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
+				p.channels.Errors <- errors.New("producer is not initialised")
 			case <-p.channels.Ready:
 				return
 			case <-p.channels.Closer:
@@ -236,7 +240,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 func (p *Producer) createLoopInitialised(ctx context.Context) error {
 	// If sarama producer is not available, return error.
 	if !p.IsInitialised() {
-		return ErrInitSarama
+		return errors.New("failed to initialise client")
 	}
 
 	// Start kafka producer with topic. Redirect errors and messages; and handle closerChannel
