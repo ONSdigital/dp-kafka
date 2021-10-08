@@ -25,7 +25,7 @@ var (
 //
 //         // make and configure a mocked kafkatest.Producer
 //         mockedProducer := &ProducerMock{
-//             ChannelsFunc: func() *producer.ProducerChannels {
+//             ChannelsFunc: func() *producer.Channels {
 // 	               panic("mock out the Channels method")
 //             },
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {

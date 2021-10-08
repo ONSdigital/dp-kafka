@@ -20,6 +20,7 @@ type ConsumerGroup interface {
 	Checker(ctx context.Context, state *healthcheck.CheckState) error
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
+	OnHealthUpdate(status string)
 	Start() error
 	Stop()
 	LogErrors(ctx context.Context)

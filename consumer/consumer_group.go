@@ -177,6 +177,20 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	return nil
 }
 
+// OnHealthUpdate implements the healthcheck Subscriber interface so that the kafka consumer can be notified of state changes.
+// - On Health status OK: start consuming
+// - On Warning or Critical: stop consuming
+func (cg *ConsumerGroup) OnHealthUpdate(status string) {
+	switch status {
+	case healthcheck.StatusOK:
+		cg.Start()
+	case healthcheck.StatusWarning:
+		cg.Stop()
+	case healthcheck.StatusCritical:
+		cg.Stop()
+	}
+}
+
 // Start has different effects depending on the state:
 // - Initialising: the consumer will try to start consuming straight away once it's initialised
 // - Starting/Consumer: no change will happen

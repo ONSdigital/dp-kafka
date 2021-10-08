@@ -17,6 +17,7 @@ var (
 	lockConsumerGroupMockInitialise           sync.RWMutex
 	lockConsumerGroupMockIsInitialised        sync.RWMutex
 	lockConsumerGroupMockLogErrors            sync.RWMutex
+	lockConsumerGroupMockOnHealthUpdate       sync.RWMutex
 	lockConsumerGroupMockRegisterBatchHandler sync.RWMutex
 	lockConsumerGroupMockRegisterHandler      sync.RWMutex
 	lockConsumerGroupMockStart                sync.RWMutex
@@ -30,7 +31,7 @@ var (
 //
 //         // make and configure a mocked kafkatest.ConsumerGroup
 //         mockedConsumerGroup := &ConsumerGroupMock{
-//             ChannelsFunc: func() *consumer.ConsumerGroupChannels {
+//             ChannelsFunc: func() *consumer.Channels {
 // 	               panic("mock out the Channels method")
 //             },
 //             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
@@ -47,6 +48,9 @@ var (
 //             },
 //             LogErrorsFunc: func(ctx context.Context)  {
 // 	               panic("mock out the LogErrors method")
+//             },
+//             OnHealthUpdateFunc: func(status string)  {
+// 	               panic("mock out the OnHealthUpdate method")
 //             },
 //             RegisterBatchHandlerFunc: func(ctx context.Context, batchHandler consumer.BatchHandler) error {
 // 	               panic("mock out the RegisterBatchHandler method")
@@ -87,6 +91,9 @@ type ConsumerGroupMock struct {
 
 	// LogErrorsFunc mocks the LogErrors method.
 	LogErrorsFunc func(ctx context.Context)
+
+	// OnHealthUpdateFunc mocks the OnHealthUpdate method.
+	OnHealthUpdateFunc func(status string)
 
 	// RegisterBatchHandlerFunc mocks the RegisterBatchHandler method.
 	RegisterBatchHandlerFunc func(ctx context.Context, batchHandler consumer.BatchHandler) error
@@ -132,6 +139,11 @@ type ConsumerGroupMock struct {
 		LogErrors []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// OnHealthUpdate holds details about calls to the OnHealthUpdate method.
+		OnHealthUpdate []struct {
+			// Status is the status argument value.
+			Status string
 		}
 		// RegisterBatchHandler holds details about calls to the RegisterBatchHandler method.
 		RegisterBatchHandler []struct {
@@ -336,6 +348,37 @@ func (mock *ConsumerGroupMock) LogErrorsCalls() []struct {
 	lockConsumerGroupMockLogErrors.RLock()
 	calls = mock.calls.LogErrors
 	lockConsumerGroupMockLogErrors.RUnlock()
+	return calls
+}
+
+// OnHealthUpdate calls OnHealthUpdateFunc.
+func (mock *ConsumerGroupMock) OnHealthUpdate(status string) {
+	if mock.OnHealthUpdateFunc == nil {
+		panic("ConsumerGroupMock.OnHealthUpdateFunc: method is nil but ConsumerGroup.OnHealthUpdate was just called")
+	}
+	callInfo := struct {
+		Status string
+	}{
+		Status: status,
+	}
+	lockConsumerGroupMockOnHealthUpdate.Lock()
+	mock.calls.OnHealthUpdate = append(mock.calls.OnHealthUpdate, callInfo)
+	lockConsumerGroupMockOnHealthUpdate.Unlock()
+	mock.OnHealthUpdateFunc(status)
+}
+
+// OnHealthUpdateCalls gets all the calls that were made to OnHealthUpdate.
+// Check the length with:
+//     len(mockedConsumerGroup.OnHealthUpdateCalls())
+func (mock *ConsumerGroupMock) OnHealthUpdateCalls() []struct {
+	Status string
+} {
+	var calls []struct {
+		Status string
+	}
+	lockConsumerGroupMockOnHealthUpdate.RLock()
+	calls = mock.calls.OnHealthUpdate
+	lockConsumerGroupMockOnHealthUpdate.RUnlock()
 	return calls
 }
 
