@@ -4,8 +4,7 @@ Kafka client wrapper using channels to abstract kafka consumers and producers. T
 
 ## Configuration
 
-By default, the library assumes plaintext connections,
-unless the configuration argument has a non-nil `SecurityConfig`.
+By default, the library assumes plaintext connections, unless the configuration argument has a non-nil `SecurityConfig` field.
 
 ## Life-cycle
 
