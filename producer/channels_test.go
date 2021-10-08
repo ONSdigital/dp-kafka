@@ -25,7 +25,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		chOutput, chErrors, chReady, chCloser, chClosed := createProducerChannels()
 
 		Convey("ProducerChannels with all required channels has a successful validation", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 				Errors: chErrors,
 				Ready:  chReady,
@@ -37,7 +37,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Output channel in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Errors: chErrors,
 				Ready:  chReady,
 				Closer: chCloser,
@@ -51,7 +51,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Errors channel in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 				Ready:  chReady,
 				Closer: chCloser,
@@ -65,7 +65,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Ready channel in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 				Errors: chErrors,
 				Closer: chCloser,
@@ -79,7 +79,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Closer channel in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 				Errors: chErrors,
 				Ready:  chReady,
@@ -93,7 +93,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Closed channel in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 				Errors: chErrors,
 				Ready:  chReady,
@@ -107,7 +107,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing multiple channels in ProducerChannels results in an ErrNoChannel error", func() {
-			pCh := ProducerChannels{
+			pCh := Channels{
 				Output: chOutput,
 			}
 			err := pCh.Validate()

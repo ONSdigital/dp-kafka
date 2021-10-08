@@ -12,12 +12,12 @@ import (
 // saramaCgHandler consumer-group handler used by Sarama as a callback receiver
 type saramaCgHandler struct {
 	ctx                context.Context
-	channels           *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state              *StateMachine          // State is shared with ConsumerGroup
-	chSessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends for any reason
+	channels           *Channels     // Channels are shared with ConsumerGroup
+	state              *StateMachine // State is shared with ConsumerGroup
+	chSessionConsuming chan struct{} // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends for any reason
 }
 
-func NewSaramaCgHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *saramaCgHandler {
+func NewSaramaCgHandler(ctx context.Context, channels *Channels, state *StateMachine) *saramaCgHandler {
 	return &saramaCgHandler{
 		ctx:      ctx,
 		channels: channels,

@@ -330,7 +330,7 @@ func TestChecker(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	Convey("Given a consumer group", t, func() {
-		channels := &ConsumerGroupChannels{
+		channels := &Channels{
 			Consume: make(chan bool),
 		}
 		cg := &ConsumerGroup{
@@ -404,7 +404,7 @@ func TestStart(t *testing.T) {
 
 func TestStop(t *testing.T) {
 	Convey("Given a consumer group", t, func() {
-		channels := &ConsumerGroupChannels{
+		channels := &Channels{
 			Consume: make(chan bool),
 		}
 		cg := &ConsumerGroup{

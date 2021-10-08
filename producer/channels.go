@@ -19,8 +19,8 @@ const (
 	Output       = "Output"
 )
 
-// ProducerChannels represents the channels used by Producer.
-type ProducerChannels struct {
+// Channels represents the channels used by Producer.
+type Channels struct {
 	Output chan []byte
 	Errors chan error
 	Ready  chan struct{}
@@ -29,7 +29,7 @@ type ProducerChannels struct {
 }
 
 // Validate returns an error with a list of missing channels if any producer channel is nil
-func (producerChannels *ProducerChannels) Validate() error {
+func (producerChannels *Channels) Validate() error {
 	missingChannels := []string{}
 	if producerChannels.Output == nil {
 		missingChannels = append(missingChannels, Output)
@@ -56,8 +56,8 @@ func (producerChannels *ProducerChannels) Validate() error {
 }
 
 // CreateProducerChannels initialises a ProducerChannels with new channels.
-func CreateProducerChannels() *ProducerChannels {
-	return &ProducerChannels{
+func CreateProducerChannels() *Channels {
+	return &Channels{
 		Output: make(chan []byte),
 		Errors: make(chan error),
 		Ready:  make(chan struct{}),

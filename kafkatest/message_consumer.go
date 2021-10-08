@@ -4,19 +4,20 @@ import (
 	"context"
 
 	"github.com/ONSdigital/dp-kafka/v3/consumer"
+	"github.com/ONSdigital/dp-kafka/v3/kafkatest/mock"
 )
 
 // MessageConsumer is an extension of the moq ConsumerGroup, with channels
 // and implementation of required functions to emulate a fully functional Kafka ConsumerGroup
 type MessageConsumer struct {
 	*cgInternal
-	*IConsumerGroupMock
+	*mock.ConsumerGroupMock
 }
 
 // cgInternal is an internal struct to keep track of the state and channels,
 // which also provides the mock methods.
 type cgInternal struct {
-	cgChannels    *consumer.ConsumerGroupChannels
+	cgChannels    *consumer.Channels
 	isInitialised bool
 }
 
@@ -29,8 +30,7 @@ func NewMessageConsumer(isInitialisedAtCreationTime bool) *MessageConsumer {
 
 // NewMessageConsumerWithChannels creates a testing consumer with the provided consumerGroupChannels
 // isInitialisedAtCreationTime determines if the consumer is initialised or not when it's created
-func NewMessageConsumerWithChannels(cgChannels *consumer.ConsumerGroupChannels, isInitialisedAtCreationTime bool) *MessageConsumer {
-
+func NewMessageConsumerWithChannels(cgChannels *consumer.Channels, isInitialisedAtCreationTime bool) *MessageConsumer {
 	internal := &cgInternal{
 		isInitialised: false,
 		cgChannels:    cgChannels,
@@ -41,12 +41,11 @@ func NewMessageConsumerWithChannels(cgChannels *consumer.ConsumerGroupChannels, 
 
 	return &MessageConsumer{
 		internal,
-		&IConsumerGroupMock{
-			ChannelsFunc:                internal.channelsFunc,
-			IsInitialisedFunc:           internal.isInitialisedFunc,
-			InitialiseFunc:              internal.initialiseFunc,
-			StopListeningToConsumerFunc: internal.stopListeningToConsumerFunc,
-			CloseFunc:                   internal.closeFunc,
+		&mock.ConsumerGroupMock{
+			ChannelsFunc:      internal.channelsFunc,
+			IsInitialisedFunc: internal.isInitialisedFunc,
+			InitialiseFunc:    internal.initialiseFunc,
+			CloseFunc:         internal.closeFunc,
 		},
 	}
 }
@@ -64,14 +63,8 @@ func (internal *cgInternal) isInitialisedFunc() bool {
 	return internal.isInitialised
 }
 
-func (internal *cgInternal) channelsFunc() *consumer.ConsumerGroupChannels {
+func (internal *cgInternal) channelsFunc() *consumer.Channels {
 	return internal.cgChannels
-}
-
-func (internal *cgInternal) stopListeningToConsumerFunc(ctx context.Context) error {
-	close(internal.cgChannels.Closer)
-	close(internal.cgChannels.Closed)
-	return nil
 }
 
 func (internal *cgInternal) closeFunc(ctx context.Context) error {

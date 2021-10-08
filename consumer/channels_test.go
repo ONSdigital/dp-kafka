@@ -28,7 +28,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		chUpstream, chReady, chConsume, chCloser, chClosed, chErrors := createConsumerChannels()
 
 		Convey("ConsumerGroupChannels with all required channels has a successful validation", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 				Consume:  chConsume,
@@ -41,7 +41,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Upstream channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Ready:   chReady,
 				Consume: chConsume,
 				Closer:  chCloser,
@@ -56,7 +56,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Ready channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Consume:  chConsume,
 				Closer:   chCloser,
@@ -71,7 +71,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Consume channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 				Closer:   chCloser,
@@ -86,7 +86,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Closer channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 				Consume:  chConsume,
@@ -101,7 +101,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Closed channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 				Consume:  chConsume,
@@ -116,7 +116,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing Errors channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 				Consume:  chConsume,
@@ -131,7 +131,7 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 		})
 
 		Convey("Missing multiple channels in ConsumerGroupChannels results in an ErrNoChannel error", func() {
-			cCh := ConsumerGroupChannels{
+			cCh := Channels{
 				Upstream: chUpstream,
 				Ready:    chReady,
 			}

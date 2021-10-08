@@ -16,17 +16,6 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-//go:generate moq -out ../kafkatest/mock_producer.go -pkg kafkatest . IProducer
-
-// IProducer is an interface representing a Kafka Producer
-type IProducer interface {
-	Channels() *ProducerChannels
-	IsInitialised() bool
-	Initialise(ctx context.Context) error
-	Checker(ctx context.Context, state *healthcheck.CheckState) error
-	Close(ctx context.Context) (err error)
-}
-
 // Producer is a producer of Kafka messages
 type Producer struct {
 	producer     sarama.AsyncProducer
@@ -34,7 +23,7 @@ type Producer struct {
 	brokerAddrs  []string
 	brokers      []health.SaramaBroker
 	topic        string
-	channels     *ProducerChannels
+	channels     *Channels
 	config       *sarama.Config
 	mutex        *sync.Mutex
 	wgClose      *sync.WaitGroup
@@ -87,7 +76,7 @@ func newProducer(ctx context.Context, pConfig *config.ProducerConfig, pInit prod
 }
 
 // Channels returns the Producer channels for this producer
-func (p *Producer) Channels() *ProducerChannels {
+func (p *Producer) Channels() *Channels {
 	return p.channels
 }
 

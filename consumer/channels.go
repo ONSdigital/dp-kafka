@@ -20,8 +20,8 @@ const (
 	Output       = "Output"
 )
 
-// ConsumerGroupChannels represents the channels used by ConsumerGroup.
-type ConsumerGroupChannels struct {
+// Channels represents the channels used by ConsumerGroup.
+type Channels struct {
 	Upstream chan message.Message
 	Errors   chan error
 	Ready    chan struct{} // TOO we may want to rename this to 'Initialised', as it may not be 'ready' to consume
@@ -31,7 +31,7 @@ type ConsumerGroupChannels struct {
 }
 
 // Validate returns an Error with a list of missing channels if any consumer channel is nil
-func (consumerChannels *ConsumerGroupChannels) Validate() error {
+func (consumerChannels *Channels) Validate() error {
 	missingChannels := []string{}
 	if consumerChannels.Upstream == nil {
 		missingChannels = append(missingChannels, Upstream)
@@ -63,7 +63,7 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 // CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels.
 // You can provide the buffer size to determine the number of messages that will be buffered
 // in the upstream channel (to receive messages)
-func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
+func CreateConsumerGroupChannels(bufferSize int) *Channels {
 	var chUpstream chan message.Message
 	if bufferSize > 0 {
 		// Upstream channel buffered
@@ -72,7 +72,7 @@ func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
 		// Upstream channel un-buffered
 		chUpstream = make(chan message.Message)
 	}
-	return &ConsumerGroupChannels{
+	return &Channels{
 		Upstream: chUpstream,
 		Errors:   make(chan error),
 		Ready:    make(chan struct{}),

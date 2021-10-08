@@ -17,23 +17,11 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-//go:generate moq -out ../kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
-
-// IConsumerGroup is an interface representing a Kafka Consumer Group.
-type IConsumerGroup interface {
-	Channels() *ConsumerGroupChannels
-	IsInitialised() bool
-	Initialise(ctx context.Context) error
-	StopListeningToConsumer(ctx context.Context) (err error)
-	Checker(ctx context.Context, state *healthcheck.CheckState) error
-	Close(ctx context.Context) (err error)
-}
-
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
 	brokerAddrs     []string
 	brokers         []health.SaramaBroker
-	channels        *ConsumerGroupChannels
+	channels        *Channels
 	saramaCg        sarama.ConsumerGroup
 	saramaCgHandler *saramaCgHandler
 	saramaCgInit    consumerGroupInitialiser
@@ -108,13 +96,8 @@ func newConsumerGroup(ctx context.Context, cgConfig *config.ConsumerGroupConfig,
 }
 
 // Channels returns the ConsumerGroup channels for this consumer group
-func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
+func (cg *ConsumerGroup) Channels() *Channels {
 	return cg.channels
-}
-
-// IsInitialised returns true only if Sarama ConsumerGroup has been correctly initialised.
-func (cg *ConsumerGroup) IsInitialised() bool {
-	return cg.saramaCg != nil
 }
 
 // State returns the state of the consumer group
@@ -155,6 +138,11 @@ func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckSt
 	}
 	state.Update(healthcheck.StatusOK, health.MsgHealthyConsumerGroup, 0)
 	return nil
+}
+
+// IsInitialised returns true only if Sarama ConsumerGroup has been correctly initialised.
+func (cg *ConsumerGroup) IsInitialised() bool {
+	return cg.saramaCg != nil
 }
 
 // Initialise creates a new Sarama ConsumerGroup and the consumer/error loops, only if it was not already initialised.
