@@ -9,7 +9,6 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/consumer"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/config"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/handler"
-	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -29,7 +28,7 @@ type Service struct {
 
 // Init: Create ConsumerGroup with config, and register the handler
 func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
-	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
+	kafkaconfig.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
 	svc.cfg = cfg
 
 	// Create handler

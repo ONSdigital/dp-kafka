@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
@@ -153,7 +152,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	// closing the Closer channel will end the go-routines(if any)
 	close(p.channels.Closer)
 
-	didTimeout := global.WaitWithTimeout(ctx, p.wgClose)
+	didTimeout := kafkaconfig.WaitWithTimeout(ctx, p.wgClose)
 	if didTimeout {
 		log.Warn(ctx, "shutdown context time exceeded, skipping graceful shutdown of producer")
 		return errors.New("shutdown context timed out")
@@ -207,7 +206,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case <-p.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka producer", log.Data{"topic": p.topic})
 				return
-			case <-time.After(global.GetRetryTime(initAttempt, global.InitRetryPeriod)):
+			case <-time.After(kafkaconfig.GetRetryTime(initAttempt, kafkaconfig.InitRetryPeriod)):
 				if err := p.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
 					initAttempt++

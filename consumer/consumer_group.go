@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/health"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaerror"
@@ -279,7 +278,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	close(cg.channels.Consume)
 	close(cg.channels.Closer)
-	didTimeout := global.WaitWithTimeout(ctx, cg.wgClose)
+	didTimeout := kafkaconfig.WaitWithTimeout(ctx, cg.wgClose)
 	if didTimeout {
 		err := ctx.Err()
 		log.Warn(ctx, "Close abandoned: context done", log.FormatErrors([]error{err}), logData)
@@ -324,7 +323,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
 				return
-			case <-time.After(global.GetRetryTime(initAttempt, global.InitRetryPeriod)):
+			case <-time.After(kafkaconfig.GetRetryTime(initAttempt, kafkaconfig.InitRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising consumer group", err, log.Data{"attempt": initAttempt})
 					initAttempt++
@@ -451,7 +450,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
-				case <-time.After(global.GetRetryTime(consumeAttempt, global.ConsumeErrRetryPeriod)):
+				case <-time.After(kafkaconfig.GetRetryTime(consumeAttempt, kafkaconfig.ConsumeErrRetryPeriod)):
 					consumeAttempt++
 				case <-ctx.Done():
 				}

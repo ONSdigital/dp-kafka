@@ -2,8 +2,6 @@ package kafkaconfig
 
 import (
 	"time"
-
-	"github.com/ONSdigital/dp-kafka/v3/global"
 )
 
 var (
@@ -14,7 +12,7 @@ var (
 	testProducerRetryBackoffFunc = func(retries, maxRetries int) time.Duration { return time.Second }
 	testConsumerRetryBackoffFunc = func(retries int) time.Duration { return time.Second }
 	testKafkaVersion             = "1.0.2"
-	testOffsetNewest             = global.OffsetNewest
+	testOffsetNewest             = OffsetNewest
 	testTopic                    = "someTopic"
 	testGroupName                = "someGroupName"
 	testBrokerAddrs              = []string{"kafka:9092", "kafka:9093", "kafka:9094"}

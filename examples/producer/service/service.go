@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-kafka/v3/examples/producer/config"
-	"github.com/ONSdigital/dp-kafka/v3/global"
 	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/dp-kafka/v3/producer"
 	"github.com/ONSdigital/log.go/v2/log"
@@ -45,7 +44,7 @@ func getProducerConfig(cfg *config.Config) *kafkaconfig.Producer {
 
 // Init: Create ConsumerGroup with config, and register the handler
 func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
-	global.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
+	kafkaconfig.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
 	svc.cfg = cfg
 
 	// Create Producer with channels and config
