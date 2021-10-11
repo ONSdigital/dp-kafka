@@ -45,11 +45,11 @@ First of all, we need to update the manifest of the app to contain the kafka top
 
 Next, we need to create a *client certificate* for the app so that
 it can connect and authenticate using `TLS` and its client certificate.
-This can be achieved by running the `key-admin`.
+This can be achieved by running the `key-admin` script.
   
 **Notes:**
 
-1. The `key-admin` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see whether a client certificate needs to be created for the app by checking whether any kafka topics are mentioned in the manifest. Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes to the [previous step](#add-kafka-topics-to-manifest).
+1. The `key-admin` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see whether a client certificate needs to be created for the app (by checking whether any kafka topics are mentioned in the manifest). Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#add-kafka-topics-to-manifest).
 2. Remember to do *Step 4* of the [Client Certificate README][client-cert-readme] to inject the relevant certificate details into the app's secrets (using the `--secrets` argument) unless the app is being [migrated to AWS MSK](MIGRATING.md) in which case this step is done later
 3. Please remember to come back to this README after completing this task to continue with the process.
   
@@ -57,7 +57,7 @@ This can be achieved by running the `key-admin`.
 
 #### 3. Apply kafka topics to AWS MKS - Run `topic-manager` script
 
-Next, we need to apply the kafka topics used by the app to AWS MSK. This can be achieved by running the `topic-manager` script. Running the script informs AWS MSK of:
+Next, we need to create the kafka topics - used by the app - on AWS MSK. This can be achieved by running the `topic-manager` script. Running the script informs AWS MSK of:
 
 - any new topics (topic manager creates them)
 - new clients/apps (i.e. certs) using the service:
@@ -66,7 +66,7 @@ Next, we need to apply the kafka topics used by the app to AWS MSK. This can be 
 
 **Notes:**
 
-1. The `topic-manager` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see if any changes to kafka topics (adding or deleting topics) needs to be applied to AWS MSK by checking the kafka topics mentioned in the manifest. Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes to the [previous step](#add-kafka-topics-to-manifest).
+1. The `topic-manager` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see if any changes to kafka topics (adding or deleting topics) need to be applied to AWS MSK by checking the kafka topics mentioned in the manifest. Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#add-kafka-topics-to-manifest).
 2. Please remember to come back to this README after completing this task to continue with the process.
   
 **Follow the steps explained in the [Kafka Setup Tools README][kafka-setup-tools-readme] to run `topic-manager`**
