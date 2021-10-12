@@ -77,6 +77,11 @@ func (svc *Service) Close(ctx context.Context) error {
 
 	go func() {
 		defer cancel()
+
+		log.Info(ctx, "[KAFKA-TEST] Stopping kafka consumerGroup")
+		svc.consumer.StopAndWait()
+		log.Info(ctx, "[KAFKA-TEST] Stopped consumerGroup")
+
 		log.Info(ctx, "[KAFKA-TEST] Closing kafka consumerGroup")
 		if err := svc.consumer.Close(ctx); err != nil {
 			hasShutdownError = true

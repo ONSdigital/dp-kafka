@@ -352,7 +352,7 @@ You may create a single go-routine to consume messages sequentially, or multiple
 
 You can consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
 
-## Message consumption deep dive
+## Message consumption - Sarama Kafka sessions
 
 ![KafkaConcurrency](img/kafka-concurrency.png)
 
@@ -375,32 +375,22 @@ When a session finishes, we call Consume() again, which tries to establish a new
 
 ## Start/Stop consumer
 
-The consumer can be stopped by sending a 'false' value to the Consume channel, and it can be started by sending a 'true' value:
+A consumer can be stopped by calling `Stop()`:
+- If the consumer was not initialised, this will set the initial state to 'stopped', so the consumer will do nothing until it is started.
+- If the consumer is Satarting/Consuming, the sarama handler will be notified that it needs to stop: it will stop processing any in-flight message, it will not consume any new message and it will terminate the session.
 
-- Start a consumer
-```go
-channels.Consume <- true
-```
+`Stop()` is asynchronous: if the consumer is consuming, it will return as soon as the control go-routine is notified, without waiting for it to finish.
+If the caller needs to block until the consumer has completely stopped consuming, then you can call `StopAndWait()`, which is synchronous.
 
-- Stop a consumer
-```go
-channels.Consume <- false
-```
-
-When a consumer receives the `false` value from the Consume channel, it will be set to `Stopping` state, it will finish processing any in-flight message and then finish the Sarama session.
-
-Then it will go on a `Stopped` stationary state, where it will wait until it is started or closed.
-
-When a `true` value is received form the Consume channel by a stopped consumer, the consumer will bet set to `Starting` state, a new Sarama session will be created and it will go back to `Consuming` state once its ready to receive messages.
-
-Sending `true` to a consumer in `Starting`/`Consuming` state, or `false` to a consumer in `Stopping`/`Stopped` state ha no effect.
-
+A consumer can be started by calling `Start()`:
+- If the consumer was not initialised, this will set the initial state to 'starting', so the consumer will start consuming straight away after being initialised.
+- If the consumer is Stopping/Stopped, the idle loop will be notified that it needs to start consuming.
 
 ## Closing
 
 Producers can be closed by calling the `Close` method.
 
-For graceful handling of Closing consumers, it is advised to use the `StopListeningToConsumer` method prior to the `Close` method. This will allow inflight messages to be completed and successfully call commit so that the message does not get replayed once the application restarts.
+For graceful handling of Closing consumers, it is advised to use the `StopAndWait()` method prior to the `Close` method. This will allow inflight messages to be completed and successfully call commit so that the message does not get replayed once the application restarts.
 
 The `Closer` channel is used to signal to all the loops that they need to exit because the consumer is being closed.
 
@@ -417,6 +407,17 @@ check, err = cli.Checker(ctx)
 - If a broker cannot be reached, the Status is set to CRITICAL.
 - If all brokers can be reached, but a broker does not provide the expected topic metadata, the Status is set to WARNING.
 - If all brokers can be reached and return the expected topic metadata, we try to initialise the consumer/producer. If it was already initialised, or the initialisation is successful, the Status is set to OK.
+
+
+## Health subscription
+
+The consumer group implements dp-healthcheck's `Subscriber` interface. You can subscribe the kafka consumer to a set of dp-healthcheck Checks. Then the consumer will start consuming when 'Ok' status is reported and it will stop when 'WARNING' or 'CRITICAL' statuses are reported.
+
+Assuming you have a healthcheck `hc`, you can subscribe a kafka consumer like so:
+
+```go
+	hc.Subscribe(consumer, check1, check2, check3)
+```
 
 ## Examples
 

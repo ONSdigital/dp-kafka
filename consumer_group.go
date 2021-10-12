@@ -27,6 +27,7 @@ type IConsumerGroup interface {
 	OnHealthUpdate(status string)
 	Start() error
 	Stop()
+	StopAndWait()
 	LogErrors(ctx context.Context)
 	Close(ctx context.Context) (err error)
 }
@@ -233,18 +234,36 @@ func (cg *ConsumerGroup) Start() error {
 // - Starting/Consumer: no change will happen
 // - Stopping/Stopped: the consumer will start start consuming
 // - Closing: an error will be returned
+// This method does not wait until the consumerGroup reaches the stopped state, it only triggers the stopping action.
 func (cg *ConsumerGroup) Stop() {
+	cg.stop(false)
+}
+
+// StopAndWait has different effects depending on the state:
+// - Initialising: the consumer will remain in the Stopped state once initialised, without consuming messages
+// - Starting/Consumer: no change will happen
+// - Stopping/Stopped: the consumer will start start consuming
+// - Closing: an error will be returned
+// This method waits until the consumerGroup reaches the stopped state if it was starting/consuming.
+func (cg *ConsumerGroup) StopAndWait() {
+	cg.stop(false)
+}
+
+func (cg *ConsumerGroup) stop(sync bool) {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
 	switch cg.state.Get() {
 	case Initialising:
-		cg.initialState = Stopped // when the consumer is initialised, it will do nothing
+		cg.initialState = Stopped // when the consumer is initialised, it will do nothing - no need to wait
 		return
 	case Stopping, Stopped:
 		return // already stopped, nothing to do
 	case Starting, Consuming:
 		cg.channels.Consume <- false
+		if sync {
+			<-cg.saramaCgHandler.chSessionConsuming // wait until the active kafka session finishes
+		}
 		return
 	default: // Closing state
 		return // the consumer is being closed, so it is already 'stopped'

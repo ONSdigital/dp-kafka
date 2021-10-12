@@ -23,6 +23,7 @@ var (
 	lockIConsumerGroupMockStart                sync.RWMutex
 	lockIConsumerGroupMockState                sync.RWMutex
 	lockIConsumerGroupMockStop                 sync.RWMutex
+	lockIConsumerGroupMockStopAndWait          sync.RWMutex
 )
 
 // Ensure, that IConsumerGroupMock does implement kafka.IConsumerGroup.
@@ -71,6 +72,9 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 //             StopFunc: func()  {
 // 	               panic("mock out the Stop method")
 //             },
+//             StopAndWaitFunc: func()  {
+// 	               panic("mock out the StopAndWait method")
+//             },
 //         }
 //
 //         // use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
@@ -113,6 +117,9 @@ type IConsumerGroupMock struct {
 
 	// StopFunc mocks the Stop method.
 	StopFunc func()
+
+	// StopAndWaitFunc mocks the StopAndWait method.
+	StopAndWaitFunc func()
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -171,6 +178,9 @@ type IConsumerGroupMock struct {
 		}
 		// Stop holds details about calls to the Stop method.
 		Stop []struct {
+		}
+		// StopAndWait holds details about calls to the StopAndWait method.
+		StopAndWait []struct {
 		}
 	}
 }
@@ -531,5 +541,31 @@ func (mock *IConsumerGroupMock) StopCalls() []struct {
 	lockIConsumerGroupMockStop.RLock()
 	calls = mock.calls.Stop
 	lockIConsumerGroupMockStop.RUnlock()
+	return calls
+}
+
+// StopAndWait calls StopAndWaitFunc.
+func (mock *IConsumerGroupMock) StopAndWait() {
+	if mock.StopAndWaitFunc == nil {
+		panic("IConsumerGroupMock.StopAndWaitFunc: method is nil but IConsumerGroup.StopAndWait was just called")
+	}
+	callInfo := struct {
+	}{}
+	lockIConsumerGroupMockStopAndWait.Lock()
+	mock.calls.StopAndWait = append(mock.calls.StopAndWait, callInfo)
+	lockIConsumerGroupMockStopAndWait.Unlock()
+	mock.StopAndWaitFunc()
+}
+
+// StopAndWaitCalls gets all the calls that were made to StopAndWait.
+// Check the length with:
+//     len(mockedIConsumerGroup.StopAndWaitCalls())
+func (mock *IConsumerGroupMock) StopAndWaitCalls() []struct {
+} {
+	var calls []struct {
+	}
+	lockIConsumerGroupMockStopAndWait.RLock()
+	calls = mock.calls.StopAndWait
+	lockIConsumerGroupMockStopAndWait.RUnlock()
 	return calls
 }
