@@ -3,8 +3,8 @@ github.com/ONSdigital/dp-api-clients-go v1.34.3/go.mod h1:kX+YKuoLYLfkeLHMvQKRRy
 github.com/ONSdigital/dp-api-clients-go v1.40.0 h1:sAGie19I3/CZW8u+Bp2zTFSCmM32SQjayPibXEVBsLY=
 github.com/ONSdigital/dp-api-clients-go v1.40.0/go.mod h1:Ga1+ANjviu21NFJI9wp5NctJIdB4TJLDGbpQFl2V8Wc=
 github.com/ONSdigital/dp-healthcheck v1.0.5/go.mod h1:2wbVAUHMl9+4tWhUlxYUuA1dnf2+NrwzC+So5f5BMLk=
-github.com/ONSdigital/dp-healthcheck v1.1.4-0.20211008154322-62b903d7791d h1:VJ7bKrYWZS6rb+WgTXBBKzmnoSCRUjN03cgiS8AFpBQ=
-github.com/ONSdigital/dp-healthcheck v1.1.4-0.20211008154322-62b903d7791d/go.mod h1:Wu3Um1Dd99K9rH41KfeCvuw8dxgVGsghj0tzT+yp8So=
+github.com/ONSdigital/dp-healthcheck v1.1.4-0.20211011145925-7b344ac2823a h1:ISqpX5w2eBHo3oYRSthZpjATgcHLJhgHyNUekorjp1U=
+github.com/ONSdigital/dp-healthcheck v1.1.4-0.20211011145925-7b344ac2823a/go.mod h1:Wu3Um1Dd99K9rH41KfeCvuw8dxgVGsghj0tzT+yp8So=
 github.com/ONSdigital/dp-mocking v0.0.0-20190905163309-fee2702ad1b9/go.mod h1:BcIRgitUju//qgNePRBmNjATarTtynAgc0yV29VpLEk=
 github.com/ONSdigital/dp-net v1.0.5-0.20200805082802-e518bc287596/go.mod h1:wDVhk2pYosQ1q6PXxuFIRYhYk2XX5+1CeRRnXpSczPY=
 github.com/ONSdigital/dp-net v1.0.5-0.20200805145012-9227a11caddb/go.mod h1:MrSZwDUvp8u1VJEqa+36Gwq4E7/DdceW+BDCvGes6Cs=
@@ -55,9 +55,7 @@ github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1 h1:EGx4pi6eqNxGaHF6qqu48+N2wcFQ5qg5FXgOdqsJ5d8=
 github.com/gopherjs/gopherjs v0.0.0-20181017120253-0766667cb4d1/go.mod h1:wJfORRmW1u3UXTncJ5qlYoELFm8eSnnEO6hX4iZ3EWY=
 github.com/gorilla/mux v1.8.0/go.mod h1:DVbg23sWSpFRCP0SfiEN6jmj59UnW/n46BH5rLB71So=
-github.com/gorilla/securecookie v1.1.1 h1:miw7JPhV+b/lAHSXz4qd/nN9jRiAFV5FwjeKyCS8BvQ=
 github.com/gorilla/securecookie v1.1.1/go.mod h1:ra0sb63/xPlUeL+yeDciTfxMRAA+MP+HVt/4epWDjd4=
-github.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7FsgI=
 github.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
 github.com/hashicorp/go-uuid v1.0.2 h1:cfejS+Tpcp13yd5nYHWDI6qVCny6wyX2Mt5SGur2IGE=
 github.com/hashicorp/go-uuid v1.0.2/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
@@ -161,7 +159,6 @@ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8T
 gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 h1:PGIdqvwfpMUyUP+QAlAnKTSWQ671SmYjoou2/5j7HXk=
 gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183/go.mod h1:FvqrFXt+jCsyQibeRv4xxEJBL5iG2DDW5aeJwzDiq4A=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
-gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c h1:Hei/4ADfdWqJk1ZMxUNpqntNwaWcugrBjAiHlqqRiVk=
 gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EVd6muEfDQjcINNoR0C8j2r3qZ4Q=
 gopkg.in/yaml.v2 v2.2.2/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
