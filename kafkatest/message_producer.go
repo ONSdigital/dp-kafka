@@ -3,34 +3,33 @@ package kafkatest
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v3/kafkatest/mock"
-	"github.com/ONSdigital/dp-kafka/v3/producer"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 )
 
 // MessageProducer is an extension of the moq Producer, with channels
 // and implementation of required functions to emulate a fully functional kafka Producer.
 type MessageProducer struct {
 	*pInternal
-	*mock.ProducerMock
+	*IProducerMock
 }
 
 // pInternal is an internal struct to keep track of the state and channels,
 // which also provides the mock methods.
 type pInternal struct {
-	pChannels     *producer.Channels
+	pChannels     *kafka.ProducerChannels
 	isInitialised bool
 }
 
 // NewMessageProducer creates a testing producer with new producerChannels.
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
 func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
-	pChannels := producer.CreateProducerChannels()
+	pChannels := kafka.CreateProducerChannels()
 	return NewMessageProducerWithChannels(pChannels, isInitialisedAtCreationTime)
 }
 
 // NewMessageProducerWithChannels creates a testing producer with the provided producerChannels.
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
-func NewMessageProducerWithChannels(pChannels *producer.Channels, isInitialisedAtCreationTime bool) *MessageProducer {
+func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
 
 	internal := &pInternal{
 		isInitialised: false,
@@ -42,7 +41,7 @@ func NewMessageProducerWithChannels(pChannels *producer.Channels, isInitialisedA
 
 	return &MessageProducer{
 		internal,
-		&mock.ProducerMock{
+		&IProducerMock{
 			InitialiseFunc:    internal.initialiseFunc,
 			IsInitialisedFunc: internal.isInitialisedFunc,
 			ChannelsFunc:      internal.channelsFunc,
@@ -64,7 +63,7 @@ func (internal *pInternal) isInitialisedFunc() bool {
 	return internal.isInitialised
 }
 
-func (internal *pInternal) channelsFunc() *producer.Channels {
+func (internal *pInternal) channelsFunc() *kafka.ProducerChannels {
 	return internal.pChannels
 }
 

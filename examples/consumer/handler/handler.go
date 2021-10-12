@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/config"
-	"github.com/ONSdigital/dp-kafka/v3/message"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
@@ -16,7 +16,7 @@ type Handler struct {
 	Cfg *config.Config
 }
 
-func (h *Handler) Handle(ctx context.Context, workerID int, msg message.Message) error {
+func (h *Handler) Handle(ctx context.Context, workerID int, msg kafka.Message) error {
 	consumeCount++
 	sleepTime := getSleepTime(h.Cfg)
 	logData := log.Data{

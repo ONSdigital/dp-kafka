@@ -4,7 +4,7 @@ This package contains mocks intended to be used by users of this library for tes
 
 ## Empty mocks
 
-If you require to implement your own mock functionality, you can use the empty mocks, which are created using `moq` to implement the interfaces `kafkatest.ConsumerGroup`, `kafkatest.Producer` and `message.Message`
+If you require to implement your own mock functionality, you can use the empty mocks, which are created using `moq` to implement the interfaces `kafkatest.ConsumerGroup`, `kafkatest.Producer` and `Message`
 
 These interfaces expose the same methods as the real Producer and ConsumerGroup structs.
 You can instantiate the mocks like so:

@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v3/consumer"
+	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/config"
 	"github.com/ONSdigital/dp-kafka/v3/examples/consumer/handler"
-	"github.com/ONSdigital/dp-kafka/v3/kafkaconfig"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
@@ -23,12 +22,12 @@ const (
 
 type Service struct {
 	cfg      *config.Config
-	consumer *consumer.ConsumerGroup
+	consumer *kafka.ConsumerGroup
 }
 
 // Init: Create ConsumerGroup with config, and register the handler
 func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
-	kafkaconfig.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
+	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
 	svc.cfg = cfg
 
 	// Create handler
@@ -36,14 +35,23 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 		Cfg: cfg,
 	}
 
-	// Create kafka consumer, passing relevant config
-	svc.consumer, err = consumer.New(ctx, &kafkaconfig.ConsumerGroup{
+	// Create ConsumerGroup with config, including TLS
+	cgConfig := &kafka.ConsumerGroupConfig{
 		BrokerAddrs:  cfg.Brokers,
 		Topic:        cfg.ConsumedTopic,
 		GroupName:    cfg.ConsumedGroup,
 		KafkaVersion: &cfg.KafkaVersion,
 		NumWorkers:   &cfg.KafkaParallelMessages,
-	})
+	}
+	if cfg.KafkaSecProtocol == "TLS" {
+		cgConfig.SecurityConfig = kafka.GetSecurityConfig(
+			cfg.KafkaSecCACerts,
+			cfg.KafkaSecClientCert,
+			cfg.KafkaSecClientKey,
+			cfg.KafkaSecSkipVerify,
+		)
+	}
+	svc.consumer, err = kafka.NewConsumerGroup(ctx, cgConfig)
 	if err != nil {
 		return fmt.Errorf("error creating kafka consumer: %w", err)
 	}
@@ -103,7 +111,7 @@ func (svc *Service) Close(ctx context.Context) error {
 }
 
 // createTickerLoop will log the consumer state every tick
-func createTickerLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
+func createTickerLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 	go func() {
 		for {
 			select {
@@ -123,7 +131,7 @@ func createTickerLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
 // createStartStopLoop creates a loop that periodically sends true or false to the Consume channel
 // - A 'Starting'/'Consuming' consumer is sent true for iterationsFromStartToStop times, then false
 // - A 'Stopping'/'Stopped' consumer is sent false for iterationsFromStopToStart times, then true
-func createStartStopLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
+func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 	cnt := 0
 	// consume start-stop loop
 	go func() {
@@ -135,7 +143,7 @@ func createStartStopLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
 				}
 				cnt++
 				switch cg.State() {
-				case consumer.Starting.String(), consumer.Consuming.String():
+				case kafka.Starting.String(), kafka.Consuming.String():
 					if cnt >= iterationsFromStartToStop {
 						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming", logData)
 						cnt = 0
@@ -144,7 +152,7 @@ func createStartStopLoop(ctx context.Context, cg *consumer.ConsumerGroup) {
 						log.Info(ctx, "[KAFKA-TEST] START consuming", logData)
 						cg.Start()
 					}
-				case consumer.Stopping.String(), consumer.Stopped.String():
+				case kafka.Stopping.String(), kafka.Stopped.String():
 					if cnt >= iterationsFromStopToStart {
 						log.Info(ctx, "[KAFKA-TEST] ++ START consuming", logData)
 						cnt = 0

@@ -13,6 +13,11 @@ type Config struct {
 	KafkaVersion            string        `envconfig:"KAFKA_VERSION"`
 	ConsumedTopic           string        `envconfig:"KAFKA_CONSUMED_TOPIC"`
 	ConsumedGroup           string        `envconfig:"KAFKA_CONSUMED_GROUP"`
+	KafkaSecProtocol        string        `envconfig:"KAFKA_SEC_PROTO"`
+	KafkaSecCACerts         string        `envconfig:"KAFKA_SEC_CA_CERTS"`
+	KafkaSecClientCert      string        `envconfig:"KAFKA_SEC_CLIENT_CERT"`
+	KafkaSecClientKey       string        `envconfig:"KAFKA_SEC_CLIENT_KEY" json:"-"`
+	KafkaSecSkipVerify      bool          `envconfig:"KAFKA_SEC_SKIP_VERIFY"`
 	GracefulShutdownTimeout time.Duration `envconfig:"GRACEFUL_SHUTDOWN_TIMEOUT"`
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`

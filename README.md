@@ -7,11 +7,6 @@ Kafka client wrapper using channels to abstract kafka consumers and producers. T
 By default, the library assumes plaintext connections,
 unless the configuration argument has a non-nil `SecurityConfig` field.
 
-## Life-cycle
-
-<<<<<<< HEAD
-![ConsumerStateMachine](img/dp-kafka-state-machine.png)
-=======
 ### Setup app to use TLS
 
 > Amazon Managed Streaming for Apache Kafka (Amazon MSK) is a fully managed service that enables you to build and run applications that use Apache Kafka to process streaming data.
@@ -150,16 +145,24 @@ the app itself needs to be updated to use TLS. To achieve this, please do the fo
    **An example of adding kafka configs to the app can be found [here][app-kafka-config-example]**
   
 4. Continue to the next step in the [Creation of Kafka Producer and/or Consumer](#creation)
->>>>>>> main
 
-### Creation
+## Creation
 
-Kafka producers and consumers can be created with constructors that accept the required channels and configuration. You may create the channels using `CreateProducerChannels` and `CreateConsumerChannels` respectively:
+Kafka producers and consumers can be created with constructors that accept the required configuration. You may get the channels struct using `producer.Channels()` and `consumer.Channels()` respectively.
+
+For optional config values, the Sarama default config values will be used unless an override is provided. If a compulsory value is not provided, the config validation will fail, and the error will be returned by the constructor function.
+
+The constructor tries to initialise the producer/consumer by creating the underlying Sarama client, but failing to do so will not result in an error: an uninitialised consumer/producer will be returned instead.
+
+### Producer creation
+
+The producer constructor accepts a configuration. The configuration needs to provide at least Brokers and ProducedTopic. You may also provide overrides for default Sarama configs, like `KafkaVersion` or `MaxMessageBytes`, and/or a SecurityConfig as described in the previous section.
 
 ```go
-    // Create Producer with channels and config
-    pChannels := kafka.CreateProducerChannels()
+    // Create Producer with config
     pConfig := &kafka.ProducerConfig{
+        BrokerAddrs:     kafkaConfig.Brokers,       // compulsory
+	    Topic:           kafkaConfig.ProducedTopic, // compulsory
         KafkaVersion:    &kafkaConfig.Version,
         MaxMessageBytes: &kafkaConfig.MaxBytes,
     }
@@ -171,27 +174,28 @@ Kafka producers and consumers can be created with constructors that accept the r
             kafkaConfig.SecSkipVerify,
         )
     }
-    producer, err := kafka.NewProducer(ctx, kafkaConfig.BindAddr, kafkaConfig.ProducedTopic, pChannels, pConfig)
+    producer, err := kafka.NewProducer(ctx, pConfig)
 ```
 
-```go
-<<<<<<< HEAD
-import (
-	kafkaConfig "github.com/ONSdigital/dp-kafka/v3/config"
-)
+### ConsumerGroup creation
 
-// Create kafka consumer, passing relevant config
-cg, err := consumer.NewConsumerGroup(ctx, &kafkaConfig.ConsumerGroupConfig{
-	BrokerAddrs:  cfg.Brokers,       // compulsory
-	Topic:        cfg.ConsumedTopic, // compulsory
-	GroupName:    cfg.ConsumedGroup, // compulsory
-	KafkaVersion: &cfg.KafkaVersion,
-	NumWorkers:   &cfg.KafkaParallelMessages,
-})
-=======
-    // Create ConsumerGroup with channels and config
-    cgChannels := kafka.CreateConsumerGroupChannels(kafkaConfig.ParallelMessages)
-    cgConfig := &kafka.ConsumerGroupConfig{KafkaVersion: &kafkaConfig.Version}
+The consumerGroup constructor accepts a configuration. The configuration needs to provide at least Brokers, Topic and GroupName. You may also provide overrides for default Sarama configs, like `KafkaVersion` or `MaxMessageBytes`, and/or a SecurityConfig as described in the previous section.
+
+For concurrent consumers, you can override `NumWorkers` config (default is 1), which determine the number of go-routines that will handle messages.
+
+For batch consumers, you can override `BatchSize` (default is 1) and `BatchWaitTime` (default is 200 ms), which determine the maximum number of kafka messages stored in a batch, and the maximum time to wait until the batch is processed, respectively, and/or a SecurityConfig as described in the previous section.
+
+The constructor will create an Upstream channel with a buffer size that is the maximum between `BatchSize` and `NumWorkers`
+
+```go
+    // Create ConsumerGroup with config
+    cgConfig := &kafka.ConsumerGroupConfig{
+        BrokerAddrs:  kafkaConfig.Brokers,       // compulsory
+	    Topic:        kafkaConfig.ConsumedTopic, // compulsory
+	    GroupName:    kafkaConfig.ConsumedGroup, // compulsory
+        KafkaVersion: &kafkaConfig.Version,
+        NumWorkers:   &kafkaConfig.KafkaParallelMessages,
+    }
     if kafkaConfig.SecProtocol == config.KafkaTLSProtocolFlag {
         cgConfig.SecurityConfig = kafka.GetSecurityConfig(
             kafkaConfig.SecCACerts,
@@ -200,23 +204,37 @@ cg, err := consumer.NewConsumerGroup(ctx, &kafkaConfig.ConsumerGroupConfig{
             kafkaConfig.SecSkipVerify,
         )
     }
-    cg, err := kafka.NewConsumerGroup(ctx, kafkaConfig.BindAddr, kafkaConfig.ConsumedTopic, kafkaConfig.ConsumedGroup, cgChannels, cgConfig)
->>>>>>> main
+    cg, err := kafka.NewConsumerGroup(ctx, cgConfig)
 ```
 
-For consumers, you can specify the batch size that determines the number of messages to be stored in the Upstream channel. It is recommended to provide a batch size equal to the number of parallel messages that are consumed.
+```go
+    cgConfig := &kafka.ConsumerGroupConfig{
+        BrokerAddrs:  cfg.Brokers,       // compulsory
+	    Topic:        cfg.ConsumedTopic, // compulsory
+	    GroupName:    cfg.ConsumedGroup, // compulsory
+	    KafkaVersion: &cfg.KafkaVersion,
+	    NumWorkers:   &cfg.KafkaParallelMessages,
+    }
+    if kafkaConfig.SecProtocol == config.KafkaTLSProtocolFlag {
+        cgConfig.SecurityConfig = kafka.GetSecurityConfig(
+            kafkaConfig.SecCACerts,
+            kafkaConfig.SecClientCert,
+            kafkaConfig.SecClientKey,
+            kafkaConfig.SecSkipVerify,
+        )
+    }
+    cg, err := consumer.New(ctx, cgConfig)
+```
 
-You can provide an optional config parameter to the constructor (`ProducerConfig` and `ConsumerGroupConfig`). Any provided configuration will overwrite the default sarama config, or you can pass a nil value to use the default sarama config.
+# Life-cycle
 
-The constructor tries to initialise the producer/consumer by creating the underlying Sarama client, but failing to initialise it is not considered a fatal error, hence the constructor will not error.
+![ConsumerStateMachine](img/dp-kafka-state-machine.png)
 
-please, note that if you do not provide the necessary channels, an error will be returned by the constructors, containing the information of the channels that are missing, which must be considered fatal.
-
-### Initialisation
+## Initialisation
 
 If the producer/consumer can establish a connection with the Kafka cluster, it will be initialised at creation time, which is usually the case. But it might not be able to do so, for example if the kafka cluster is not running. If a producer/consumer is not initialised, it cannot contact the kafka broker, and it cannot send or receive any message. Any attempt to send a message in this state will result in an error being sent to the Errors channel.
 
-An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop following an exponential backoff strategy. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and it will start producing/consuming.
+An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop following an exponential backoff strategy. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and the producer/consumer will go to its next state.
 
 You can check if a producer/consumer is initialised by calling `IsInitialised()` or wait for it to be initialised by waiting for the Ready channel to be closed, like so:
 
@@ -236,20 +254,76 @@ You can check if a producer/consumer is initialised by calling `IsInitialised()`
 
 Waiting for this channel is a convenient hook, but not a necessary requirement.
 
-Note that initialised consumers will be in 'Stopped' state until they receive 'true' from the Consume channel.
+Note that initialised consumers will be in 'Stopped' state until `Start` is called.
 
-### Message production
+## Message production
 
 Messages are sent to Kafka by sending them to a producer Output channel, as byte arrays:
 
 ```go
-    // send message
-    pChannels.Output <- []byte(msg)
+    producer.Channels().Output <- []byte(msg)
 ```
 
-### Message consumption
+You may obtain the byte array from Marshaling an event using the avro Schema.
 
-Messages can be consumed by creating an infinite consumption loop. Once a message has finished being processed, you need to call `Commit()`, so that Sarama releases the go-routine consuming a message and Kafka knows that the message does not need to be delivered again (marks the message, and commits the offset):
+## Message consumption using handlers
+
+This is the recommended approach.
+
+You can register one handler in order to Consume messages in a managed way. There are two types of handlers available: single message and batch, but only one handler can be registered per consumer.
+
+### Single message
+
+You may register a single-message handler like so:
+
+```go
+    // Create Handler struct with all required dependencies
+    type Handler struct {}
+
+    // Implement the Handler func
+    func (h *Handler) Handle(ctx context.Context, workerID int, msg kafka.Message) error {
+        log.Info(ctx, "Message processed", log.Data{"worker_id": workerID})
+        return nil
+    }
+
+    ...
+
+    // register the handler to your kafka consumer
+	consumer.RegisterHandler(ctx, handler.Handle)
+```
+
+By default, messages are consumed sequentially, but you can provide a `NumWorkers` value greater than one to consume messages concurrently. One go-routine will be create for each worker.
+
+Note that the number of concurrent messages that will be consumed is the number of partitions assigned to this consumer group. If `NumWorkers` is greater, the number of concurrent messages will be capped to the number of partitions.
+
+### Batch of messages
+
+You may register a batch-message handler like so:
+
+```go
+    // Create Handler struct with all required dependencies
+    type Handler struct {}
+
+    // Implement the Handler func
+    func (h *Handler) Handle(ctx context.Context, batch []kafka.Message) error {
+        log.Info(ctx, "Batch processed", log.Data{"size": len(batch)})
+        return nil
+    }
+
+    // register the batch handler to your kafka consumer
+	svc.consumer.RegisterBatchHandler(ctx, handler.Handle)
+```
+
+Incoming messages will be accumulated until a total of `BatchSize` messages, or after a period of `BatchWaitTime` has elapsed.
+Then the Handler will be called with the batch of messages. No messages will be committed until the handler finishes its execution.
+Batch handling is sequential: `NumWorkers` is ignored.
+
+## Message consumption using Upstream channel directly
+
+This approach is NOT recommended.
+Only to be used if you need to implement your own message processing strategy which is different than the default handlers.
+
+Messages can be consumed by creating an infinite consumption loop. Once you are ready to consume another message, you need to call `Release()`, and once a message has finished being processed you need to call `Commit()`. You may call `CommitAndRelease()` to do both at the same time:
 
 ```go
 // consumer loop
@@ -257,7 +331,7 @@ func consume(upstream chan kafka.Message) {
     for {
         msg := <-upstream
         doStuff(msg)
-        msg.Commit()
+        msg.CommitAndRelease()
     }
 }
 ```
@@ -278,9 +352,7 @@ You may create a single go-routine to consume messages sequentially, or multiple
 
 You can consume up to as may messages in parallel as partitions are assigned to your consumer, more info in the deep dive section.
 
-Note that messages will only be consumed when the consumer is in 'Consuming' state.
-
-#### Message consumption deep dive
+## Message consumption deep dive
 
 ![KafkaConcurrency](img/kafka-concurrency.png)
 
@@ -301,7 +373,7 @@ Each Sarama consumption go routine exists only during a particular session. Sess
 
 When a session finishes, we call Consume() again, which tries to establish a new session. If an error occurs trying to establish a new session, it will be retried following an exponential backoff strategy.
 
-### Start/Stop consumer
+## Start/Stop consumer
 
 The consumer can be stopped by sending a 'false' value to the Consume channel, and it can be started by sending a 'true' value:
 
@@ -324,7 +396,7 @@ When a `true` value is received form the Consume channel by a stopped consumer, 
 Sending `true` to a consumer in `Starting`/`Consuming` state, or `false` to a consumer in `Stopping`/`Stopped` state ha no effect.
 
 
-### Closing
+## Closing
 
 Producers can be closed by calling the `Close` method.
 
@@ -351,8 +423,8 @@ check, err = cli.Checker(ctx)
 See the [examples](examples/README.md) below for some typical usages of this library.
 
 - [Producer example](examples/producer/main.go) [TLS enabled]
-- [Sequential consumer example](examples/consumer-sequential/main.go) [TLS enabled]
-- [Concurrent consumer example](examples/consumer-concurrent/main.go)
+- [Sequential consumer example](examples/consumer/main.go) [TLS enabled]
+- [Concurrent consumer example](examples/consumer-batch/main.go)
 
 ## Testing
 
