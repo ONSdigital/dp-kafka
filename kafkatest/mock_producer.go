@@ -7,6 +7,7 @@ import (
 	"context"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3"
+	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"sync"
 )
 
@@ -17,6 +18,7 @@ var (
 	lockIProducerMockInitialise    sync.RWMutex
 	lockIProducerMockIsInitialised sync.RWMutex
 	lockIProducerMockLogErrors     sync.RWMutex
+	lockIProducerMockSend          sync.RWMutex
 )
 
 // Ensure, that IProducerMock does implement kafka.IProducer.
@@ -47,6 +49,9 @@ var _ kafka.IProducer = &IProducerMock{}
 //             LogErrorsFunc: func(ctx context.Context)  {
 // 	               panic("mock out the LogErrors method")
 //             },
+//             SendFunc: func(schema *avro.Schema, event interface{}) error {
+// 	               panic("mock out the Send method")
+//             },
 //         }
 //
 //         // use mockedIProducer in code that requires kafka.IProducer
@@ -71,6 +76,9 @@ type IProducerMock struct {
 
 	// LogErrorsFunc mocks the LogErrors method.
 	LogErrorsFunc func(ctx context.Context)
+
+	// SendFunc mocks the Send method.
+	SendFunc func(schema *avro.Schema, event interface{}) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -101,6 +109,13 @@ type IProducerMock struct {
 		LogErrors []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+		}
+		// Send holds details about calls to the Send method.
+		Send []struct {
+			// Schema is the schema argument value.
+			Schema *avro.Schema
+			// Event is the event argument value.
+			Event interface{}
 		}
 	}
 }
@@ -282,5 +297,40 @@ func (mock *IProducerMock) LogErrorsCalls() []struct {
 	lockIProducerMockLogErrors.RLock()
 	calls = mock.calls.LogErrors
 	lockIProducerMockLogErrors.RUnlock()
+	return calls
+}
+
+// Send calls SendFunc.
+func (mock *IProducerMock) Send(schema *avro.Schema, event interface{}) error {
+	if mock.SendFunc == nil {
+		panic("IProducerMock.SendFunc: method is nil but IProducer.Send was just called")
+	}
+	callInfo := struct {
+		Schema *avro.Schema
+		Event  interface{}
+	}{
+		Schema: schema,
+		Event:  event,
+	}
+	lockIProducerMockSend.Lock()
+	mock.calls.Send = append(mock.calls.Send, callInfo)
+	lockIProducerMockSend.Unlock()
+	return mock.SendFunc(schema, event)
+}
+
+// SendCalls gets all the calls that were made to Send.
+// Check the length with:
+//     len(mockedIProducer.SendCalls())
+func (mock *IProducerMock) SendCalls() []struct {
+	Schema *avro.Schema
+	Event  interface{}
+} {
+	var calls []struct {
+		Schema *avro.Schema
+		Event  interface{}
+	}
+	lockIProducerMockSend.RLock()
+	calls = mock.calls.Send
+	lockIProducerMockSend.RUnlock()
 	return calls
 }

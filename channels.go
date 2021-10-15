@@ -20,21 +20,21 @@ const (
 
 // ConsumerGroupChannels represents the channels used by ConsumerGroup.
 type ConsumerGroupChannels struct {
-	Upstream chan Message
-	Errors   chan error
-	Ready    chan struct{} // TOO we may want to rename this to 'Initialised', as it may not be 'ready' to consume
-	Consume  chan bool
-	Closer   chan struct{}
-	Closed   chan struct{}
+	Upstream    chan Message
+	Errors      chan error
+	Initialised chan struct{}
+	Consume     chan bool
+	Closer      chan struct{}
+	Closed      chan struct{}
 }
 
 // ProducerChannels represents the channels used by Producer.
 type ProducerChannels struct {
-	Output chan []byte
-	Errors chan error
-	Ready  chan struct{}
-	Closer chan struct{}
-	Closed chan struct{}
+	Output      chan []byte
+	Errors      chan error
+	Initialised chan struct{}
+	Closer      chan struct{}
+	Closed      chan struct{}
 }
 
 // CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels.
@@ -50,23 +50,23 @@ func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
 		chUpstream = make(chan Message)
 	}
 	return &ConsumerGroupChannels{
-		Upstream: chUpstream,
-		Errors:   make(chan error),
-		Ready:    make(chan struct{}),
-		Consume:  make(chan bool),
-		Closer:   make(chan struct{}),
-		Closed:   make(chan struct{}),
+		Upstream:    chUpstream,
+		Errors:      make(chan error),
+		Initialised: make(chan struct{}),
+		Consume:     make(chan bool),
+		Closer:      make(chan struct{}),
+		Closed:      make(chan struct{}),
 	}
 }
 
 // CreateProducerChannels initialises a ProducerChannels with new channels.
 func CreateProducerChannels() *ProducerChannels {
 	return &ProducerChannels{
-		Output: make(chan []byte),
-		Errors: make(chan error),
-		Ready:  make(chan struct{}),
-		Closer: make(chan struct{}),
-		Closed: make(chan struct{}),
+		Output:      make(chan []byte),
+		Errors:      make(chan error),
+		Initialised: make(chan struct{}),
+		Closer:      make(chan struct{}),
+		Closed:      make(chan struct{}),
 	}
 }
 
@@ -79,7 +79,7 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 	if consumerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if consumerChannels.Ready == nil {
+	if consumerChannels.Initialised == nil {
 		missingChannels = append(missingChannels, Ready)
 	}
 	if consumerChannels.Consume == nil {
@@ -109,7 +109,7 @@ func (producerChannels *ProducerChannels) Validate() error {
 	if producerChannels.Errors == nil {
 		missingChannels = append(missingChannels, Errors)
 	}
-	if producerChannels.Ready == nil {
+	if producerChannels.Initialised == nil {
 		missingChannels = append(missingChannels, Ready)
 	}
 	if producerChannels.Closer == nil {

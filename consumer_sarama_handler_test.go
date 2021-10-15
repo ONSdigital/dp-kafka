@@ -51,7 +51,7 @@ func TestSetup(t *testing.T) {
 
 		Convey("When Setup is called in 'Consuming' state and with Ready channel closed", func() {
 			cgHandler.state.Set(Consuming)
-			close(channels.Ready)
+			close(channels.Initialised)
 			err := cgHandler.Setup(cgSession)
 			defer close(cgHandler.chSessionConsuming) // close chSessionConsuming channel to force the control go-routine to end
 
@@ -60,7 +60,7 @@ func TestSetup(t *testing.T) {
 			})
 
 			Convey("Then the Ready channel is closed", func() {
-				validateChanClosed(c, channels.Ready, true)
+				validateChanClosed(c, channels.Initialised, true)
 			})
 
 			Convey("Then the state is set to 'Consuming'", func() {
@@ -74,7 +74,7 @@ func TestSetup(t *testing.T) {
 
 			Convey("Then the expected error is returned and no further action is taken", func() {
 				So(err.Error(), ShouldEqual, "session setup failed, wrong state to start consuming: state transition from Stopping to Consuming is not allowed")
-				validateChanClosed(c, channels.Ready, false)
+				validateChanClosed(c, channels.Initialised, false)
 				So(cgHandler.state.Get(), ShouldEqual, Stopping)
 			})
 		})
@@ -88,7 +88,7 @@ func TestControlRoutine(t *testing.T) {
 		channels := CreateConsumerGroupChannels(bufferSize)
 		cgState := NewConsumerStateMachine(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
-		close(channels.Ready)
+		close(channels.Initialised)
 		cgHandler.chSessionConsuming = make(chan struct{})
 
 		// start control group in a go-routine

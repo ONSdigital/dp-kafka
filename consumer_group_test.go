@@ -75,7 +75,7 @@ func TestConsumerInitialised(t *testing.T) {
 		})
 
 		Convey("The consumer is in 'stopped' state by default", func() {
-			<-consumer.Channels().Ready // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
+			<-consumer.Channels().Initialised // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
 			So(consumer.state.Get(), ShouldEqual, Stopped)
 		})
 
@@ -684,7 +684,7 @@ func TestConsumeLoop(t *testing.T) {
 			cg.createConsumeLoop(ctx)
 
 			Convey("Then the ready channel is closed", func(c C) {
-				validateChanClosed(c, channels.Ready, true)
+				validateChanClosed(c, channels.Initialised, true)
 			})
 
 			Convey("then the state is set to the initial state ('Stopped')", func() {
@@ -740,7 +740,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 			cg.createLoopUninitialised(ctx)
 
 			Convey("Then closing the ready channel results in the loop ending its execution", func(c C) {
-				close(channels.Ready)
+				close(channels.Initialised)
 				cg.wgClose.Wait()
 			})
 		})

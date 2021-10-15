@@ -54,7 +54,7 @@ func (internal *cgInternal) initialiseFunc(ctx context.Context) error {
 		return nil
 	}
 	internal.isInitialised = true
-	close(internal.cgChannels.Ready)
+	close(internal.cgChannels.Initialised)
 	return nil
 }
 

@@ -106,7 +106,7 @@ func TestProducer(t *testing.T) {
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeTrue)
-			validateChanClosed(c, producer.Channels().Ready, true)
+			validateChanClosed(c, producer.Channels().Initialised, true)
 		})
 
 		Convey("We cannot initialise producer again", func() {
@@ -214,7 +214,7 @@ func TestProducerNotInitialised(t *testing.T) {
 			So(producer.Channels().Errors, ShouldEqual, producer.Channels().Errors)
 			So(pInitCalls, ShouldEqual, 1)
 			So(producer.IsInitialised(), ShouldBeFalse)
-			validateChanClosed(c, producer.Channels().Ready, false)
+			validateChanClosed(c, producer.Channels().Initialised, false)
 		})
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {

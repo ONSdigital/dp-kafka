@@ -21,7 +21,7 @@ func TestProducerMock(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				<-producerMock.Channels().Ready
+				<-producerMock.Channels().Initialised
 				readyClosed = true
 			}()
 			producerMock.Initialise(context.Background())
@@ -92,7 +92,7 @@ func TestConsumerMock(t *testing.T) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				<-consumerMock.Channels().Ready
+				<-consumerMock.Channels().Initialised
 				readyClosed = true
 			}()
 			consumerMock.Initialise(context.Background())

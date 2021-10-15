@@ -3,10 +3,12 @@ package kafka
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
@@ -21,6 +23,7 @@ type IProducer interface {
 	LogErrors(ctx context.Context)
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
+	Send(schema *avro.Schema, event interface{}) error
 	Close(ctx context.Context) (err error)
 }
 
@@ -145,7 +148,17 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	p.producer = saramaProducer
 	log.Info(ctx, "initialised sarama producer", log.Data{"topic": p.topic})
 	p.createLoopInitialised(ctx)
-	close(p.channels.Ready)
+	close(p.channels.Initialised)
+	return nil
+}
+
+// Send marshals the provided event with the provided schema, and sends it to kafka
+func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
+	bytes, err := schema.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("avro schema marshal error: %w", err)
+	}
+	p.channels.Output <- bytes
 	return nil
 }
 
@@ -210,7 +223,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			case message := <-p.channels.Output:
 				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
 				p.channels.Errors <- errors.New("producer is not initialised")
-			case <-p.channels.Ready:
+			case <-p.channels.Initialised:
 				return
 			case <-p.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka producer", log.Data{"topic": p.topic})

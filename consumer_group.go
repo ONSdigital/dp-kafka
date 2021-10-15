@@ -187,7 +187,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	cg.createErrorLoop(ctx)
 
 	// Await until the consumer has been set up
-	<-cg.channels.Ready
+	<-cg.channels.Initialised
 
 	return nil
 }
@@ -352,7 +352,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 		initAttempt := 1
 		for {
 			select {
-			case <-cg.channels.Ready:
+			case <-cg.channels.Initialised:
 				return
 			case <-cg.channels.Closer:
 				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
@@ -382,9 +382,9 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 
 	// close Ready channel (if it is not already closed)
 	select {
-	case <-cg.channels.Ready:
+	case <-cg.channels.Initialised:
 	default:
-		close(cg.channels.Ready)
+		close(cg.channels.Initialised)
 	}
 
 	for {
@@ -426,9 +426,9 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 
 	// close Ready channel (if it is not already closed)
 	select {
-	case <-cg.channels.Ready:
+	case <-cg.channels.Initialised:
 	default:
-		close(cg.channels.Ready)
+		close(cg.channels.Initialised)
 	}
 
 	consumeAttempt := 1
