@@ -18,6 +18,8 @@ type Handler struct {
 
 func (h *Handler) Handle(ctx context.Context, workerID int, msg kafka.Message) error {
 	consumeCount++
+
+	// calculate time to sleep, and create a log before sleeping
 	sleepTime := getSleepTime(h.Cfg)
 	logData := log.Data{
 		"consumeCount":  consumeCount,
@@ -27,9 +29,13 @@ func (h *Handler) Handle(ctx context.Context, workerID int, msg kafka.Message) e
 		"sleep":         sleepTime,
 	}
 	log.Info(ctx, "[KAFKA-TEST] Received message", logData)
+
+	// sleep (simulates message processing time)
 	if sleepTime > time.Duration(0) {
 		time.Sleep(sleepTime)
 	}
+
+	// log again after the message has been 'processed'
 	log.Info(ctx, "[KAFKA-TEST] Message processed", logData)
 	return nil
 }

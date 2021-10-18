@@ -25,14 +25,15 @@ type ProducerConfig struct {
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
-func (p *ProducerConfig) Get() (cfg *sarama.Config, err error) {
+func (p *ProducerConfig) Get() (*sarama.Config, error) {
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
 
 	// Get default Sarama config and apply overrides
-	cfg = sarama.NewConfig()
+	cfg := sarama.NewConfig()
 	if p.KafkaVersion != nil {
+		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*p.KafkaVersion); err != nil {
 			return nil, err
 		}
@@ -52,7 +53,7 @@ func (p *ProducerConfig) Get() (cfg *sarama.Config, err error) {
 	if p.RetryBackoffFunc != nil {
 		cfg.Producer.Retry.BackoffFunc = *p.RetryBackoffFunc
 	}
-	if err = addAnyTLS(p.SecurityConfig, cfg); err != nil {
+	if err := addAnyTLS(p.SecurityConfig, cfg); err != nil {
 		return nil, err
 	}
 

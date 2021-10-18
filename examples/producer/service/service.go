@@ -3,7 +3,6 @@ package service
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -113,13 +112,13 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 func (svc *Service) Close(ctx context.Context) error {
 	log.Info(ctx, "[KAFKA-TEST] Commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": svc.cfg.GracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(context.Background(), svc.cfg.GracefulShutdownTimeout)
-	hasShutdownError := false
+	var shutdownErr error
 
 	go func() {
 		defer cancel()
 		log.Info(ctx, "[KAFKA-TEST] Closing kafka producer")
 		if err := svc.producer.Close(ctx); err != nil {
-			hasShutdownError = true
+			shutdownErr = fmt.Errorf("failed to close producer in service shutdown: %w", err)
 		}
 		log.Info(ctx, "[KAFKA-TEST] Closed kafka producer")
 	}()
@@ -132,10 +131,9 @@ func (svc *Service) Close(ctx context.Context) error {
 		return ctx.Err()
 	}
 
-	if hasShutdownError {
-		err := errors.New("failed to shutdown gracefully")
-		log.Error(ctx, "[KAFKA-TEST] failed to shutdown gracefully ", err)
-		return err
+	if shutdownErr != nil {
+		log.Error(ctx, "[KAFKA-TEST] failed to shutdown gracefully ", shutdownErr)
+		return shutdownErr
 	}
 
 	log.Info(ctx, "[KAFKA-TEST] graceful shutdown was successful")

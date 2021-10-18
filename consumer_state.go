@@ -65,7 +65,7 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 		}
 	}
 	if !transitionAllowed {
-		return fmt.Errorf("state transition from %s to %s is not allowed", sm.state.String(), newState.String())
+		return fmt.Errorf("state transition from %s to %s is not allowed", sm.state, newState)
 	}
 	sm.state = newState
 	return nil

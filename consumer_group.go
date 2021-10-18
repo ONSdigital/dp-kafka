@@ -193,6 +193,8 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 }
 
 // OnHealthUpdate implements the healthcheck Subscriber interface so that the kafka consumer can be notified of state changes.
+// This method is intended to be used for managed start/stop's only, and should not be called manually.
+// WARNING: Having more than one notifier calling this method will result in unexpected behavior.
 // - On Health status OK: start consuming
 // - On Warning or Critical: stop consuming
 func (cg *ConsumerGroup) OnHealthUpdate(status string) {
@@ -262,7 +264,7 @@ func (cg *ConsumerGroup) stop(sync bool) {
 	case Starting, Consuming:
 		cg.channels.Consume <- false
 		if sync {
-			<-cg.saramaCgHandler.chSessionConsuming // wait until the active kafka session finishes
+			<-cg.saramaCgHandler.sessionConsuming // wait until the active kafka session finishes
 		}
 		return
 	default: // Closing state

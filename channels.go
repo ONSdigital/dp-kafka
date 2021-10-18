@@ -9,7 +9,7 @@ import (
 // channel names
 const (
 	Errors       = "Errors"
-	Ready        = "Ready"
+	Initialised  = "Initialised"
 	Consume      = "Consume"
 	Closer       = "Closer"
 	Closed       = "Closed"
@@ -80,7 +80,7 @@ func (consumerChannels *ConsumerGroupChannels) Validate() error {
 		missingChannels = append(missingChannels, Errors)
 	}
 	if consumerChannels.Initialised == nil {
-		missingChannels = append(missingChannels, Ready)
+		missingChannels = append(missingChannels, Initialised)
 	}
 	if consumerChannels.Consume == nil {
 		missingChannels = append(missingChannels, Consume)
@@ -110,7 +110,7 @@ func (producerChannels *ProducerChannels) Validate() error {
 		missingChannels = append(missingChannels, Errors)
 	}
 	if producerChannels.Initialised == nil {
-		missingChannels = append(missingChannels, Ready)
+		missingChannels = append(missingChannels, Initialised)
 	}
 	if producerChannels.Closer == nil {
 		missingChannels = append(missingChannels, Closer)

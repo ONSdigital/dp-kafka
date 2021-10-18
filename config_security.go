@@ -51,7 +51,7 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err erro
 			[]byte(expandNewlines(tlsConfig.ClientCert)),
 			[]byte(expandNewlines(tlsConfig.ClientKey)),
 		); err != nil {
-			return
+			return fmt.Errorf("error parsing X509 keypair from certificate string while getting security config : %w", err)
 		}
 		saramaTLSConfig = &tls.Config{
 			MinVersion:   tls.VersionTLS12,
@@ -60,7 +60,7 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err erro
 	} else {
 		// cert in files
 		if saramaTLSConfig, err = saramatls.NewConfig(tlsConfig.ClientCert, tlsConfig.ClientKey); err != nil {
-			return
+			return fmt.Errorf("error creating new sarama TLS config from files while getting security config : %w", err)
 		}
 	}
 

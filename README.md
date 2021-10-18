@@ -162,7 +162,7 @@ The producer constructor accepts a configuration. The configuration needs to pro
     // Create Producer with config
     pConfig := &kafka.ProducerConfig{
         BrokerAddrs:     kafkaConfig.Brokers,       // compulsory
-	    Topic:           kafkaConfig.ProducedTopic, // compulsory
+        Topic:           kafkaConfig.ProducedTopic, // compulsory
         KafkaVersion:    &kafkaConfig.Version,
         MaxMessageBytes: &kafkaConfig.MaxBytes,
     }
@@ -191,8 +191,8 @@ The constructor will create an Upstream channel with a buffer size that is the m
     // Create ConsumerGroup with config
     cgConfig := &kafka.ConsumerGroupConfig{
         BrokerAddrs:  kafkaConfig.Brokers,       // compulsory
-	    Topic:        kafkaConfig.ConsumedTopic, // compulsory
-	    GroupName:    kafkaConfig.ConsumedGroup, // compulsory
+        Topic:        kafkaConfig.ConsumedTopic, // compulsory
+        GroupName:    kafkaConfig.ConsumedGroup, // compulsory
         KafkaVersion: &kafkaConfig.Version,
         NumWorkers:   &kafkaConfig.KafkaParallelMessages,
     }
@@ -210,10 +210,10 @@ The constructor will create an Upstream channel with a buffer size that is the m
 ```go
     cgConfig := &kafka.ConsumerGroupConfig{
         BrokerAddrs:  cfg.Brokers,       // compulsory
-	    Topic:        cfg.ConsumedTopic, // compulsory
-	    GroupName:    cfg.ConsumedGroup, // compulsory
-	    KafkaVersion: &cfg.KafkaVersion,
-	    NumWorkers:   &cfg.KafkaParallelMessages,
+        Topic:        cfg.ConsumedTopic, // compulsory
+        GroupName:    cfg.ConsumedGroup, // compulsory
+        KafkaVersion: &cfg.KafkaVersion,
+        NumWorkers:   &cfg.KafkaParallelMessages,
     }
     if kafkaConfig.SecProtocol == config.KafkaTLSProtocolFlag {
         cgConfig.SecurityConfig = kafka.GetSecurityConfig(
@@ -289,7 +289,7 @@ You may register a single-message handler like so:
     ...
 
     // register the handler to your kafka consumer
-	consumer.RegisterHandler(ctx, handler.Handle)
+    consumer.RegisterHandler(ctx, handler.Handle)
 ```
 
 By default, messages are consumed sequentially, but you can provide a `NumWorkers` value greater than one to consume messages concurrently. One go-routine will be create for each worker.
@@ -311,7 +311,7 @@ You may register a batch-message handler like so:
     }
 
     // register the batch handler to your kafka consumer
-	svc.consumer.RegisterBatchHandler(ctx, handler.Handle)
+    svc.consumer.RegisterBatchHandler(ctx, handler.Handle)
 ```
 
 Incoming messages will be accumulated until a total of `BatchSize` messages, or after a period of `BatchWaitTime` has elapsed.
@@ -416,8 +416,13 @@ The consumer group implements dp-healthcheck's `Subscriber` interface. You can s
 Assuming you have a healthcheck `hc`, you can subscribe a kafka consumer like so:
 
 ```go
-	hc.Subscribe(consumer, check1, check2, check3)
+    hc.Subscribe(consumer, check1, check2, check3)
 ```
+
+Warnings:
+- A kafka consumer may be subscribed to multiple checkers, but it must be subscribed to only one healthcheck library instance.
+
+- Once the consumer is subscribed, calls to Start/Stop must not be manually performed, as they would interfere with the managed calls on health change events.
 
 ## Examples
 

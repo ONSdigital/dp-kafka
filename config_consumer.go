@@ -42,13 +42,13 @@ type ConsumerGroupConfig struct {
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
 // If any required value is not provided or any override is invalid, an error will be returned
-func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
+func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 
 	// Get default Sarama config and apply overrides
-	cfg = sarama.NewConfig()
+	cfg := sarama.NewConfig()
 	cfg.Consumer.MaxWaitTime = 50 * time.Millisecond
 	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 	cfg.Consumer.Return.Errors = true
@@ -58,6 +58,7 @@ func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
 		cfg.Consumer.Group.Session.Timeout = *c.MessageConsumeTimeout
 	}
 	if c.KafkaVersion != nil {
+		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*c.KafkaVersion); err != nil {
 			return nil, err
 		}
@@ -77,7 +78,7 @@ func (c *ConsumerGroupConfig) Get() (cfg *sarama.Config, err error) {
 		}
 		cfg.Consumer.Offsets.Initial = *c.Offset
 	}
-	if err = addAnyTLS(c.SecurityConfig, cfg); err != nil {
+	if err := addAnyTLS(c.SecurityConfig, cfg); err != nil {
 		return nil, err
 	}
 

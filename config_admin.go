@@ -17,9 +17,10 @@ type AdminConfig struct {
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
-func (a *AdminConfig) Get() (cfg *sarama.Config, err error) {
-	cfg = sarama.NewConfig()
+func (a *AdminConfig) Get() (*sarama.Config, error) {
+	cfg := sarama.NewConfig()
 	if a.KafkaVersion != nil {
+		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*a.KafkaVersion); err != nil {
 			return nil, err
 		}
@@ -33,13 +34,8 @@ func (a *AdminConfig) Get() (cfg *sarama.Config, err error) {
 	if a.RetryBackoff != nil {
 		cfg.Admin.Retry.Backoff = *a.RetryBackoff
 	}
-	if err = addAnyTLS(a.SecurityConfig, cfg); err != nil {
+	if err := addAnyTLS(a.SecurityConfig, cfg); err != nil {
 		return nil, err
 	}
 	return cfg, nil
-}
-
-// Validate that compulsory values are provided in config
-func (a *AdminConfig) Validate() (err error) {
-	return nil
 }

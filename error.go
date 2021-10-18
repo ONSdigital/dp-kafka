@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"reflect"
 
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -34,9 +35,6 @@ func (e *Error) Error() string {
 // LogData implements the DataLogger interface which allows you extract
 // embedded log.Data from an error
 func (e *Error) LogData() map[string]interface{} {
-	if e.logData == nil {
-		return log.Data{}
-	}
 	return e.logData
 }
 
@@ -66,7 +64,7 @@ func UnwrapLogData(err error) log.Data {
 	for _, d := range data {
 		for k, v := range d {
 			if val, ok := logData[k]; ok {
-				if val != v {
+				if !reflect.DeepEqual(val, v) {
 					if s, ok := val.([]interface{}); ok {
 						s = append(s, v)
 						logData[k] = s

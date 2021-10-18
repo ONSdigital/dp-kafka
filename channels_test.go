@@ -9,27 +9,27 @@ import (
 )
 
 // createProducerChannels creates local producer channels for testing
-func createProducerChannels() (chOutput chan []byte, chErrors chan error, chReady, chCloser, chClosed chan struct{}) {
-	chOutput = make(chan []byte)
-	chErrors = make(chan error)
-	chReady = make(chan struct{})
-	chCloser = make(chan struct{})
-	chClosed = make(chan struct{})
+func createProducerChannels() (output chan []byte, errs chan error, init, closer, closed chan struct{}) {
+	output = make(chan []byte)
+	errs = make(chan error)
+	init = make(chan struct{})
+	closer = make(chan struct{})
+	closed = make(chan struct{})
 	return
 }
 
 func TestProducerChannelsValidate(t *testing.T) {
 
 	Convey("Given a set of producer channels", t, func() {
-		chOutput, chErrors, chReady, chCloser, chClosed := createProducerChannels()
+		output, errs, init, closer, closed := createProducerChannels()
 
 		Convey("ProducerChannels with all required channels has a successful validation", func() {
 			pCh := ProducerChannels{
-				Output:      chOutput,
-				Errors:      chErrors,
-				Initialised: chReady,
-				Closer:      chCloser,
-				Closed:      chClosed,
+				Output:      output,
+				Errors:      errs,
+				Initialised: init,
+				Closer:      closer,
+				Closed:      closed,
 			}
 			err := pCh.Validate()
 			So(err, ShouldBeNil)
@@ -37,10 +37,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 
 		Convey("Missing Output channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Errors:      chErrors,
-				Initialised: chReady,
-				Closer:      chCloser,
-				Closed:      chClosed,
+				Errors:      errs,
+				Initialised: init,
+				Closer:      closer,
+				Closed:      closed,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -51,10 +51,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 
 		Convey("Missing Errors channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Output:      chOutput,
-				Initialised: chReady,
-				Closer:      chCloser,
-				Closed:      chClosed,
+				Output:      output,
+				Initialised: init,
+				Closer:      closer,
+				Closed:      closed,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -63,26 +63,26 @@ func TestProducerChannelsValidate(t *testing.T) {
 			))
 		})
 
-		Convey("Missing Ready channel in ProducerChannels results in an ErrNoChannel error", func() {
+		Convey("Missing Initialised channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Output: chOutput,
-				Errors: chErrors,
-				Closer: chCloser,
-				Closed: chClosed,
+				Output: output,
+				Errors: errs,
+				Closer: closer,
+				Closed: closed,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
 				errors.New("failed to validate producer because some channels are missing"),
-				log.Data{"missing_channels": []string{Ready}},
+				log.Data{"missing_channels": []string{Initialised}},
 			))
 		})
 
 		Convey("Missing Closer channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Output:      chOutput,
-				Errors:      chErrors,
-				Initialised: chReady,
-				Closed:      chClosed,
+				Output:      output,
+				Errors:      errs,
+				Initialised: init,
+				Closed:      closed,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -93,10 +93,10 @@ func TestProducerChannelsValidate(t *testing.T) {
 
 		Convey("Missing Closed channel in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Output:      chOutput,
-				Errors:      chErrors,
-				Initialised: chReady,
-				Closer:      chCloser,
+				Output:      output,
+				Errors:      errs,
+				Initialised: init,
+				Closer:      closer,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -107,12 +107,12 @@ func TestProducerChannelsValidate(t *testing.T) {
 
 		Convey("Missing multiple channels in ProducerChannels results in an ErrNoChannel error", func() {
 			pCh := ProducerChannels{
-				Output: chOutput,
+				Output: output,
 			}
 			err := pCh.Validate()
 			So(err, ShouldResemble, NewError(
 				errors.New("failed to validate producer because some channels are missing"),
-				log.Data{"missing_channels": []string{Errors, Ready, Closer, Closed}},
+				log.Data{"missing_channels": []string{Errors, Initialised, Closer, Closed}},
 			))
 		})
 
@@ -120,30 +120,30 @@ func TestProducerChannelsValidate(t *testing.T) {
 }
 
 // createConsumerChannels creates local consumer channels for testing
-func createConsumerChannels() (chUpstream chan Message, chReady chan struct{}, chConsume chan bool, chCloser, chClosed chan struct{},
-	chErrors chan error) {
-	chUpstream = make(chan Message)
-	chReady = make(chan struct{})
-	chConsume = make(chan bool)
-	chCloser = make(chan struct{})
-	chClosed = make(chan struct{})
-	chErrors = make(chan error)
+func createConsumerChannels() (upstream chan Message, consume chan bool,
+	init, closer, closed chan struct{}, errs chan error) {
+	upstream = make(chan Message)
+	init = make(chan struct{})
+	consume = make(chan bool)
+	closer = make(chan struct{})
+	closed = make(chan struct{})
+	errs = make(chan error)
 	return
 }
 
 func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 	Convey("Given a set of consumer group channels", t, func() {
-		chUpstream, chReady, chConsume, chCloser, chClosed, chErrors := createConsumerChannels()
+		upstream, consume, init, closer, closed, errs := createConsumerChannels()
 
 		Convey("ConsumerGroupChannels with all required channels has a successful validation", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
-				Consume:     chConsume,
-				Closer:      chCloser,
-				Closed:      chClosed,
-				Errors:      chErrors,
+				Upstream:    upstream,
+				Initialised: init,
+				Consume:     consume,
+				Closer:      closer,
+				Closed:      closed,
+				Errors:      errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldBeNil)
@@ -151,11 +151,11 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Upstream channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Initialised: chReady,
-				Consume:     chConsume,
-				Closer:      chCloser,
-				Closed:      chClosed,
-				Errors:      chErrors,
+				Initialised: init,
+				Consume:     consume,
+				Closer:      closer,
+				Closed:      closed,
+				Errors:      errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -164,28 +164,28 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 			))
 		})
 
-		Convey("Missing Ready channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
+		Convey("Missing Initialised channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream: chUpstream,
-				Consume:  chConsume,
-				Closer:   chCloser,
-				Closed:   chClosed,
-				Errors:   chErrors,
+				Upstream: upstream,
+				Consume:  consume,
+				Closer:   closer,
+				Closed:   closed,
+				Errors:   errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
 				errors.New("failed to validate consumer group because some channels are missing"),
-				log.Data{"missing_channels": []string{Ready}},
+				log.Data{"missing_channels": []string{Initialised}},
 			))
 		})
 
 		Convey("Missing Consume channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
-				Closer:      chCloser,
-				Closed:      chClosed,
-				Errors:      chErrors,
+				Upstream:    upstream,
+				Initialised: init,
+				Closer:      closer,
+				Closed:      closed,
+				Errors:      errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -196,11 +196,11 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Closer channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
-				Consume:     chConsume,
-				Closed:      chClosed,
-				Errors:      chErrors,
+				Upstream:    upstream,
+				Initialised: init,
+				Consume:     consume,
+				Closed:      closed,
+				Errors:      errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -211,11 +211,11 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Closed channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
-				Consume:     chConsume,
-				Closer:      chCloser,
-				Errors:      chErrors,
+				Upstream:    upstream,
+				Initialised: init,
+				Consume:     consume,
+				Closer:      closer,
+				Errors:      errs,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -226,11 +226,11 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing Errors channel in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
-				Consume:     chConsume,
-				Closer:      chCloser,
-				Closed:      chClosed,
+				Upstream:    upstream,
+				Initialised: init,
+				Consume:     consume,
+				Closer:      closer,
+				Closed:      closed,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(
@@ -241,8 +241,8 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 
 		Convey("Missing multiple channels in ConsumerGroupChannels results in an ErrNoChannel error", func() {
 			cCh := ConsumerGroupChannels{
-				Upstream:    chUpstream,
-				Initialised: chReady,
+				Upstream:    upstream,
+				Initialised: init,
 			}
 			err := cCh.Validate()
 			So(err, ShouldResemble, NewError(

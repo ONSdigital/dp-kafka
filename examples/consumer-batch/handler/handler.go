@@ -18,19 +18,27 @@ type Handler struct {
 
 func (h *Handler) Handle(ctx context.Context, batch []kafka.Message) error {
 	consumeCount += len(batch)
+
+	// get a map of message data by offset for the batched messages
 	msgDataByOffset := map[int64]string{}
 	for _, msg := range batch {
 		msgDataByOffset[msg.Offset()] = string(msg.GetData())
 	}
+
+	// calculate time to sleep, and create a log before sleeping
 	sleepTime := getSleepTime(h.Cfg)
 	logData := log.Data{
 		"consumeCount":       consumeCount,
 		"sleep":              sleepTime,
 		"messages_by_offset": msgDataByOffset}
 	log.Info(ctx, "[KAFKA-TEST] Received batch", logData)
+
+	// sleep (simulates message processing time)
 	if sleepTime > time.Duration(0) {
 		time.Sleep(sleepTime)
 	}
+
+	// log again after the message has been 'processed'
 	log.Info(ctx, "[KAFKA-TEST] Batch processed", logData)
 	return nil
 }

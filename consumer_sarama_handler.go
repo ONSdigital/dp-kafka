@@ -11,10 +11,10 @@ import (
 // saramaHandler is a consumer-group handler used by Sarama as a callback receiver
 // to setup/cleanup sessions and consume messages
 type saramaHandler struct {
-	ctx                context.Context
-	channels           *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state              *StateMachine          // State is shared with ConsumerGroup
-	chSessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends
+	ctx              context.Context
+	channels         *ConsumerGroupChannels // Channels are shared with ConsumerGroup
+	state            *StateMachine          // State is shared with ConsumerGroup
+	sessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends
 }
 
 func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *saramaHandler {
@@ -34,7 +34,7 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 	}
 	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
-	sh.chSessionConsuming = make(chan struct{})
+	sh.sessionConsuming = make(chan struct{})
 	go sh.controlRoutine()
 	return nil
 }
@@ -48,9 +48,9 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 func (sh *saramaHandler) controlRoutine() {
 	defer func() {
 		select {
-		case <-sh.chSessionConsuming:
+		case <-sh.sessionConsuming:
 		default:
-			close(sh.chSessionConsuming)
+			close(sh.sessionConsuming)
 		}
 	}()
 
@@ -68,7 +68,7 @@ func (sh *saramaHandler) controlRoutine() {
 				sh.state.Set(Stopping)
 				return
 			}
-		case <-sh.chSessionConsuming:
+		case <-sh.sessionConsuming:
 			return // if chConsuming is closed, this go-routine must exit
 		}
 	}
@@ -82,9 +82,9 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
 	select {
-	case <-sh.chSessionConsuming:
+	case <-sh.sessionConsuming:
 	default:
-		close(sh.chSessionConsuming)
+		close(sh.sessionConsuming)
 	}
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
@@ -107,7 +107,7 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
-		case <-sh.chSessionConsuming: // when chConsuming is closed, we need to stop consuming
+		case <-sh.sessionConsuming: // when chConsuming is closed, we need to stop consuming
 			return nil
 		case m, ok := <-claim.Messages():
 			if !ok {
@@ -126,7 +126,7 @@ func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
 		<-msg.UpstreamDone() // Wait until the message is released
 		return               // Message has been released
-	case <-sh.chSessionConsuming:
+	case <-sh.sessionConsuming:
 		return // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
 	}
 }
