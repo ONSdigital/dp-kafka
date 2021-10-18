@@ -15,6 +15,11 @@ type Handler func(ctx context.Context, workerID int, msg Message) error
 // This method will be called by only one go-routine at a time.
 type BatchHandler func(ctx context.Context, batch []Message) error
 
+// Commiter represents an error type that defines a bool method to enable or disable a message/batch to be committed.
+type Commiter interface {
+	Commit() bool
+}
+
 // listen creates one go-routine for each worker, which listens to the Upstream channel
 // when a new message arrives to the channel, the handler func is called.
 // when the closer channel is closed, all go-routines will exit (after finishing processing any in-flight message)
@@ -23,6 +28,27 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 		return
 	}
 
+	// handleMessage is an aux func to handle one message.
+	// The batch will be committed unless a 'Commiter' error is returned and its Commit() func returns false
+	var handleMessage = func(workerID int, msg Message) {
+		commit := true // commit messages by default
+		if err := cg.handler(context.Background(), workerID, msg); err != nil {
+			if cerr, ok := err.(Commiter); ok {
+				if !cerr.Commit() {
+					commit = false // caller does not want the message to be committed
+				}
+			}
+			logData := UnwrapLogData(err) // this will unwrap any logData present in the error
+			logData["commit_message"] = commit
+			log.Error(ctx, "failed to handle message", err, logData)
+		}
+
+		if commit {
+			msg.Commit()
+		}
+	}
+
+	// consume is a looping func that listens to the Upstream channel and handles each received message
 	var consume = func(workerID int) {
 		for {
 			select {
@@ -32,13 +58,9 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 					return
 				}
 
-				if err := cg.handler(context.Background(), workerID, msg); err != nil {
-					log.Error(ctx, "failed to handle message", err, log.Data{
-						"log_data": UnwrapLogData(err), // this will unwrap any logData present in the error
-					})
-				}
+				handleMessage(workerID, msg)
 
-				msg.CommitAndRelease()
+				msg.Release()
 			case <-cg.channels.Closer:
 				log.Info(ctx, "closing event consumer loop because closer channel is closed", log.Data{"worker_id": workerID})
 				return
@@ -60,6 +82,29 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 		return
 	}
 
+	// handleBatch is an aux func to handle one batch.
+	// The batch will be committed unless a 'Commiter' error is returned and its Commit() func returns false
+	var handleBatch = func(batch *Batch) {
+		commit := true // commit batch by default
+		if err := cg.batchHandler(ctx, batch.messages); err != nil {
+			if cerr, ok := err.(Commiter); ok {
+				if !cerr.Commit() {
+					commit = false // caller does not want the batch to be committed
+				}
+			}
+			logData := UnwrapLogData(err) // this will unwrap any logData present in the error
+			logData["commit_batch"] = commit
+			log.Error(ctx, "failed to handle message batch", err, logData)
+		}
+
+		if commit {
+			batch.Commit() // mark all messages and commit session
+		}
+		batch.Clear() // always clear batch
+	}
+
+	// consume is a looping func that listens to the Upstream channel, accumulates messages and handles
+	// batches once it is full or the waitTime has expired.
 	var consume = func() {
 		batch := NewBatch(cg.batchSize)
 
@@ -72,18 +117,12 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 				}
 
 				batch.Add(ctx, msg)
-
 				if batch.IsFull() {
 					log.Info(ctx, "batch is full - processing batch", log.Data{"batchsize": batch.Size()})
-					if err := cg.batchHandler(ctx, batch.messages); err != nil {
-						log.Error(ctx, "failed to handle message", err, log.Data{
-							"log_data": UnwrapLogData(err), // this will unwrap any logData present in the error
-						})
-					}
-					batch.Commit() // mark all messages, commit session and empty batch
+					handleBatch(batch)
 				}
 
-				msg.Release() // always release themessage
+				msg.Release() // always release the message
 
 			case <-time.After(cg.batchWaitTime):
 				if batch.IsEmpty() {
@@ -91,12 +130,7 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 				}
 
 				log.Info(ctx, "batch wait time reached - processing batch", log.Data{"batchsize": batch.Size()})
-				if err := cg.batchHandler(ctx, batch.messages); err != nil {
-					log.Error(ctx, "failed to handle message", err, log.Data{
-						"log_data": UnwrapLogData(err), // this will unwrap any logData present in the error
-					})
-				}
-				batch.Commit() // mark all messages, commit session and empty batch
+				handleBatch(batch)
 
 			case <-cg.channels.Closer:
 				log.Info(ctx, "closing event consumer loop because closer channel is closed")

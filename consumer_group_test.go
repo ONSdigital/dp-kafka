@@ -75,7 +75,7 @@ func TestConsumerInitialised(t *testing.T) {
 		})
 
 		Convey("The consumer is in 'stopped' state by default", func() {
-			<-consumer.Channels().Initialised // wait until Ready channel is closed to prevent any data race condition between writing and reading the state
+			<-consumer.Channels().Initialised // wait until Initialised channel is closed to prevent any data race condition between writing and reading the state
 			So(consumer.state.Get(), ShouldEqual, Stopped)
 		})
 
@@ -173,7 +173,8 @@ func TestRegisterHandler(t *testing.T) {
 
 			Convey("Then the handler is called when a message is received from the Upstream channel", func() {
 				sentMessage := newMessage([]byte{2, 4, 8}, 7)
-				sentMessage.CommitAndReleaseFunc = func() {}
+				sentMessage.CommitFunc = func() {}
+				sentMessage.ReleaseFunc = func() {}
 				cg.channels.Upstream <- sentMessage
 				wg.Wait()
 				So(receivedMessage, ShouldEqual, sentMessage)
@@ -683,7 +684,7 @@ func TestConsumeLoop(t *testing.T) {
 		Convey("Where createConsumeLoop is called", func() {
 			cg.createConsumeLoop(ctx)
 
-			Convey("Then the ready channel is closed", func(c C) {
+			Convey("Then the 'Initialised' channel is closed", func(c C) {
 				validateChanClosed(c, channels.Initialised, true)
 			})
 
@@ -739,7 +740,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 		Convey("Where createLoopUninitialised is called", func() {
 			cg.createLoopUninitialised(ctx)
 
-			Convey("Then closing the ready channel results in the loop ending its execution", func(c C) {
+			Convey("Then closing the 'Initialised' channel results in the loop ending its execution", func(c C) {
 				close(channels.Initialised)
 				cg.wgClose.Wait()
 			})

@@ -35,7 +35,7 @@ func TestSetup(t *testing.T) {
 			},
 		}
 
-		Convey("In 'Starting' state and with Ready channel still open", func() {
+		Convey("In 'Starting' state and with 'Initialised' channel still open", func() {
 			cgHandler.state.Set(Starting)
 			err := cgHandler.Setup(cgSession)
 			defer close(cgHandler.sessionConsuming) // close sessionConsuming channel to force the control go-routine to end
@@ -49,7 +49,7 @@ func TestSetup(t *testing.T) {
 			})
 		})
 
-		Convey("When Setup is called in 'Consuming' state and with Ready channel closed", func() {
+		Convey("When Setup is called in 'Consuming' state and with 'Initialised' channel closed", func() {
 			cgHandler.state.Set(Consuming)
 			close(channels.Initialised)
 			err := cgHandler.Setup(cgSession)
@@ -59,7 +59,7 @@ func TestSetup(t *testing.T) {
 				So(err, ShouldBeNil)
 			})
 
-			Convey("Then the Ready channel is closed", func() {
+			Convey("Then the 'Initialised' channel is closed", func() {
 				validateChanClosed(c, channels.Initialised, true)
 			})
 

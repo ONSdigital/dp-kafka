@@ -15,19 +15,19 @@ func TestProducerMock(t *testing.T) {
 		producerMock := NewMessageProducer(false)
 		So(producerMock.IsInitialised(), ShouldBeFalse)
 
-		Convey("It can be successfully initialised, closing Ready channel", func() {
-			readyClosed := false
+		Convey("It can be successfully initialised, closing 'Initialised' channel", func() {
+			initClosed := false
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				<-producerMock.Channels().Initialised
-				readyClosed = true
+				initClosed = true
 			}()
 			producerMock.Initialise(context.Background())
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
-			So(readyClosed, ShouldBeTrue)
+			So(initClosed, ShouldBeTrue)
 		})
 
 		Convey("It can be successfully closed", func() {
@@ -86,19 +86,19 @@ func TestConsumerMock(t *testing.T) {
 		consumerMock := NewMessageConsumer(false)
 		So(consumerMock.IsInitialised(), ShouldBeFalse)
 
-		Convey("It can be successfully initialised, closing Ready channel", func() {
-			readyClosed := false
+		Convey("It can be successfully initialised, closing 'Initialised' channel", func() {
+			initClosed := false
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
 				<-consumerMock.Channels().Initialised
-				readyClosed = true
+				initClosed = true
 			}()
 			consumerMock.Initialise(context.Background())
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
-			So(readyClosed, ShouldBeTrue)
+			So(initClosed, ShouldBeTrue)
 		})
 
 		Convey("It can be successfully closed", func() {

@@ -29,7 +29,7 @@ type IConsumerGroup interface {
 	Stop()
 	StopAndWait()
 	LogErrors(ctx context.Context)
-	Close(ctx context.Context) (err error)
+	Close(ctx context.Context) error
 }
 
 // ConsumerGroup is a Kafka consumer group instance.
@@ -211,7 +211,7 @@ func (cg *ConsumerGroup) OnHealthUpdate(status string) {
 // Start has different effects depending on the state:
 // - Initialising: the consumer will try to start consuming straight away once it's initialised
 // - Starting/Consumer: no change will happen
-// - Stopping/Stopped: the consumer will start start consuming
+// - Stopping/Stopped: the consumer will start consuming
 // - Closing: an error will be returned
 func (cg *ConsumerGroup) Start() error {
 	cg.mutex.Lock()
@@ -248,7 +248,7 @@ func (cg *ConsumerGroup) Stop() {
 // - Closing: an error will be returned
 // This method waits until the consumerGroup reaches the stopped state if it was starting/consuming.
 func (cg *ConsumerGroup) StopAndWait() {
-	cg.stop(false)
+	cg.stop(true)
 }
 
 func (cg *ConsumerGroup) stop(sync bool) {
@@ -382,7 +382,7 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Stopped)
 	logData["state"] = Stopped
 
-	// close Ready channel (if it is not already closed)
+	// close Initialised channel (if it is not already closed)
 	select {
 	case <-cg.channels.Initialised:
 	default:
@@ -418,7 +418,7 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 // this will make the consumer consume messages again every time that a session is destroyed and created.
 // saramaCg.Consume will set the state to consuming while the session is active, and will set it back to 'Starting' when it finishes.
 // before calling consume again after a session finishes, we check if one of the following events has happened:
-// - A 'false' value is received from the Consume channel: the state is set to 'Starting' and the func will return
+// - A 'false' value is received from the Consume channel: the state is set to 'Stopping' and the func will return
 // - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
 // If saramaCg.Consume fails, we retry after waiting some time (exponential backoff between retries).
 // If the consumer changes its state between retries, we abort the loop as described above.
@@ -426,7 +426,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Starting)
 	logData["state"] = Starting
 
-	// close Ready channel (if it is not already closed)
+	// close Initialised channel (if it is not already closed)
 	select {
 	case <-cg.channels.Initialised:
 	default:
@@ -533,9 +533,7 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 
 // createErrorLoop creates a goroutine to consume errors returned by Sarama to the Errors channel.
 // It redirects sarama errors to caller errors channel.
-// It listens to Notifications channel, and checks if the consumer group has balanced.
-// It periodically checks if the consumer group has balanced, and in that case, it commits offsets.
-// If the closer channel is closed, it ends the loop and closes Closed channel.
+// If the closer channel or the errors channel is closed, it ends the loop and closes Closed channel.
 func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {

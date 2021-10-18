@@ -13,6 +13,7 @@ func newMessage(b []byte, offset int64) *mock.MessageMock {
 		OffsetFunc:  func() int64 { return offset },
 		MarkFunc:    func() {},
 		CommitFunc:  func() {},
+		ReleaseFunc: func() {},
 	}
 }
 
@@ -50,7 +51,6 @@ func TestCommit(t *testing.T) {
 	Convey("Given a batch with two valid messages", t, func() {
 		message1 := newMessage([]byte{0, 1, 2, 3}, 1)
 		message2 := newMessage([]byte{4, 5, 6, 7}, 2)
-		message3 := newMessage([]byte{8, 9, 10, 11}, 3)
 
 		batchSize := 2
 		batch := NewBatch(batchSize)
@@ -67,6 +67,24 @@ func TestCommit(t *testing.T) {
 				So(message2.MarkCalls(), ShouldHaveLength, 0)
 				So(message2.CommitCalls(), ShouldHaveLength, 1)
 			})
+		})
+	})
+}
+
+func TestClear(t *testing.T) {
+	Convey("Given a batch with two valid messages", t, func() {
+		message1 := newMessage([]byte{0, 1, 2, 3}, 1)
+		message2 := newMessage([]byte{4, 5, 6, 7}, 2)
+		message3 := newMessage([]byte{8, 9, 10, 11}, 3)
+
+		batchSize := 2
+		batch := NewBatch(batchSize)
+
+		batch.Add(ctx, message1)
+		batch.Add(ctx, message2)
+
+		Convey("When Clear is called", func() {
+			batch.Clear()
 
 			Convey("The batch is emptied.", func() {
 				So(batch.IsEmpty(), ShouldBeTrue)

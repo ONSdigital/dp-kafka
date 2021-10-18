@@ -55,10 +55,11 @@ func (batch *Batch) Commit() {
 		}
 		msg.Commit() // commit last one (will commit all marked offsets as consumed)
 	}
-	batch.clear()
 }
 
-// clear will reset to batch to contain no messages (concurrency unsafe)
-func (batch *Batch) clear() {
+// Clear will reset to batch to contain no messages
+func (batch *Batch) Clear() {
+	batch.mutex.Lock()
+	defer batch.mutex.Unlock()
 	batch.messages = batch.messages[0:0]
 }

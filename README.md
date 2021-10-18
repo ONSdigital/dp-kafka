@@ -236,19 +236,19 @@ If the producer/consumer can establish a connection with the Kafka cluster, it w
 
 An uninitialised producer/consumer will try to initialise later, asynchronously, in a retry loop following an exponential backoff strategy. You may also try to initialise it calling `Initialise()`. In any case, when the initialisation succeeds, the initialisation loop will exit, and the producer/consumer will go to its next state.
 
-You can check if a producer/consumer is initialised by calling `IsInitialised()` or wait for it to be initialised by waiting for the Ready channel to be closed, like so:
+You can check if a producer/consumer is initialised by calling `IsInitialised()` or wait for it to be initialised by waiting for the 'Initialised' channel to be closed, like so:
 
 ```go
     // wait in a parallel go-routine
     go func() {
-        <-channels.Ready
+        <-channels.Initialised
         doStuff()
     }()
 ```
 
 ```go
     // block until kafka is initialised
-    <-channels.Ready
+    <-channels.Initialised
     doStuff()
 ```
 
