@@ -32,7 +32,7 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 	if err := sh.state.SetIf([]State{Starting, Consuming}, Consuming); err != nil {
 		return fmt.Errorf("session setup failed, wrong state to start consuming: %w", err)
 	}
-	log.Info(session.Context(), "sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
+	log.Info(session.Context(), "kafka consumer group is consuming: sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	sh.sessionConsuming = make(chan struct{})
 	go sh.controlRoutine()
@@ -78,7 +78,7 @@ func (sh *saramaHandler) controlRoutine() {
 // - Close SessionConsuming channel
 // - Set state to 'Starting' (only if it was consuming)
 func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
-	log.Info(session.Context(), "sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
+	log.Info(session.Context(), "kafka consumer group has finished consuming: sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
 	select {

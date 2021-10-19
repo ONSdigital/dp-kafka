@@ -50,11 +50,12 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 
 	// consume is a looping func that listens to the Upstream channel and handles each received message
 	var consume = func(workerID int) {
+		defer cg.wgClose.Done()
 		for {
 			select {
 			case msg, ok := <-cg.Channels().Upstream:
 				if !ok {
-					log.Info(ctx, "upstream channel closed - closing event consumer loop", log.Data{"worker_id": workerID})
+					log.Info(ctx, "upstream channel closed - closing event handler loop", log.Data{"worker_id": workerID})
 					return
 				}
 
@@ -62,13 +63,14 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 
 				msg.Release()
 			case <-cg.channels.Closer:
-				log.Info(ctx, "closing event consumer loop because closer channel is closed", log.Data{"worker_id": workerID})
+				log.Info(ctx, "closer channel closed - closing event handler loop", log.Data{"worker_id": workerID})
 				return
 			}
 		}
 	}
 
 	// workers to consume messages in parallel
+	cg.wgClose.Add(cg.numWorkers)
 	for w := 1; w <= cg.numWorkers; w++ {
 		go consume(w)
 	}
@@ -106,13 +108,14 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 	// consume is a looping func that listens to the Upstream channel, accumulates messages and handles
 	// batches once it is full or the waitTime has expired.
 	var consume = func() {
+		defer cg.wgClose.Done()
 		batch := NewBatch(cg.batchSize)
 
 		for {
 			select {
 			case msg, ok := <-cg.Channels().Upstream:
 				if !ok {
-					log.Info(ctx, "upstream channel closed - closing batch consumer loop")
+					log.Info(ctx, "upstream channel closed - closing event batch handler loop")
 					return
 				}
 
@@ -133,11 +136,12 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 				handleBatch(batch)
 
 			case <-cg.channels.Closer:
-				log.Info(ctx, "closing event consumer loop because closer channel is closed")
+				log.Info(ctx, "closer channel closed - closing event batch handler loop")
 				return
 			}
 		}
 	}
 
+	cg.wgClose.Add(1)
 	go consume()
 }

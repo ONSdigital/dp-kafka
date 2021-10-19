@@ -47,7 +47,7 @@ func run(ctx context.Context) error {
 	sig := <-signals
 
 	// graceful shutdown
-	log.Info(ctx, "os signal received", log.Data{"signal": sig})
+	log.Info(ctx, "[KAFKA-TEST] os signal received", log.Data{"signal": sig})
 	if err := svc.Close(ctx); err != nil {
 		return fmt.Errorf("error closing service: %w", err)
 	}

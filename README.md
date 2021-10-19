@@ -282,7 +282,7 @@ You may register a single-message handler like so:
 
     // Implement the Handler func
     func (h *Handler) Handle(ctx context.Context, workerID int, msg kafka.Message) error {
-        log.Info(ctx, "Message processed", log.Data{"worker_id": workerID})
+        log.Info(ctx, "message processed", log.Data{"worker_id": workerID})
         return nil
     }
 
@@ -306,7 +306,7 @@ You may register a batch-message handler like so:
 
     // Implement the Handler func
     func (h *Handler) Handle(ctx context.Context, batch []kafka.Message) error {
-        log.Info(ctx, "Batch processed", log.Data{"size": len(batch)})
+        log.Info(ctx, "batch processed", log.Data{"size": len(batch)})
         return nil
     }
 

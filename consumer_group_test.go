@@ -18,7 +18,7 @@ import (
 var (
 	testGroup    = "testGroup"
 	errMock      = errors.New("sarama mock error")
-	errNoBrokers = errors.New("kafka: client has run out of available brokers to talk to (Is your cluster reachable?)")
+	errNoBrokers = errors.New("kafka client has run out of available brokers to talk to (Is your cluster reachable?)")
 	testBrokers  = []string{"localhost:12300", "localhost:12301"}
 )
 
@@ -36,7 +36,9 @@ func TestConsumerCreationError(t *testing.T) {
 			nil,
 		)
 		So(consumer, ShouldBeNil)
-		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+		So(err, ShouldResemble, fmt.Errorf("error getting consumer-group config: %w",
+			fmt.Errorf("error parsing kafka version for consumer-group config: %w",
+				errors.New("invalid version `wrongVersion`"))))
 	})
 }
 
@@ -119,7 +121,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 
 		Convey("We can try to initialise the consumer again and the same error is returned", func() {
 			err = consumer.Initialise(ctx)
-			So(err, ShouldEqual, errNoBrokers)
+			So(err, ShouldResemble, fmt.Errorf("error initialising consumer group: %w", errNoBrokers))
 			So(cgInitCalls, ShouldEqual, 2)
 		})
 
@@ -155,6 +157,7 @@ func TestRegisterHandler(t *testing.T) {
 	Convey("Given a consumer group without any handler", t, func() {
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
 		}
@@ -213,6 +216,7 @@ func TestRegisterBatchHandler(t *testing.T) {
 	Convey("Given a consumer group without any handler", t, func() {
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(1),
 			batchSize:     2,
 			batchWaitTime: 100 * time.Millisecond,
@@ -469,6 +473,8 @@ func TestClose(t *testing.T) {
 		channels := CreateConsumerGroupChannels(1)
 		cg := &ConsumerGroup{
 			channels: channels,
+			group:    testGroup,
+			topic:    testTopic,
 			state:    NewConsumerStateMachine(Initialising),
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
@@ -523,7 +529,10 @@ func TestClose(t *testing.T) {
 
 			Convey("When Close is called then the expected error is returned", func() {
 				err := cg.Close(ctx)
-				So(err, ShouldResemble, errMock)
+				So(err, ShouldResemble, NewError(
+					fmt.Errorf("error closing sarama consumer-group: %w", errMock),
+					log.Data{"state": Closing.String(), "group": testGroup, "topic": testTopic}),
+				)
 			})
 		})
 	})

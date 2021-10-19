@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 const TIMEOUT = 100 * time.Millisecond
 
 // ErrSaramaNoBrokers is the error returned by Sarama when trying to create an AsyncProducer without available brokers
-var ErrSaramaNoBrokers = errors.New("kafka: client has run out of available brokers to talk to (Is your cluster reachable?)")
+var ErrSaramaNoBrokers = errors.New("kafka client has run out of available brokers to talk to (Is your cluster reachable?)")
 
 // createSaramaChannels creates sarama channels for testing
 func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) {
@@ -76,7 +77,9 @@ func TestProducerWrongConfig(t *testing.T) {
 			nil,
 		)
 		So(producer, ShouldBeNil)
-		So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+		So(err, ShouldResemble, fmt.Errorf("error getting producer config: %w",
+			fmt.Errorf("error parsing kafka version for producer config: %w",
+				errors.New("invalid version `wrongVersion`"))))
 	})
 }
 
@@ -219,7 +222,7 @@ func TestProducerNotInitialised(t *testing.T) {
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
 			err = producer.Initialise(ctx)
-			So(err, ShouldResemble, ErrSaramaNoBrokers)
+			So(err, ShouldResemble, fmt.Errorf("error initialising producer: %w", ErrSaramaNoBrokers))
 			So(pInitCalls, ShouldEqual, 2)
 		})
 

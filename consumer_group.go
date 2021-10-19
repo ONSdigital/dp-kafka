@@ -67,7 +67,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 	// Create sarama config and set any other necessary values
 	cfg, err := cgConfig.Get()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting consumer-group config: %w", err)
 	}
 
 	// upstream buffer size the maximum between number of workers and batch size
@@ -173,7 +173,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.saramaConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("error initialising consumer group: %w", err)
 	}
 
 	if ctx == nil {
@@ -185,6 +185,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	cg.saramaCg = saramaConsumerGroup
 	cg.createConsumeLoop(ctx)
 	cg.createErrorLoop(ctx)
+	log.Info(ctx, "sarama consumer group has been initialised", log.Data{"topic": cg.topic, "group_name": cg.group, "state": cg.state})
 
 	// Await until the consumer has been set up
 	<-cg.channels.Initialised
@@ -282,7 +283,7 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 				logData := UnwrapLogData(err)
 				logData["topic"] = cg.topic
 				logData["group_name"] = cg.group
-				log.Error(ctx, "kafka consumer-group error", err, logData)
+				log.Error(ctx, "received kafka consumer-group error", err, logData)
 			case <-cg.channels.Closer:
 				return
 			}
@@ -309,16 +310,17 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state}
+	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state.String()}
 
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	close(cg.channels.Consume)
 	close(cg.channels.Closer)
 	didTimeout := WaitWithTimeout(ctx, cg.wgClose)
 	if didTimeout {
-		err := ctx.Err()
-		log.Warn(ctx, "Close abandoned: context done", log.FormatErrors([]error{err}), logData)
-		return err
+		return NewError(
+			fmt.Errorf("consumer-group close timed out while waiting for remaining messages to be processed: %w", ctx.Err()),
+			logData,
+		)
 	}
 
 	// Close message-passing channels
@@ -328,8 +330,10 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Sarama consumer only if it was initialised.
 	if cg.IsInitialised() {
 		if err = cg.saramaCg.Close(); err != nil {
-			log.Warn(ctx, "close failed of kafka consumer group", log.FormatErrors([]error{err}), logData)
-			return err
+			return NewError(
+				fmt.Errorf("error closing sarama consumer-group: %w", err),
+				logData,
+			)
 		}
 	}
 
@@ -338,6 +342,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		broker.Close()
 	}
 
+	log.Info(ctx, "successfully closed kafka consumer group", logData)
 	return nil
 }
 
@@ -357,11 +362,10 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 			case <-cg.channels.Initialised:
 				return
 			case <-cg.channels.Closer:
-				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
 				return
 			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
-					log.Error(ctx, "error initialising consumer group", err, log.Data{"attempt": initAttempt})
+					log.Warn(ctx, "error initialising consumer group, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
 					continue
 				}
@@ -380,7 +384,6 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 // - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
 func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Stopped)
-	logData["state"] = Stopped
 
 	// close Initialised channel (if it is not already closed)
 	select {
@@ -389,23 +392,21 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 		close(cg.channels.Initialised)
 	}
 
+	logData["state"] = Stopped
+	log.Info(ctx, "kafka consumer group is stopped", logData)
+
 	for {
 		select {
 		case <-cg.channels.Closer:
 			cg.state.Set(Closing)
-			logData["state"] = Closing
-			log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 			return
 		case consume, ok := <-cg.channels.Consume:
 			if !ok {
 				cg.state.Set(Closing)
-				logData["state"] = Closing
-				log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
 				return
 			}
 			if consume {
 				cg.state.Set(Starting)
-				logData["state"] = Starting
 				return
 			}
 			// if consume is false, we re-iterate the select, as the state is already stopped
@@ -424,7 +425,6 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 // If the consumer changes its state between retries, we abort the loop as described above.
 func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Starting)
-	logData["state"] = Starting
 
 	// close Initialised channel (if it is not already closed)
 	select {
@@ -432,6 +432,9 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	default:
 		close(cg.channels.Initialised)
 	}
+
+	logData["state"] = Starting
+	log.Info(ctx, "kafka consumer group is starting", logData)
 
 	consumeAttempt := 1
 	for {
@@ -442,26 +445,21 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 		select {
 		case <-cg.channels.Closer:
 			cg.state.Set(Closing)
-			logData["state"] = Closing
-			log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 			return
 		case consume, ok := <-cg.channels.Consume:
 			if !ok {
 				cg.state.Set(Closing)
-				logData["state"] = Closing
-				log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
 				return
 			}
 			if !consume {
 				cg.state.Set(Stopping)
-				logData["state"] = Stopping
 				return
 			}
 		default:
 			// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
 			// the consumer session will need to be recreated to get the new claims
 			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
-				log.Error(ctx, "error consuming", err, log.Data{"attempt": consumeAttempt})
+				log.Warn(ctx, "error consuming, will retry", log.Data{"attempt": consumeAttempt, "err": err.Error()})
 				if s := cg.state.Get(); s != Starting && s != Consuming {
 					// state changed during cg.saramaCg.Consume
 					return
@@ -470,19 +468,14 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 				// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
 				case <-cg.channels.Closer:
 					cg.state.Set(Closing)
-					logData["state"] = Closing
-					log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 					return
 				case consume, ok := <-cg.channels.Consume:
 					if !ok {
 						cg.state.Set(Closing)
-						logData["state"] = Closing
-						log.Info(ctx, "closed kafka consumer consume loop because the Consume channel is closed", logData)
 						return
 					}
 					if !consume {
 						cg.state.Set(Stopping)
-						logData["state"] = Stopping
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
@@ -502,7 +495,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 // The consumer will initially be set at 'Stopped' sate.
 func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	if cg.state.Get() != Initialising {
-		log.Warn(ctx, "wrong state for createConsumeLoop", log.Data{"state": cg.state.String()})
+		log.Warn(ctx, "wrong state to create consume loop", log.Data{"state": cg.state.String()})
 		return
 	}
 
@@ -514,7 +507,6 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
-		log.Info(ctx, "starting kafka consumer listener loop", logData)
 		for {
 			switch cg.state.Get() {
 			case Stopping, Stopped:
@@ -538,17 +530,14 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 	cg.wgClose.Add(1)
 	go func() {
 		defer cg.wgClose.Done()
-		logData := log.Data{"topic": cg.topic, "group": cg.group}
 		for {
 			select {
 			// check if closer channel is closed, signaling that the consumer should stop
 			case <-cg.channels.Closer:
-				log.Info(ctx, "closed kafka consumer error loop via closer channel", logData)
 				return
 			// listen to kafka errors from sarama and forward them to the Errors chanel
 			case err, ok := <-cg.saramaCg.Errors():
 				if !ok {
-					log.Info(ctx, "closed kafka consumer error because Error channel is closed", logData)
 					return
 				}
 				cg.channels.Errors <- err

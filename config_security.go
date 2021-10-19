@@ -38,19 +38,18 @@ func expandNewlines(s string) string {
 	return strings.ReplaceAll(s, `\n`, "\n")
 }
 
-func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err error) {
+func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) error {
 	if tlsConfig == nil {
-		return
+		return nil
 	}
 
 	var saramaTLSConfig *tls.Config
 	if strings.HasPrefix(tlsConfig.ClientCert, certPrefix) {
 		// create cert from strings (not files), cf https://github.com/Shopify/sarama/blob/master/tools/tls/config.go
-		var cert tls.Certificate
-		if cert, err = tls.X509KeyPair(
+		cert, err := tls.X509KeyPair(
 			[]byte(expandNewlines(tlsConfig.ClientCert)),
-			[]byte(expandNewlines(tlsConfig.ClientKey)),
-		); err != nil {
+			[]byte(expandNewlines(tlsConfig.ClientKey)))
+		if err != nil {
 			return fmt.Errorf("error parsing X509 keypair from certificate string while getting security config : %w", err)
 		}
 		saramaTLSConfig = &tls.Config{
@@ -59,7 +58,9 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err erro
 		}
 	} else {
 		// cert in files
-		if saramaTLSConfig, err = saramatls.NewConfig(tlsConfig.ClientCert, tlsConfig.ClientKey); err != nil {
+		var err error
+		saramaTLSConfig, err = saramatls.NewConfig(tlsConfig.ClientCert, tlsConfig.ClientKey)
+		if err != nil {
 			return fmt.Errorf("error creating new sarama TLS config from files while getting security config : %w", err)
 		}
 	}
@@ -69,7 +70,9 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err erro
 		if strings.HasPrefix(tlsConfig.RootCACerts, certPrefix) {
 			rootCAsBytes = []byte(expandNewlines(tlsConfig.RootCACerts))
 		} else {
-			if rootCAsBytes, err = ioutil.ReadFile(tlsConfig.RootCACerts); err != nil {
+			var err error
+			rootCAsBytes, err = ioutil.ReadFile(tlsConfig.RootCACerts)
+			if err != nil {
 				return fmt.Errorf("failed read from %q: %w", tlsConfig.RootCACerts, err)
 			}
 		}
@@ -88,5 +91,5 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) (err erro
 	saramaConfig.Net.TLS.Enable = true
 	saramaConfig.Net.TLS.Config = saramaTLSConfig
 
-	return
+	return nil
 }

@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -27,7 +28,7 @@ type Acls []*sarama.AclCreation
 func NewAdmin(brokerAddrs []string, adminCfg *AdminConfig) (sarama.ClusterAdmin, error) {
 	config, err := adminCfg.Get()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error creating new admin: %w", err)
 	}
 	return sarama.NewClusterAdmin(brokerAddrs, config)
 }
@@ -36,7 +37,7 @@ func (t Acls) Apply(adm sarama.ClusterAdmin) error {
 	for _, acl := range t {
 		log.Info(context.Background(), "creating ACL", log.Data{"res": acl.Resource, "acl": acl.Acl})
 		if err := adm.CreateACL(acl.Resource, acl.Acl); err != nil {
-			return err
+			return fmt.Errorf("error creating ACL : %w", err)
 		}
 		log.Info(context.Background(), "created ACL")
 	}
@@ -47,7 +48,7 @@ func (t TopicAuthList) Apply(adm sarama.ClusterAdmin) error {
 	for _, topicAcl := range t.Acls {
 		acls := topicAcl.GetAcls(t.Domain)
 		if err := acls.Apply(adm); err != nil {
-			return err
+			return fmt.Errorf("error applying cluster-admin ACLs: %w", err)
 		}
 
 	}

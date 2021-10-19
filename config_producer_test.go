@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/Shopify/sarama"
@@ -66,7 +67,7 @@ func TestProducerConfig(t *testing.T) {
 				BrokerAddrs:  testBrokerAddrs,
 			}
 			config, err := pConfig.Get()
-			So(err, ShouldResemble, errors.New("invalid version `wrongVersion`"))
+			So(err, ShouldResemble, fmt.Errorf("error parsing kafka version for producer config: %w", errors.New("invalid version `wrongVersion`")))
 			So(config, ShouldBeNil)
 		})
 
@@ -75,7 +76,7 @@ func TestProducerConfig(t *testing.T) {
 				Topic: testTopic,
 			}
 			config, err := pConfig.Get()
-			So(err, ShouldResemble, errors.New("brokerAddrs is compulsory but was not provided in config"))
+			So(err, ShouldResemble, fmt.Errorf("error validating producer config: %w", errors.New("brokerAddrs is compulsory but was not provided in config")))
 			So(config, ShouldBeNil)
 		})
 	})

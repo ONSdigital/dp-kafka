@@ -34,6 +34,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
@@ -69,6 +70,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
@@ -104,6 +106,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
@@ -139,6 +142,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
@@ -181,6 +185,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
@@ -243,6 +248,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
@@ -287,6 +293,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
@@ -331,6 +338,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
