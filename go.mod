@@ -3,9 +3,8 @@ module github.com/ONSdigital/dp-kafka/v3
 go 1.17
 
 require (
-	github.com/ONSdigital/dp-api-clients-go v1.40.0 // indirect
-	github.com/ONSdigital/dp-healthcheck v1.1.4-0.20211011145925-7b344ac2823a
-	github.com/ONSdigital/log.go/v2 v2.0.5
+	github.com/ONSdigital/dp-healthcheck/v2 v2.0.0-beta
+	github.com/ONSdigital/log.go/v2 v2.0.9
 	github.com/Shopify/sarama v1.29.1
 	github.com/fatih/color v1.12.0 // indirect
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
@@ -20,7 +19,6 @@ require (
 )
 
 require (
-	github.com/ONSdigital/dp-net v1.0.12 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
@@ -37,6 +35,6 @@ require (
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
-	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e // indirect
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 )
