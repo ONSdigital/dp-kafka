@@ -90,7 +90,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 				GroupName:    testGroupName,
 			}
 			config, err := cgConfig.Get()
-			So(err, ShouldResemble, fmt.Errorf("error parsing kafka version for consumer-group config: %w", errors.New("invalid version `wrongVersion`")))
+			So(err, ShouldResemble, fmt.Errorf("error parsing kafka version: %w", errors.New("invalid version `wrongVersion`")))
 			So(config, ShouldBeNil)
 		})
 

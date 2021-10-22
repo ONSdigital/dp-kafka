@@ -73,7 +73,7 @@ func TestSetup(t *testing.T) {
 			err := cgHandler.Setup(cgSession)
 
 			Convey("Then the expected error is returned and no further action is taken", func() {
-				So(err.Error(), ShouldEqual, "session setup failed, wrong state to start consuming: state transition from Stopping to Consuming is not allowed")
+				So(err.Error(), ShouldEqual, "wrong state to start consuming: state transition from Stopping to Consuming is not allowed")
 				validateChanClosed(c, channels.Initialised, false)
 				So(cgHandler.state.Get(), ShouldEqual, Stopping)
 			})

@@ -30,7 +30,7 @@ func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, stat
 // - Create a new SessionConsuming channel and start the control go-routine
 func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 	if err := sh.state.SetIf([]State{Starting, Consuming}, Consuming); err != nil {
-		return fmt.Errorf("session setup failed, wrong state to start consuming: %w", err)
+		return fmt.Errorf("wrong state to start consuming: %w", err)
 	}
 	log.Info(session.Context(), "kafka consumer group is consuming: sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 

@@ -67,7 +67,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 	// Create sarama config and set any other necessary values
 	cfg, err := cgConfig.Get()
 	if err != nil {
-		return nil, fmt.Errorf("error getting consumer-group config: %w", err)
+		return nil, fmt.Errorf("failed to get consumer-group config: %w", err)
 	}
 
 	// upstream buffer size the maximum between number of workers and batch size
@@ -173,7 +173,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	// Create Sarama Consumer. Errors at this point are not necessarily fatal (e.g. brokers not reachable).
 	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.saramaConfig)
 	if err != nil {
-		return fmt.Errorf("error initialising consumer group: %w", err)
+		return fmt.Errorf("failed to create a new sarama consumer group: %w", err)
 	}
 
 	if ctx == nil {
@@ -318,7 +318,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	didTimeout := WaitWithTimeout(ctx, cg.wgClose)
 	if didTimeout {
 		return NewError(
-			fmt.Errorf("consumer-group close timed out while waiting for remaining messages to be processed: %w", ctx.Err()),
+			fmt.Errorf("timed out while waiting for all loops to finish and remaining messages to be processed: %w", ctx.Err()),
 			logData,
 		)
 	}

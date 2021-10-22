@@ -20,6 +20,16 @@ type Commiter interface {
 	Commit() bool
 }
 
+// shallCommit determines if a message or batch needs to be committed.
+// If the error is not nil and it satisfies the Commiter interface then the user determines if the message will be committed or not.
+// Otherwise, it will be committed.
+func shallCommit(err error) bool {
+	if cerr, ok := err.(Commiter); ok {
+		return cerr.Commit()
+	}
+	return true
+}
+
 // listen creates one go-routine for each worker, which listens to the Upstream channel
 // when a new message arrives to the channel, the handler func is called.
 // when the closer channel is closed, all go-routines will exit (after finishing processing any in-flight message)
@@ -31,18 +41,13 @@ func (cg *ConsumerGroup) listen(ctx context.Context) {
 	// handleMessage is an aux func to handle one message.
 	// The batch will be committed unless a 'Commiter' error is returned and its Commit() func returns false
 	var handleMessage = func(workerID int, msg Message) {
-		commit := true // commit messages by default
-		if err := cg.handler(context.Background(), workerID, msg); err != nil {
-			if cerr, ok := err.(Commiter); ok {
-				if !cerr.Commit() {
-					commit = false // caller does not want the message to be committed
-				}
-			}
+		err := cg.handler(context.Background(), workerID, msg)
+		commit := shallCommit(err)
+		if err != nil {
 			logData := UnwrapLogData(err) // this will unwrap any logData present in the error
 			logData["commit_message"] = commit
 			log.Error(ctx, "failed to handle message", err, logData)
 		}
-
 		if commit {
 			msg.Commit()
 		}
@@ -87,18 +92,13 @@ func (cg *ConsumerGroup) listenBatch(ctx context.Context) {
 	// handleBatch is an aux func to handle one batch.
 	// The batch will be committed unless a 'Commiter' error is returned and its Commit() func returns false
 	var handleBatch = func(batch *Batch) {
-		commit := true // commit batch by default
-		if err := cg.batchHandler(ctx, batch.messages); err != nil {
-			if cerr, ok := err.(Commiter); ok {
-				if !cerr.Commit() {
-					commit = false // caller does not want the batch to be committed
-				}
-			}
+		err := cg.batchHandler(ctx, batch.messages)
+		commit := shallCommit(err)
+		if err != nil {
 			logData := UnwrapLogData(err) // this will unwrap any logData present in the error
 			logData["commit_batch"] = commit
 			log.Error(ctx, "failed to handle message batch", err, logData)
 		}
-
 		if commit {
 			batch.Commit() // mark all messages and commit session
 		}

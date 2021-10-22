@@ -23,7 +23,7 @@ func (a *AdminConfig) Get() (*sarama.Config, error) {
 	if a.KafkaVersion != nil {
 		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*a.KafkaVersion); err != nil {
-			return nil, fmt.Errorf("error parsing kafka version for admin config: %w", err)
+			return nil, fmt.Errorf("error parsing kafka version: %w", err)
 		}
 	}
 	if a.KeepAlive != nil {
@@ -36,7 +36,7 @@ func (a *AdminConfig) Get() (*sarama.Config, error) {
 		cfg.Admin.Retry.Backoff = *a.RetryBackoff
 	}
 	if err := addAnyTLS(a.SecurityConfig, cfg); err != nil {
-		return nil, fmt.Errorf("error adding tls for admin config: %w", err)
+		return nil, fmt.Errorf("error adding tls: %w", err)
 	}
 	return cfg, nil
 }

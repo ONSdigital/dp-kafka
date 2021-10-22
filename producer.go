@@ -55,7 +55,7 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 	// Create Sarama config and set any other default values
 	config, err := pConfig.Get()
 	if err != nil {
-		return nil, fmt.Errorf("error getting producer config: %w", err)
+		return nil, fmt.Errorf("failed to get producer config: %w", err)
 	}
 
 	// Producer initialised with provided brokers and topic
@@ -141,7 +141,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	// Initialise AsyncProducer with default config and envMax
 	saramaProducer, err := p.producerInit(p.brokerAddrs, p.config)
 	if err != nil {
-		return fmt.Errorf("error initialising producer: %w", err)
+		return fmt.Errorf("failed to create a new sarama producer: %w", err)
 	}
 
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
@@ -156,7 +156,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 	bytes, err := schema.Marshal(event)
 	if err != nil {
-		return fmt.Errorf("avro schema marshal error while trying to send a kafka message: %w", err)
+		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
 	p.channels.Output <- bytes
 	return nil
@@ -177,7 +177,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	didTimeout := WaitWithTimeout(ctx, p.wgClose)
 	if didTimeout {
 		return NewError(
-			fmt.Errorf("producer close timed out: %w", ctx.Err()),
+			fmt.Errorf("timed out while waiting for all loops to finish: %w", ctx.Err()),
 			log.Data{"topic": p.topic},
 		)
 	}

@@ -77,8 +77,8 @@ func TestProducerWrongConfig(t *testing.T) {
 			nil,
 		)
 		So(producer, ShouldBeNil)
-		So(err, ShouldResemble, fmt.Errorf("error getting producer config: %w",
-			fmt.Errorf("error parsing kafka version for producer config: %w",
+		So(err, ShouldResemble, fmt.Errorf("failed to get producer config: %w",
+			fmt.Errorf("error parsing kafka version: %w",
 				errors.New("invalid version `wrongVersion`"))))
 	})
 }
@@ -222,7 +222,7 @@ func TestProducerNotInitialised(t *testing.T) {
 
 		Convey("We can try to initialise producer again, with the same error being returned", func() {
 			err = producer.Initialise(ctx)
-			So(err, ShouldResemble, fmt.Errorf("error initialising producer: %w", ErrSaramaNoBrokers))
+			So(err, ShouldResemble, fmt.Errorf("failed to create a new sarama producer: %w", ErrSaramaNoBrokers))
 			So(pInitCalls, ShouldEqual, 2)
 		})
 

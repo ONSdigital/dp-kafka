@@ -28,7 +28,7 @@ type ProducerConfig struct {
 // Get creates a default sarama config and overwrites any values provided in pConfig
 func (p *ProducerConfig) Get() (*sarama.Config, error) {
 	if err := p.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating producer config: %w", err)
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
 	// Get default Sarama config and apply overrides
@@ -36,7 +36,7 @@ func (p *ProducerConfig) Get() (*sarama.Config, error) {
 	if p.KafkaVersion != nil {
 		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*p.KafkaVersion); err != nil {
-			return nil, fmt.Errorf("error parsing kafka version for producer config: %w", err)
+			return nil, fmt.Errorf("error parsing kafka version: %w", err)
 		}
 	}
 	if p.MaxMessageBytes != nil && *p.MaxMessageBytes > 0 {
@@ -55,7 +55,7 @@ func (p *ProducerConfig) Get() (*sarama.Config, error) {
 		cfg.Producer.Retry.BackoffFunc = *p.RetryBackoffFunc
 	}
 	if err := addAnyTLS(p.SecurityConfig, cfg); err != nil {
-		return nil, fmt.Errorf("error adding tls for producer config: %w", err)
+		return nil, fmt.Errorf("error adding tls: %w", err)
 	}
 
 	return cfg, nil

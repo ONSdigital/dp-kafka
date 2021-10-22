@@ -120,8 +120,7 @@ func TestProducerChannelsValidate(t *testing.T) {
 }
 
 // createConsumerChannels creates local consumer channels for testing
-func createConsumerChannels() (upstream chan Message, consume chan bool,
-	init, closer, closed chan struct{}, errs chan error) {
+func createConsumerChannels() (upstream chan Message, consume chan bool, init, closer, closed chan struct{}, errs chan error) {
 	upstream = make(chan Message)
 	init = make(chan struct{})
 	consume = make(chan bool)

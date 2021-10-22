@@ -20,7 +20,7 @@ type Schema struct {
 // ErrUnsupportedType is returned if the interface isn't a
 // pointer to a struct
 func ErrUnsupportedType(typ reflect.Kind) error {
-	return fmt.Errorf("Unsupported interface type: %v", typ)
+	return fmt.Errorf("unsupported interface type: %v", typ)
 }
 
 // ErrUnableToAssertType is returned when the input value is not the
@@ -30,7 +30,7 @@ func ErrUnableToAssertType(pErr interface{}) error {
 }
 
 // ErrUnsupportedFieldType is returned for unsupported field types.
-var ErrUnsupportedFieldType = errors.New("Unsupported field type")
+var ErrUnsupportedFieldType = errors.New("unsupported field type")
 
 // ErrMissingNestedScema is returned when nested schemas are missing from the parent
 var ErrMissingNestedScema = errors.New("nested schema missing from parent")

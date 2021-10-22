@@ -45,7 +45,7 @@ type ConsumerGroupConfig struct {
 // If any required value is not provided or any override is invalid, an error will be returned
 func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	if err := c.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating consumer-group config: %w", err)
+		return nil, fmt.Errorf("validation error: %w", err)
 	}
 
 	// Get default Sarama config and apply overrides
@@ -61,7 +61,7 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	if c.KafkaVersion != nil {
 		var err error
 		if cfg.Version, err = sarama.ParseKafkaVersion(*c.KafkaVersion); err != nil {
-			return nil, fmt.Errorf("error parsing kafka version for consumer-group config: %w", err)
+			return nil, fmt.Errorf("error parsing kafka version: %w", err)
 		}
 	}
 	if c.KeepAlive != nil {
@@ -80,7 +80,7 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 		cfg.Consumer.Offsets.Initial = *c.Offset
 	}
 	if err := addAnyTLS(c.SecurityConfig, cfg); err != nil {
-		return nil, fmt.Errorf("error adding tls for consumer-group config: %w", err)
+		return nil, fmt.Errorf("error adding tls: %w", err)
 
 	}
 

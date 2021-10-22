@@ -36,8 +36,8 @@ func TestConsumerCreationError(t *testing.T) {
 			nil,
 		)
 		So(consumer, ShouldBeNil)
-		So(err, ShouldResemble, fmt.Errorf("error getting consumer-group config: %w",
-			fmt.Errorf("error parsing kafka version for consumer-group config: %w",
+		So(err, ShouldResemble, fmt.Errorf("failed to get consumer-group config: %w",
+			fmt.Errorf("error parsing kafka version: %w",
 				errors.New("invalid version `wrongVersion`"))))
 	})
 }
@@ -121,7 +121,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 
 		Convey("We can try to initialise the consumer again and the same error is returned", func() {
 			err = consumer.Initialise(ctx)
-			So(err, ShouldResemble, fmt.Errorf("error initialising consumer group: %w", errNoBrokers))
+			So(err, ShouldResemble, fmt.Errorf("failed to create a new sarama consumer group: %w", errNoBrokers))
 			So(cgInitCalls, ShouldEqual, 2)
 		})
 

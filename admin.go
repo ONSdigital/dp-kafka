@@ -28,7 +28,7 @@ type Acls []*sarama.AclCreation
 func NewAdmin(brokerAddrs []string, adminCfg *AdminConfig) (sarama.ClusterAdmin, error) {
 	config, err := adminCfg.Get()
 	if err != nil {
-		return nil, fmt.Errorf("error creating new admin: %w", err)
+		return nil, fmt.Errorf("failed to get admin config: %w", err)
 	}
 	return sarama.NewClusterAdmin(brokerAddrs, config)
 }
