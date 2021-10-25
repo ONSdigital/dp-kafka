@@ -1,5 +1,5 @@
-github.com/ONSdigital/dp-healthcheck/v2 v2.0.0-beta h1:7QtVj7jPO/awVyUTSlLcdpnjOFu1512MH9l/zNMWk2A=
-github.com/ONSdigital/dp-healthcheck/v2 v2.0.0-beta/go.mod h1:cJJj1f3LEqXTzUzOfxQlLWrUXgEF3LZ1fdagPogjRTw=
+github.com/ONSdigital/dp-healthcheck v1.2.0 h1:k7okbVff7PW/393FxEvSdZ+FbZgaWRMJYKquqnkgDp8=
+github.com/ONSdigital/dp-healthcheck v1.2.0/go.mod h1:XUhXoDIWPCdletDtpDOoXhmDFcc9b/kbedx96jN75aI=
 github.com/ONSdigital/log.go/v2 v2.0.9 h1:dMtuN89vCP21iRuOBAGInn7ZzxIEGajC3o5pjoicnsY=
 github.com/ONSdigital/log.go/v2 v2.0.9/go.mod h1:VyTDkL82FtiAkaNFaT+bURBhLbP7NsIx4rkVbdpiuEg=
 github.com/Shopify/sarama v1.29.1 h1:wBAacXbYVLmWieEA/0X/JagDdCZ8NVFOfS6l6+2u5S0=

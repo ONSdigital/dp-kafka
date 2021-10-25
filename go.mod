@@ -3,7 +3,7 @@ module github.com/ONSdigital/dp-kafka/v3
 go 1.17
 
 require (
-	github.com/ONSdigital/dp-healthcheck/v2 v2.0.0-beta
+	github.com/ONSdigital/dp-healthcheck v1.2.0
 	github.com/ONSdigital/log.go/v2 v2.0.9
 	github.com/Shopify/sarama v1.29.1
 	github.com/fatih/color v1.12.0 // indirect

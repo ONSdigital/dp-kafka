@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ONSdigital/dp-healthcheck/v2/healthcheck"
+	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/rcrowley/go-metrics"
