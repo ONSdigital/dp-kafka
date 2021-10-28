@@ -21,14 +21,23 @@ func (s State) String() string {
 }
 
 type StateMachine struct {
-	state State
-	mutex *sync.Mutex
+	state    State
+	mutex    *sync.Mutex
+	channels *ConsumerStateChannels
 }
 
-func NewConsumerStateMachine(st State) *StateMachine {
+func NewConsumerStateMachine() *StateMachine {
 	return &StateMachine{
-		state: st,
+		state: Initialising,
 		mutex: &sync.Mutex{},
+		channels: &ConsumerStateChannels{
+			Initialising: make(chan struct{}),
+			Stopped:      make(chan struct{}),
+			Starting:     make(chan struct{}),
+			Consuming:    make(chan struct{}),
+			Stopping:     make(chan struct{}),
+			Closing:      make(chan struct{}),
+		},
 	}
 }
 
@@ -50,7 +59,7 @@ func (sm *StateMachine) String() string {
 func (sm *StateMachine) Set(newState State) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	sm.state = newState
+	sm.transitionTo(newState)
 }
 
 // SetIf sets the state machine to the provided state value only if the current state is one of the values provided in the list
@@ -67,6 +76,41 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 	if !transitionAllowed {
 		return fmt.Errorf("state transition from %s to %s is not allowed", sm.state, newState)
 	}
-	sm.state = newState
+	sm.transitionTo(newState)
 	return nil
+}
+
+// transitionTo restores the old-state channel, sets the new state, and closes the new state channel.
+func (sm *StateMachine) transitionTo(newState State) {
+	switch sm.state {
+	case Initialising:
+		sm.channels.Initialising = make(chan struct{})
+	case Stopped:
+		sm.channels.Stopped = make(chan struct{})
+	case Starting:
+		sm.channels.Starting = make(chan struct{})
+	case Consuming:
+		sm.channels.Consuming = make(chan struct{})
+	case Stopping:
+		sm.channels.Stopping = make(chan struct{})
+	case Closing:
+		sm.channels.Closing = make(chan struct{})
+	}
+
+	sm.state = newState
+
+	switch newState {
+	case Initialising:
+		close(sm.channels.Initialising)
+	case Stopped:
+		close(sm.channels.Stopped)
+	case Starting:
+		close(sm.channels.Starting)
+	case Consuming:
+		close(sm.channels.Consuming)
+	case Stopping:
+		close(sm.channels.Stopping)
+	case Closing:
+		close(sm.channels.Closing)
+	}
 }

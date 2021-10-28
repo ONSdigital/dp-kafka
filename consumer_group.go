@@ -76,14 +76,18 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		upstreamBufferSize = *cgConfig.BatchSize
 	}
 
+	channels := CreateConsumerGroupChannels(upstreamBufferSize)
+	stateMachine := NewConsumerStateMachine()
+	channels.State = stateMachine.channels
+
 	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
 		brokerAddrs:   cgConfig.BrokerAddrs,
 		brokers:       []SaramaBroker{},
-		channels:      CreateConsumerGroupChannels(upstreamBufferSize),
+		channels:      channels,
 		topic:         cgConfig.Topic,
 		group:         cgConfig.GroupName,
-		state:         NewConsumerStateMachine(Initialising),
+		state:         stateMachine,
 		initialState:  Stopped,
 		saramaConfig:  cfg,
 		mutex:         &sync.Mutex{},

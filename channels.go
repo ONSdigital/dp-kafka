@@ -26,6 +26,17 @@ type ConsumerGroupChannels struct {
 	Consume     chan bool
 	Closer      chan struct{}
 	Closed      chan struct{}
+	State       *ConsumerStateChannels
+}
+
+// ConsumerStateChannels represents the channels that are used to notify of consumer-group state changes
+type ConsumerStateChannels struct {
+	Initialising chan struct{}
+	Stopped      chan struct{}
+	Starting     chan struct{}
+	Consuming    chan struct{}
+	Stopping     chan struct{}
+	Closing      chan struct{}
 }
 
 // ProducerChannels represents the channels used by Producer.
@@ -40,6 +51,7 @@ type ProducerChannels struct {
 // CreateConsumerGroupChannels initialises a ConsumerGroupChannels with new channels.
 // You can provide the buffer size to determine the number of messages that will be buffered
 // in the upstream channel (to receive messages)
+// The State channels are not initialised until the state machine is created.
 func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
 	var chUpstream chan Message
 	if bufferSize > 0 {

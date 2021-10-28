@@ -176,8 +176,9 @@ func TestConsumerNotInitialised(t *testing.T) {
 func TestState(t *testing.T) {
 	Convey("Given a consumer group with a state machine", t, func() {
 		cg := &ConsumerGroup{
-			state: NewConsumerStateMachine(Starting),
+			state: NewConsumerStateMachine(),
 		}
+		cg.state.Set(Starting)
 
 		Convey("then State() returns the string represenation of the current state", func() {
 			So(cg.State(), ShouldEqual, Starting.String())
@@ -380,7 +381,7 @@ func TestStart(t *testing.T) {
 		}
 
 		Convey("Calling Start in 'Initialising' state results 'Starting' initial state being set", func() {
-			cg.state = NewConsumerStateMachine(Initialising)
+			cg.state = NewConsumerStateMachine()
 			err := cg.Start()
 			So(err, ShouldBeNil)
 			So(cg.initialState, ShouldEqual, Starting)
@@ -388,7 +389,8 @@ func TestStart(t *testing.T) {
 		})
 
 		Convey("Calling Start in 'Stopping' state results in a 'false' value being sent to the Consume channel", func() {
-			cg.state = NewConsumerStateMachine(Stopping)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Stopping)
 			var err error
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
@@ -404,7 +406,8 @@ func TestStart(t *testing.T) {
 		})
 
 		Convey("Calling Start in 'Stopped' state results in a 'false' value being sent to the Consume channel", func() {
-			cg.state = NewConsumerStateMachine(Stopped)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Stopped)
 			var err error
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
@@ -420,21 +423,24 @@ func TestStart(t *testing.T) {
 		})
 
 		Convey("Calling Start in 'Starting' state has no effect", func() {
-			cg.state = NewConsumerStateMachine(Starting)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Starting)
 			err := cg.Start()
 			So(err, ShouldBeNil)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Start in 'Consuming' state has no effect", func() {
-			cg.state = NewConsumerStateMachine(Consuming)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Consuming)
 			err := cg.Start()
 			So(err, ShouldBeNil)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Start in 'Closing' state returns the expected error", func() {
-			cg.state = NewConsumerStateMachine(Closing)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Closing)
 			err := cg.Start()
 			So(err.Error(), ShouldResemble, "consummer cannot be started because it is closing")
 			So(len(channels.Consume), ShouldEqual, 0)
@@ -454,26 +460,29 @@ func TestStop(t *testing.T) {
 		}
 
 		Convey("Calling Stop in 'Initialising' state results 'Stopped' initial state being set", func() {
-			cg.state = NewConsumerStateMachine(Initialising)
+			cg.state = NewConsumerStateMachine()
 			cg.Stop()
 			So(cg.initialState, ShouldEqual, Stopped)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Stop in 'Stopping' has no effect", func() {
-			cg.state = NewConsumerStateMachine(Stopping)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Stopping)
 			cg.Stop()
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Stop in 'Stopped' state has no effect", func() {
-			cg.state = NewConsumerStateMachine(Stopped)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Stopped)
 			cg.Stop()
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Stop in 'Starting' results in a 'true' value being sent to the Consume channel", func() {
-			cg.state = NewConsumerStateMachine(Starting)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Starting)
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
@@ -487,7 +496,8 @@ func TestStop(t *testing.T) {
 		})
 
 		Convey("Calling Stop in 'Consuming' results in a 'true' value being sent to the Consume channel", func() {
-			cg.state = NewConsumerStateMachine(Consuming)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Consuming)
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
@@ -500,10 +510,62 @@ func TestStop(t *testing.T) {
 			So(val, ShouldBeFalse)
 		})
 
+		Convey("Calling StopAndWait in 'Consuming' results in a 'true' value being sent to the Consume channel and the call blocking until the sessionConsuming channel is closed", func() {
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Consuming)
+			cg.saramaCgHandler = &saramaHandler{
+				sessionConsuming: make(chan struct{}),
+			}
+
+			waiting := true
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				waiting = true
+				cg.StopAndWait()
+				waiting = false
+			}()
+
+			val := <-channels.Consume
+			time.Sleep(10 * time.Millisecond)
+			So(waiting, ShouldBeTrue)
+
+			close(cg.saramaCgHandler.sessionConsuming)
+			wg.Wait()
+			So(val, ShouldBeFalse)
+		})
+
 		Convey("Calling Stop in 'Closing' state has no effect", func() {
-			cg.state = NewConsumerStateMachine(Closing)
+			cg.state = NewConsumerStateMachine()
+			cg.state.Set(Closing)
 			cg.Stop()
 			So(len(channels.Consume), ShouldEqual, 0)
+		})
+	})
+}
+
+func TestOnHealthUpdate(t *testing.T) {
+	Convey("Given a consumer-group", t, func() {
+		cg := &ConsumerGroup{
+			mutex:   &sync.Mutex{},
+			wgClose: &sync.WaitGroup{},
+			state:   NewConsumerStateMachine(),
+		}
+
+		Convey("When a notification of an 'OK' health status is received, then the consumer-group is started", func() {
+			cg.OnHealthUpdate(healthcheck.StatusOK)
+			So(cg.initialState, ShouldEqual, Starting)
+		})
+
+		Convey("When a notification of an 'WARNING' health status is received, then the consumer-group is started", func() {
+			cg.OnHealthUpdate(healthcheck.StatusWarning)
+			So(cg.initialState, ShouldEqual, Stopped)
+		})
+
+		Convey("When a notification of an 'CRITICAL' health status is received, then the consumer-group is started", func() {
+			cg.OnHealthUpdate(healthcheck.StatusCritical)
+			So(cg.initialState, ShouldEqual, Stopped)
 		})
 	})
 }
@@ -515,7 +577,7 @@ func TestClose(t *testing.T) {
 			channels: channels,
 			group:    testGroup,
 			topic:    testTopic,
-			state:    NewConsumerStateMachine(Initialising),
+			state:    NewConsumerStateMachine(),
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
@@ -589,11 +651,12 @@ func TestConsumerStopped(t *testing.T) {
 	Convey("Given a Kafka consumergroup in stopped state", t, func(c C) {
 		channels := CreateConsumerGroupChannels(1)
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(Stopped),
+			state:    NewConsumerStateMachine(),
 			channels: channels,
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
+		cg.state.Set(Stopped)
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
@@ -626,12 +689,13 @@ func TestConsumerStarting(t *testing.T) {
 		channels := CreateConsumerGroupChannels(1)
 		chConsumeCalled := make(chan struct{})
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(Starting),
+			state:    NewConsumerStateMachine(),
 			channels: channels,
 			saramaCg: saramaConsumerGroupHappy(chConsumeCalled),
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
+		cg.state.Set(Starting)
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
@@ -677,12 +741,13 @@ func TestConsumerStarting(t *testing.T) {
 		channels := CreateConsumerGroupChannels(1)
 		chConsumeCalled := make(chan struct{})
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(Starting),
+			state:    NewConsumerStateMachine(),
 			channels: channels,
 			saramaCg: saramaConsumerGroupConsumeFails(chConsumeCalled),
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
+		cg.state.Set(Starting)
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
@@ -728,7 +793,7 @@ func TestConsumeLoop(t *testing.T) {
 		chConsumeCalled := make(chan struct{})
 		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cg := &ConsumerGroup{
-			state:        NewConsumerStateMachine(Initialising),
+			state:        NewConsumerStateMachine(),
 			topic:        testTopic,
 			channels:     channels,
 			saramaCg:     saramaMock,
@@ -771,7 +836,7 @@ func TestConsumeLoop(t *testing.T) {
 
 	Convey("Given a consumer group", t, func() {
 		invalidStates := []State{Stopped, Starting, Consuming, Stopping, Closing}
-		st := NewConsumerStateMachine(Initialising)
+		st := NewConsumerStateMachine()
 		for _, s := range invalidStates {
 			Convey(fmt.Sprintf("Then calling createConsumeLoop while in %s state has no effect", s.String()), func() {
 				st.Set(s)
@@ -787,7 +852,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 	Convey("Given a consumer group in Initialising state", t, func() {
 		channels := CreateConsumerGroupChannels(1)
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(Initialising),
+			state:    NewConsumerStateMachine(),
 			channels: channels,
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
@@ -808,7 +873,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 		chConsumeCalled := make(chan struct{})
 		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cg := &ConsumerGroup{
-			state:        NewConsumerStateMachine(Initialising),
+			state:        NewConsumerStateMachine(),
 			topic:        testTopic,
 			channels:     channels,
 			saramaCg:     saramaMock,

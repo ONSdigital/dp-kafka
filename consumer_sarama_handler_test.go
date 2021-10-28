@@ -25,7 +25,8 @@ func TestSetup(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine(Starting)
+		cgState := NewConsumerStateMachine()
+		cgState.Set(Starting)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
@@ -86,7 +87,8 @@ func TestControlRoutine(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession mock in Consuming state and a newly created sessionConsuming channel", t, func() {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine(Consuming)
+		cgState := NewConsumerStateMachine()
+		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		close(channels.Initialised)
 		cgHandler.sessionConsuming = make(chan struct{})
@@ -155,7 +157,8 @@ func TestCleanup(t *testing.T) {
 
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine(Consuming)
+		cgState := NewConsumerStateMachine()
+		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
@@ -210,7 +213,8 @@ func TestConsume(t *testing.T) {
 
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine(Consuming)
+		cgState := NewConsumerStateMachine()
+		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
 			ContextFunc:  func() context.Context { return ctx },
