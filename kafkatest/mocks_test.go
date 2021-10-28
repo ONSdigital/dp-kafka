@@ -8,8 +8,9 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func TestProducerMock(t *testing.T) {
+var ctx = context.Background()
 
+func TestProducerMock(t *testing.T) {
 	Convey("Given an uninitialised producer mock", t, func() {
 
 		producerMock := NewMessageProducer(false)
@@ -24,7 +25,7 @@ func TestProducerMock(t *testing.T) {
 				<-producerMock.Channels().Initialised
 				initClosed = true
 			}()
-			producerMock.Initialise(context.Background())
+			producerMock.Initialise(ctx)
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
 			So(initClosed, ShouldBeTrue)
@@ -40,7 +41,7 @@ func TestProducerMock(t *testing.T) {
 		So(producerMock.IsInitialised(), ShouldBeTrue)
 
 		Convey("Calling initialise again has no effect", func() {
-			producerMock.Initialise(context.Background())
+			producerMock.Initialise(ctx)
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 		})
 
@@ -71,7 +72,7 @@ func validateCloseProducer(producerMock *MessageProducer) {
 		<-producerMock.Channels().Closed
 		closedClosed = true
 	}()
-	producerMock.Close(context.Background())
+	producerMock.Close(ctx)
 	wg.Wait()
 
 	So(closedOutput, ShouldBeTrue)
@@ -81,7 +82,6 @@ func validateCloseProducer(producerMock *MessageProducer) {
 }
 
 func TestConsumerMock(t *testing.T) {
-
 	Convey("Given an uninitialised consumer mock", t, func() {
 		consumerMock := NewMessageConsumer(false)
 		So(consumerMock.IsInitialised(), ShouldBeFalse)
@@ -95,7 +95,7 @@ func TestConsumerMock(t *testing.T) {
 				<-consumerMock.Channels().Initialised
 				initClosed = true
 			}()
-			consumerMock.Initialise(context.Background())
+			consumerMock.Initialise(ctx)
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
 			So(initClosed, ShouldBeTrue)
@@ -111,7 +111,7 @@ func TestConsumerMock(t *testing.T) {
 		So(consumerMock.IsInitialised(), ShouldBeTrue)
 
 		Convey("Calling initialise again has no effect", func() {
-			consumerMock.Initialise(context.Background())
+			consumerMock.Initialise(ctx)
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 		})
 
@@ -266,7 +266,7 @@ func validateCloseConsumer(consumerMock *MessageConsumer) {
 		<-consumerMock.Channels().Closed
 		closedClosed = true
 	}()
-	consumerMock.Close(context.Background())
+	consumerMock.Close(ctx)
 	wg.Wait()
 
 	So(closedUpstream, ShouldBeTrue)

@@ -33,13 +33,17 @@ func run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to retrieve configuration: %w", err)
 	}
+	log.Info(ctx, "config on startup", log.Data{"config": cfg})
+
+	serviceCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// init and start service, which contains the kafka consumer
 	svc := service.Service{}
-	if err := svc.Init(ctx, cfg); err != nil {
+	if err := svc.Init(serviceCtx, cfg); err != nil {
 		return fmt.Errorf("error initialising service: %w", err)
 	}
-	if err := svc.Start(ctx); err != nil {
+	if err := svc.Start(serviceCtx); err != nil {
 		return fmt.Errorf("error starting service: %w", err)
 	}
 
@@ -48,7 +52,7 @@ func run(ctx context.Context) error {
 
 	// graceful shutdown
 	log.Info(ctx, "[KAFKA-TEST] os signal received", log.Data{"signal": sig})
-	if err := svc.Close(ctx); err != nil {
+	if err := svc.Close(serviceCtx); err != nil {
 		return fmt.Errorf("error closing service: %w", err)
 	}
 	return nil

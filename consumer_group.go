@@ -61,7 +61,7 @@ func NewConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig) (*Cons
 
 func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, errors.New("nil context was passed to consumer-group constructor")
 	}
 
 	// Create sarama config and set any other necessary values
@@ -93,6 +93,17 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		batchSize:     *cgConfig.BatchSize,
 		batchWaitTime: *cgConfig.BatchWaitTime,
 	}
+
+	// Close consumer group on context.Done
+	go func() {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "closing consumer group because context is done")
+			cg.Close(ctx)
+		case <-cg.channels.Closer:
+			return
+		}
+	}()
 
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true
@@ -162,6 +173,10 @@ func (cg *ConsumerGroup) IsInitialised() bool {
 
 // Initialise creates a new Sarama ConsumerGroup and the consumer/error loops, only if it was not already initialised.
 func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("nil context was passed to consumer-group initialise")
+	}
+
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
@@ -174,10 +189,6 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	saramaConsumerGroup, err := cg.saramaCgInit(cg.brokerAddrs, cg.group, cg.saramaConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create a new sarama consumer group: %w", err)
-	}
-
-	if ctx == nil {
-		ctx = context.Background()
 	}
 
 	// On Successful initialization, create sarama consumer handler, and loop goroutines (for messages and errors)
@@ -295,6 +306,10 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 // pass in a context with a timeout or deadline.
 // Passing a nil context will provide no timeout but is not recommended
 func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
+	if ctx == nil {
+		return errors.New("nil context was passed to consumer-group close")
+	}
+
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
@@ -307,15 +322,12 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	defer close(cg.channels.Closed)
 
 	cg.state.Set(Closing)
-	if ctx == nil {
-		ctx = context.Background()
-	}
 	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state.String()}
 
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	close(cg.channels.Consume)
 	close(cg.channels.Closer)
-	didTimeout := WaitWithTimeout(ctx, cg.wgClose)
+	didTimeout := WaitWithTimeout(cg.wgClose)
 	if didTimeout {
 		return NewError(
 			fmt.Errorf("timed out while waiting for all loops to finish and remaining messages to be processed: %w", ctx.Err()),

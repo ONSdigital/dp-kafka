@@ -1,7 +1,6 @@
 package kafka
 
 import (
-	"context"
 	"math"
 	"math/rand"
 	"sync"
@@ -54,16 +53,17 @@ func GetRetryTime(attempt int, retryTime time.Duration) time.Duration {
 // WaitWithTimeout blocks until all go-routines tracked by a WaitGroup are done,
 // or until the timeout defined in a context expires.
 // It returns true only if the context timeout expired
-func WaitWithTimeout(ctx context.Context, wg *sync.WaitGroup) bool {
+func WaitWithTimeout(wg *sync.WaitGroup) bool {
 	chWaiting := make(chan struct{})
 	go func() {
 		defer close(chWaiting)
 		wg.Wait()
 	}()
+
 	select {
 	case <-chWaiting:
 		return false
-	case <-ctx.Done():
+	case <-time.After(500 * time.Millisecond):
 		return true
 	}
 }

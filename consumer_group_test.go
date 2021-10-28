@@ -22,10 +22,20 @@ var (
 	testBrokers  = []string{"localhost:12300", "localhost:12301"}
 )
 
-func TestConsumerCreationError(t *testing.T) {
-	Convey("Providing an invalid kafka version results in an error being returned and consumer not being initialised", t, func() {
+func TestConsumerCreation(t *testing.T) {
+	Convey("Providing a nil context results in the expected error being returned", t, func() {
+		cg, err := newConsumerGroup(
+			nil,
+			&ConsumerGroupConfig{},
+			nil,
+		)
+		So(cg, ShouldBeNil)
+		So(err, ShouldResemble, errors.New("nil context was passed to consumer-group constructor"))
+	})
+
+	Convey("Providing an invalid kafka version results in the expected error being returned", t, func() {
 		wrongVersion := "wrongVersion"
-		consumer, err := newConsumerGroup(
+		cg, err := newConsumerGroup(
 			ctx,
 			&ConsumerGroupConfig{
 				KafkaVersion: &wrongVersion,
@@ -35,10 +45,34 @@ func TestConsumerCreationError(t *testing.T) {
 			},
 			nil,
 		)
-		So(consumer, ShouldBeNil)
+		So(cg, ShouldBeNil)
 		So(err, ShouldResemble, fmt.Errorf("failed to get consumer-group config: %w",
 			fmt.Errorf("error parsing kafka version: %w",
 				errors.New("invalid version `wrongVersion`"))))
+	})
+
+	Convey("Given a successful creation of a consumer group", t, func() {
+		testCtx, cancel := context.WithCancel(ctx)
+		cg, err := newConsumerGroup(
+			testCtx,
+			&ConsumerGroupConfig{
+				Topic:       testTopic,
+				GroupName:   testGroup,
+				BrokerAddrs: testBrokers,
+			},
+			func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
+				return nil, errors.New("uninitialised")
+			},
+		)
+		So(err, ShouldBeNil)
+
+		Convey("When the provided context is cancelled then the closed channel is closed and the state is 'Closing'", func(c C) {
+			cancel()
+
+			validateChanClosed(c, cg.channels.Closer, true)
+			validateChanClosed(c, cg.channels.Closed, true)
+			So(cg.state.Get(), ShouldEqual, Closing)
+		})
 	})
 }
 
@@ -73,6 +107,12 @@ func TestConsumerInitialised(t *testing.T) {
 		Convey("We cannot initialise consumer again, but Initialise does not return an error", func() {
 			err = consumer.Initialise(ctx)
 			So(err, ShouldBeNil)
+			So(cgInitCalls, ShouldEqual, 1)
+		})
+
+		Convey("Calling initiailse with a nil context results in the expected error being returned", func() {
+			err = consumer.Initialise(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to consumer-group initialise"))
 			So(cgInitCalls, ShouldEqual, 1)
 		})
 
@@ -479,6 +519,13 @@ func TestClose(t *testing.T) {
 			mutex:    &sync.Mutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
+
+		Convey("Calling close with a nil context results in the expected error being returned", func(c C) {
+			err := cg.Close(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to consumer-group close"))
+			validateChanClosed(c, channels.Closer, false)
+			validateChanClosed(c, channels.Closed, false)
+		})
 
 		Convey("Which is uninitialised", func() {
 			Convey("When Close is successfully called", func(c C) {

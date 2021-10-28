@@ -71,7 +71,7 @@ func (svc *Service) Start(ctx context.Context) (err error) {
 
 func (svc *Service) Close(ctx context.Context) error {
 	log.Info(ctx, "[KAFKA-TEST] Commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": svc.cfg.GracefulShutdownTimeout})
-	ctx, cancel := context.WithTimeout(context.Background(), svc.cfg.GracefulShutdownTimeout)
+	ctx, cancel := context.WithTimeout(ctx, svc.cfg.GracefulShutdownTimeout)
 	var shutdownErr error
 
 	go func() {

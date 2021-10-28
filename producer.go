@@ -47,9 +47,8 @@ func NewProducer(ctx context.Context, pConfig *ProducerConfig) (producer *Produc
 }
 
 func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerInitialiser) (*Producer, error) {
-
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, errors.New("nil context was passed to producer constructor")
 	}
 
 	// Create Sarama config and set any other default values
@@ -69,6 +68,17 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 		mutex:        &sync.Mutex{},
 		wgClose:      &sync.WaitGroup{},
 	}
+
+	// Close producer on context.Done
+	go func() {
+		select {
+		case <-ctx.Done():
+			log.Info(ctx, "closing producer because context is done")
+			producer.Close(ctx)
+		case <-producer.channels.Closer:
+			return
+		}
+	}()
 
 	// disable metrics to prevent memory leak on broker.Open()
 	metrics.UseNilMetrics = true
@@ -125,6 +135,9 @@ func (p *Producer) IsInitialised() bool {
 
 // Initialise creates a new Sarama AsyncProducer and the channel redirection, only if it was not already initialised.
 func (p *Producer) Initialise(ctx context.Context) error {
+	if ctx == nil {
+		return errors.New("nil context was passed to producer initialise")
+	}
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -132,10 +145,6 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	// Do nothing if producer already initialised
 	if p.IsInitialised() {
 		return nil
-	}
-
-	if ctx == nil {
-		ctx = context.Background()
 	}
 
 	// Initialise AsyncProducer with default config and envMax
@@ -166,15 +175,14 @@ func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 // pass in a context with a timeout or deadline.
 // Passing a nil context will provide no timeout and this is not recommended
 func (p *Producer) Close(ctx context.Context) (err error) {
-
 	if ctx == nil {
-		ctx = context.Background()
+		return errors.New("nil context was passed to producer close")
 	}
 
 	// closing the Closer channel will end the go-routines(if any)
 	close(p.channels.Closer)
 
-	didTimeout := WaitWithTimeout(ctx, p.wgClose)
+	didTimeout := WaitWithTimeout(p.wgClose)
 	if didTimeout {
 		return NewError(
 			fmt.Errorf("timed out while waiting for all loops to finish: %w", ctx.Err()),

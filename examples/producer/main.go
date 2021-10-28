@@ -27,26 +27,23 @@ func main() {
 func run(ctx context.Context) error {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
-	go func() {
-		sig := <-signals
-		log.Warn(ctx, "[KAFKA-TEST] os signal received", log.Data{"signal": sig})
-		cancel()
-	}()
 
 	// Read config
 	cfg, err := config.Get()
 	if err != nil {
 		return fmt.Errorf("unable to retrieve configuration: %w", err)
 	}
+	log.Info(ctx, "config on startup", log.Data{"config": cfg})
+
+	serviceCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	// init and start service, which contains the kafka consumer
 	svc := service.Service{}
-	if err := svc.Init(ctx, cfg); err != nil {
+	if err := svc.Init(serviceCtx, cfg); err != nil {
 		return fmt.Errorf("error initialising service: %w", err)
 	}
-	if err := svc.Start(ctx, cancel); err != nil {
+	if err := svc.Start(serviceCtx, cancel); err != nil {
 		return fmt.Errorf("error starting service: %w", err)
 	}
 
@@ -55,7 +52,7 @@ func run(ctx context.Context) error {
 
 	// graceful shutdown
 	log.Info(ctx, "[KAFKA-TEST] os signal received", log.Data{"signal": sig})
-	if err := svc.Close(ctx); err != nil {
+	if err := svc.Close(serviceCtx); err != nil {
 		return fmt.Errorf("error closing service: %w", err)
 	}
 	return nil

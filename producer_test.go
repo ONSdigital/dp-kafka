@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -64,10 +65,20 @@ func GetFromSaramaChans(
 	}
 }
 
-func TestProducerWrongConfig(t *testing.T) {
+func TestProducerCreation(t *testing.T) {
+	Convey("Providing a nil context results in the expected error being returned", t, func() {
+		p, err := newProducer(
+			nil,
+			&ProducerConfig{},
+			nil,
+		)
+		So(p, ShouldBeNil)
+		So(err, ShouldResemble, errors.New("nil context was passed to producer constructor"))
+	})
+
 	Convey("Providing an invalid config (kafka version) results in an error being returned and consumer not being initialised", t, func() {
 		wrongVersion := "wrongVersion"
-		producer, err := newProducer(
+		p, err := newProducer(
 			ctx,
 			&ProducerConfig{
 				KafkaVersion: &wrongVersion,
@@ -76,10 +87,31 @@ func TestProducerWrongConfig(t *testing.T) {
 			},
 			nil,
 		)
-		So(producer, ShouldBeNil)
+		So(p, ShouldBeNil)
 		So(err, ShouldResemble, fmt.Errorf("failed to get producer config: %w",
 			fmt.Errorf("error parsing kafka version: %w",
 				errors.New("invalid version `wrongVersion`"))))
+	})
+
+	Convey("Given a successful creation of a producer", t, func() {
+		testCtx, cancel := context.WithCancel(ctx)
+		p, err := newProducer(
+			testCtx,
+			&ProducerConfig{
+				Topic:       testTopic,
+				BrokerAddrs: testBrokers,
+			},
+			func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
+				return nil, errors.New("uninitialised")
+			},
+		)
+		So(err, ShouldBeNil)
+
+		Convey("When the provided context is cancelled then the closed channel is closed", func(c C) {
+			cancel()
+			validateChanClosed(c, p.channels.Closer, true)
+			validateChanClosed(c, p.channels.Closed, true)
+		})
 	})
 }
 
@@ -118,6 +150,12 @@ func TestProducer(t *testing.T) {
 			So(pInitCalls, ShouldEqual, 1)
 		})
 
+		Convey("Calling initiailse with a nil context results in the expected error being returned", func() {
+			err = producer.Initialise(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to producer initialise"))
+			So(pInitCalls, ShouldEqual, 1)
+		})
+
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
 
 			// Send message to local kafka output chan
@@ -153,6 +191,13 @@ func TestProducer(t *testing.T) {
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
+		})
+
+		Convey("Calling close with a nil context results in the expected error being returned", func(c C) {
+			err := producer.Close(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to producer close"))
+			validateChanClosed(c, producer.Channels().Closer, false)
+			validateChanClosed(c, producer.Channels().Closed, false)
 		})
 	})
 }
