@@ -73,7 +73,9 @@ func (svc *Service) Start(ctx context.Context) (err error) {
 	createTickerLoop(ctx, svc.consumer)
 
 	// create loop to start-stop the consumer periodically according to pre-defined constants
-	createStartStopLoop(ctx, svc.consumer)
+	if svc.cfg.KafkaStartStop {
+		createStartStopLoop(ctx, svc.consumer)
+	}
 
 	return nil
 }

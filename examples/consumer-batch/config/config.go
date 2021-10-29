@@ -22,6 +22,7 @@ type Config struct {
 	Snooze                  bool          `envconfig:"SNOOZE"`
 	OverSleep               bool          `envconfig:"OVERSLEEP"`
 	LogQuiet                bool          `envconfig:"LOG_QUIET"`
+	KafkaStartStop          bool          `envconfig:"KAFKA_START_STOP"`
 	BatchSize               int           `envconfig:"KAFKA_BATCH_SIZE"`
 	BatchWaitTime           time.Duration `envconfig:"KAFKA_BATCH_WAIT_TIME"`
 }
