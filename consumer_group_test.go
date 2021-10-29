@@ -558,12 +558,12 @@ func TestOnHealthUpdate(t *testing.T) {
 			So(cg.initialState, ShouldEqual, Starting)
 		})
 
-		Convey("When a notification of an 'WARNING' health status is received, then the consumer-group is started", func() {
+		Convey("When a notification of an 'WARNING' health status is received, then the consumer-group is stopped", func() {
 			cg.OnHealthUpdate(healthcheck.StatusWarning)
 			So(cg.initialState, ShouldEqual, Stopped)
 		})
 
-		Convey("When a notification of an 'CRITICAL' health status is received, then the consumer-group is started", func() {
+		Convey("When a notification of an 'CRITICAL' health status is received, then the consumer-group is stopped", func() {
 			cg.OnHealthUpdate(healthcheck.StatusCritical)
 			So(cg.initialState, ShouldEqual, Stopped)
 		})
