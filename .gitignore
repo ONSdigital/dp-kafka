@@ -11,3 +11,5 @@
 
 # kafka cluster data (docker volumes)
 examples/zk-single-kafka-multiple/
+
+build
