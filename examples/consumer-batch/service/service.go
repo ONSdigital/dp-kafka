@@ -34,15 +34,24 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 		Cfg: cfg,
 	}
 
-	// Create kafka consumer, passing relevant config
-	svc.consumer, err = kafka.NewConsumerGroup(ctx, &kafka.ConsumerGroupConfig{
+	cgConfig := &kafka.ConsumerGroupConfig{
 		BrokerAddrs:   cfg.Brokers,
 		Topic:         cfg.ConsumedTopic,
 		GroupName:     cfg.ConsumedGroup,
 		KafkaVersion:  &cfg.KafkaVersion,
 		BatchSize:     &cfg.BatchSize,
 		BatchWaitTime: &cfg.BatchWaitTime,
-	})
+	}
+	if cfg.KafkaSecProtocol == "TLS" {
+		cgConfig.SecurityConfig = kafka.GetSecurityConfig(
+			cfg.KafkaSecCACerts,
+			cfg.KafkaSecClientCert,
+			cfg.KafkaSecClientKey,
+			cfg.KafkaSecSkipVerify,
+		)
+	}
+	// Create kafka consumer, passing relevant config
+	svc.consumer, err = kafka.NewConsumerGroup(ctx, cgConfig)
 	if err != nil {
 		return fmt.Errorf("error creating kafka consumer: %w", err)
 	}
@@ -64,7 +73,9 @@ func (svc *Service) Start(ctx context.Context) (err error) {
 	createTickerLoop(ctx, svc.consumer)
 
 	// create loop to start-stop the consumer periodically according to pre-defined constants
-	createStartStopLoop(ctx, svc.consumer)
+	if svc.cfg.KafkaStartStop {
+		createStartStopLoop(ctx, svc.consumer)
+	}
 
 	return nil
 }
