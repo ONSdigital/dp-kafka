@@ -156,7 +156,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
 	p.createLoopInitialised(ctx)
-	close(p.channels.Initialised)
+	SafeClose(p.channels.Initialised)
 	log.Info(ctx, "sarama producer has been initialised", log.Data{"topic": p.topic})
 	return nil
 }
@@ -173,14 +173,13 @@ func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 
 // Close safely closes the producer and releases all resources.
 // pass in a context with a timeout or deadline.
-// Passing a nil context will provide no timeout and this is not recommended
 func (p *Producer) Close(ctx context.Context) (err error) {
 	if ctx == nil {
 		return errors.New("nil context was passed to producer close")
 	}
 
 	// closing the Closer channel will end the go-routines(if any)
-	close(p.channels.Closer)
+	SafeClose(p.channels.Closer)
 
 	didTimeout := WaitWithTimeout(p.wgClose)
 	if didTimeout {
@@ -192,8 +191,8 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 
 	logData := log.Data{"topic": p.topic}
 
-	close(p.channels.Errors)
-	close(p.channels.Output)
+	SafeCloseErr(p.channels.Errors)
+	SafeCloseBytes(p.channels.Output)
 
 	// Close producer only if it was initialised
 	if p.IsInitialised() {
@@ -211,14 +210,15 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	}
 
 	log.Info(ctx, "successfully closed kafka producer", logData)
-	close(p.channels.Closed)
+	SafeClose(p.channels.Closed)
 	return nil
 }
 
 // createLoopUninitialised creates a goroutine to handle uninitialised producers.
 // It generates errors to the Errors channel when a message is intended to be sent through the Output channel.
-// If the closer channel is closed, it closes the closed channel straight away and stops.
 // If the init channel is closed, the goroutine stops because the sarama client is available.
+// If the closer channel is closed, the goroutine stops because the client is being closed.
+// It retries to initialise the producer after waiting for a period of time following an exponential distribution between retries.
 func (p *Producer) createLoopUninitialised(ctx context.Context) {
 
 	// Do nothing if producer already initialised
@@ -239,7 +239,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-p.channels.Closer:
 				return
-			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod)):
+			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod, MaxRetryInterval)):
 				if err := p.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
 					initAttempt++

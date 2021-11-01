@@ -3,6 +3,7 @@ package kafka
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	. "github.com/smartystreets/goconvey/convey"
@@ -250,4 +251,131 @@ func TestConsumerGroupChannelsValidate(t *testing.T) {
 			))
 		})
 	})
+}
+
+func TestSafeClose(t *testing.T) {
+	Convey("A struct channel can be safely closed and closing it again does not panic", t, func(c C) {
+		ch := make(chan struct{})
+		So(SafeClose(ch), ShouldBeTrue)
+		validateChanClosed(c, ch, true)
+		So(SafeClose(ch), ShouldBeFalse)
+	})
+
+	Convey("A bool channel can be safely closed and closing it again does not panic", t, func(c C) {
+		ch := make(chan bool)
+		So(SafeCloseBool(ch), ShouldBeTrue)
+		validateChanBoolClosed(c, ch, true)
+		So(SafeCloseBool(ch), ShouldBeFalse)
+	})
+
+	Convey("A Message channel can be safely closed and closing it again does not panic", t, func(c C) {
+		ch := make(chan Message)
+		So(SafeCloseMessage(ch), ShouldBeTrue)
+		validateChanMessageClosed(c, ch, true)
+		So(SafeCloseMessage(ch), ShouldBeFalse)
+	})
+
+	Convey("An Error channel can be safely closed and closing it again does not panic", t, func(c C) {
+		ch := make(chan error)
+		So(SafeCloseErr(ch), ShouldBeTrue)
+		validateChanErrClosed(c, ch, true)
+		So(SafeCloseErr(ch), ShouldBeFalse)
+	})
+
+	Convey("A byte array channel can be safely closed and closing it again does not panic", t, func(c C) {
+		ch := make(chan []byte)
+		So(SafeCloseBytes(ch), ShouldBeTrue)
+		validateChanBytesClosed(c, ch, true)
+		So(SafeCloseBytes(ch), ShouldBeFalse)
+	})
+}
+
+// validateChanClosed validates that a struct channel is closed before a timeout expires
+func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateChanBoolClosed validates that a boolean channel is closed before a timeout expires
+func validateChanBoolClosed(c C, ch chan bool, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateChanMessageClosed validates that a Message channel is closed before a timeout expires
+func validateChanMessageClosed(c C, ch chan Message, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateChanBytesClosed validates that a byte array  channel is closed before a timeout expires
+func validateChanBytesClosed(c C, ch chan []byte, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateChanMessageClosed validates that an Error channel is closed before a timeout expires
+func validateChanErrClosed(c C, ch chan error, expectedClosed bool) {
+	var (
+		closed  bool
+		timeout bool
+	)
+	select {
+	case _, ok := <-ch:
+		if !ok {
+			closed = true
+		}
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	c.So(timeout, ShouldNotEqual, expectedClosed)
+	c.So(closed, ShouldEqual, expectedClosed)
 }

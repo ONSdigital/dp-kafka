@@ -69,14 +69,14 @@ func (M SaramaMessage) Commit() {
 
 // Release closes the UpstreamDone channel, but doesn't mark the message or commit the offset
 func (M SaramaMessage) Release() {
-	close(M.upstreamDone)
+	SafeClose(M.upstreamDone)
 }
 
 // CommitAndRelease marks the message as consumed, commits the offset to the backend and releases the UpstreamDone channel
 func (M SaramaMessage) CommitAndRelease() {
 	M.session.MarkMessage(M.message, "metadata")
 	M.session.Commit()
-	close(M.upstreamDone)
+	SafeClose(M.upstreamDone)
 }
 
 // UpstreamDone returns the upstreamDone channel. Closing this channel notifies that the message has been consumed (same effect as calling Release)

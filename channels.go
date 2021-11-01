@@ -138,3 +138,63 @@ func (producerChannels *ProducerChannels) Validate() error {
 	}
 	return nil
 }
+
+// SafeClose closes a struct{} channel and ignores the panic if the channel was already closed
+func SafeClose(ch chan struct{}) (justClosed bool) {
+	defer func() {
+		if recover() != nil {
+			justClosed = false
+		}
+	}()
+	close(ch)
+	justClosed = true
+	return
+}
+
+// SafeCloseMessage closes a Message channel and ignores the panic if the channel was already closed
+func SafeCloseMessage(ch chan Message) (justClosed bool) {
+	defer func() {
+		if recover() != nil {
+			justClosed = false
+		}
+	}()
+	close(ch)
+	justClosed = true
+	return
+}
+
+// SafeCloseBytes closes a byte array channel and ignores the panic if the channel was already closed
+func SafeCloseBytes(ch chan []byte) (justClosed bool) {
+	defer func() {
+		if recover() != nil {
+			justClosed = false
+		}
+	}()
+	close(ch)
+	justClosed = true
+	return
+}
+
+// SafeCloseBool closes a bool channel and ignores the panic if the channel was already closed
+func SafeCloseBool(ch chan bool) (justClosed bool) {
+	defer func() {
+		if recover() != nil {
+			justClosed = false
+		}
+	}()
+	close(ch)
+	justClosed = true
+	return
+}
+
+// SafeCloseErr closes an error channel and ignores the panic if the channel was already closed
+func SafeCloseErr(ch chan error) (justClosed bool) {
+	defer func() {
+		if recover() != nil {
+			justClosed = false
+		}
+	}()
+	close(ch)
+	justClosed = true
+	return
+}

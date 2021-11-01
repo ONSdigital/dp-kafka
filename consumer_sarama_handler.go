@@ -46,13 +46,7 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 // - Received 'false' from consume channel: set state to 'Stoppig' and stop consuming
 // - shConsuming channel closed: abort control routine and stop consuming
 func (sh *saramaHandler) controlRoutine() {
-	defer func() {
-		select {
-		case <-sh.sessionConsuming:
-		default:
-			close(sh.sessionConsuming)
-		}
-	}()
+	defer SafeClose(sh.sessionConsuming)
 
 	for {
 		select {
@@ -81,11 +75,7 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 	log.Info(session.Context(), "kafka consumer group has finished consuming: sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
-	select {
-	case <-sh.sessionConsuming:
-	default:
-		close(sh.sessionConsuming)
-	}
+	SafeClose(sh.sessionConsuming)
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)

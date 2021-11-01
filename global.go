@@ -35,19 +35,43 @@ func SetMaxRetryInterval(maxPause time.Duration) {
 	MaxRetryInterval = maxPause
 }
 
+// maxAttempts calculates the maximum number of attempts
+// such that starting with the provided retryTime
+// and applying an exponential algorithm between iterations (2^n)
+// the MaxRetryInterval value is never exceeded.
+// Note that attempt 0 is considered the first attempt
+func maxAttempts(retryTime, maxRetryTime time.Duration) int {
+	maxAttempts := math.Log2(float64(maxRetryTime / retryTime))
+	return int(math.Floor(maxAttempts))
+}
+
 // GetRetryTime will return a duration based on the attempt and initial retry time.
-// It uses the algorithm `2^n` where `n` is the attempt number (double the previous)
-// plus a randomization factor of ±25% of the initial retry time
-// (so that the server isn't being hit at the same time by many clients)
-func GetRetryTime(attempt int, retryTime time.Duration) time.Duration {
-	n := math.Pow(2, float64(attempt-1))
-	retryPause := time.Duration(n) * retryTime
-	// large values of `attempt` cause overflow (above is zero), so test for <=0
-	if retryPause > MaxRetryInterval || retryPause <= 0 {
-		retryPause = MaxRetryInterval
+// It uses the algorithm `2^n` where `n` is the modulerised attempt number,
+// so that we don't get values greater than MaxRetryInterval.
+// A randomization factor of ±25% is added to the initial retry time
+// so that the server isn't being hit at the same time by many clients.
+// The first attempt is assumed to be number 1
+func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Duration {
+	if attempt < 1 {
+		attempt = 1 // negative or 0 values will be assumed to be 'first attempt'
 	}
+
+	// Calculate basic retryPause according to the modular number of attempt
+	modulus := maxAttempts(retryTime, maxRetryTime) + 1
+	modAttempt := (attempt - 1) % modulus
+	n := math.Pow(2, float64(modAttempt))
+	retryPause := time.Duration(n) * retryTime
+
+	// add or subtract a random factor of up to 25%
 	rnd := (rand.Int63n(50) - 25) * retryTime.Milliseconds() / 100
-	return retryPause + time.Duration(rnd)*time.Millisecond
+	retryPause = retryPause + time.Duration(rnd)*time.Millisecond
+
+	// cap the value to MaxRetryInterval if it was exceeded
+	if retryPause > maxRetryTime {
+		retryPause = maxRetryTime
+	}
+
+	return retryPause
 }
 
 // WaitWithTimeout blocks until all go-routines tracked by a WaitGroup are done,
@@ -56,7 +80,7 @@ func GetRetryTime(attempt int, retryTime time.Duration) time.Duration {
 func WaitWithTimeout(wg *sync.WaitGroup) bool {
 	chWaiting := make(chan struct{})
 	go func() {
-		defer close(chWaiting)
+		defer SafeClose(chWaiting)
 		wg.Wait()
 	}()
 

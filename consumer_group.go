@@ -308,7 +308,6 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 
 // Close safely closes the consumer and releases all resources.
 // pass in a context with a timeout or deadline.
-// Passing a nil context will provide no timeout but is not recommended
 func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	if ctx == nil {
 		return errors.New("nil context was passed to consumer-group close")
@@ -323,14 +322,14 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	}
 
 	// Always close the Closed channel to signal that the closing operation has completed
-	defer close(cg.channels.Closed)
+	defer SafeClose(cg.channels.Closed)
 
 	cg.state.Set(Closing)
 	logData := log.Data{"topic": cg.topic, "group": cg.group, "state": cg.state.String()}
 
 	// Close Consume and Close channels and wait for any go-routine to finish their work
-	close(cg.channels.Consume)
-	close(cg.channels.Closer)
+	SafeCloseBool(cg.channels.Consume)
+	SafeClose(cg.channels.Closer)
 	didTimeout := WaitWithTimeout(cg.wgClose)
 	if didTimeout {
 		return NewError(
@@ -340,8 +339,8 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	}
 
 	// Close message-passing channels
-	close(cg.channels.Errors)
-	close(cg.channels.Upstream)
+	SafeCloseErr(cg.channels.Errors)
+	SafeCloseMessage(cg.channels.Upstream)
 
 	// Close Sarama consumer only if it was initialised.
 	if cg.IsInitialised() {
@@ -364,7 +363,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 // createLoopUninitialised creates a goroutine to handle uninitialised consumer groups.
 // It retries to initialise the consumer with an exponential backoff retrial algorithm,
-// starting with a period `InitRetryPeriod`, until the consumer group is initialised or closed.
+// starting with 'InitRetryPeriod' and restarted when MaxRetryInterval is reached.
 func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	if cg.IsInitialised() {
 		return // do nothing if consumer group already initialised
@@ -379,7 +378,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-cg.channels.Closer:
 				return
-			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod)):
+			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod, MaxRetryInterval)):
 				if err := cg.Initialise(ctx); err != nil {
 					log.Warn(ctx, "error initialising consumer group, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
@@ -402,11 +401,7 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Stopped)
 
 	// close Initialised channel (if it is not already closed)
-	select {
-	case <-cg.channels.Initialised:
-	default:
-		close(cg.channels.Initialised)
-	}
+	SafeClose(cg.channels.Initialised)
 
 	logData["state"] = Stopped
 	log.Info(ctx, "kafka consumer group is stopped", logData)
@@ -437,17 +432,14 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 // before calling consume again after a session finishes, we check if one of the following events has happened:
 // - A 'false' value is received from the Consume channel: the state is set to 'Stopping' and the func will return
 // - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
-// If saramaCg.Consume fails, we retry after waiting some time (exponential backoff between retries).
+// If saramaCg.Consume fails, we retry after an initial period of InitRetryPeriod,
+// following an exponential backoff between retries, until MaxRetryInterval is reached, at which point the retry algorithm is restarted.
 // If the consumer changes its state between retries, we abort the loop as described above.
 func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Starting)
 
 	// close Initialised channel (if it is not already closed)
-	select {
-	case <-cg.channels.Initialised:
-	default:
-		close(cg.channels.Initialised)
-	}
+	SafeClose(cg.channels.Initialised)
 
 	logData["state"] = Starting
 	log.Info(ctx, "kafka consumer group is starting", logData)
@@ -495,7 +487,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
-				case <-time.After(GetRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
+				case <-time.After(GetRetryTime(consumeAttempt, ConsumeErrRetryPeriod, MaxRetryInterval)):
 					consumeAttempt++
 				case <-ctx.Done():
 				}

@@ -221,24 +221,6 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 	So(rxErr, ShouldResemble, expectedErr)
 }
 
-// validateChanClosed validates that a channel is closed before a timeout expires
-func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
-	var (
-		closed  bool
-		timeout bool
-	)
-	select {
-	case _, ok := <-ch:
-		if !ok {
-			closed = true
-		}
-	case <-time.After(TIMEOUT):
-		timeout = true
-	}
-	c.So(timeout, ShouldNotEqual, expectedClosed)
-	c.So(closed, ShouldEqual, expectedClosed)
-}
-
 func TestProducerNotInitialised(t *testing.T) {
 	Convey("Given that Sarama fails to create a new AsyncProducer while we initialise our Producer", t, func() {
 		pInitCalls := 0

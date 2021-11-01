@@ -101,16 +101,16 @@ func (sm *StateMachine) transitionTo(newState State) {
 
 	switch newState {
 	case Initialising:
-		close(sm.channels.Initialising)
+		SafeClose(sm.channels.Initialising)
 	case Stopped:
-		close(sm.channels.Stopped)
+		SafeClose(sm.channels.Stopped)
 	case Starting:
-		close(sm.channels.Starting)
+		SafeClose(sm.channels.Starting)
 	case Consuming:
-		close(sm.channels.Consuming)
+		SafeClose(sm.channels.Consuming)
 	case Stopping:
-		close(sm.channels.Stopping)
+		SafeClose(sm.channels.Stopping)
 	case Closing:
-		close(sm.channels.Closing)
+		SafeClose(sm.channels.Closing)
 	}
 }

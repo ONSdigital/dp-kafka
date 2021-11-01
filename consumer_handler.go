@@ -66,6 +66,7 @@ func (cg *ConsumerGroup) handleBatch(ctx context.Context, batch *Batch) {
 }
 
 // consumeMessage is a looping func that listens to the Upstream channel and handles each received message
+// This function is to be called as a go routine because it implements a blocking loop
 func (cg *ConsumerGroup) consumeMessage(ctx context.Context, workerID int) {
 	defer cg.wgClose.Done()
 	for {
@@ -88,6 +89,7 @@ func (cg *ConsumerGroup) consumeMessage(ctx context.Context, workerID int) {
 
 // consumeBatch is a looping func that listens to the Upstream channel, accumulates messages and handles
 // batches once it is full or the waitTime has expired.
+// This function is to be called as a go routine because it implements a blocking loop
 func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 	defer cg.wgClose.Done()
 	batch := NewBatch(cg.batchSize)
@@ -102,7 +104,6 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 
 			batch.Add(ctx, msg)
 			if batch.IsFull() {
-				log.Info(ctx, "batch is full - processing batch", log.Data{"batchsize": batch.Size()})
 				cg.handleBatch(ctx, batch)
 			}
 
@@ -113,7 +114,6 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 				continue
 			}
 
-			log.Info(ctx, "batch wait time reached - processing batch", log.Data{"batchsize": batch.Size()})
 			cg.handleBatch(ctx, batch)
 
 		case <-cg.channels.Closer:
