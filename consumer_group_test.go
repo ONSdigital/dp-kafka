@@ -134,7 +134,6 @@ func TestConsumerInitialised(t *testing.T) {
 }
 
 func TestConsumerNotInitialised(t *testing.T) {
-
 	Convey("Given that Sarama-cluster fails to create a new Consumer while we initialise our ConsumerGroup", t, func(c C) {
 		cgInitCalls := 0
 		cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
@@ -741,11 +740,13 @@ func TestConsumerStarting(t *testing.T) {
 		channels := CreateConsumerGroupChannels(1)
 		chConsumeCalled := make(chan struct{})
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(),
-			channels: channels,
-			saramaCg: saramaConsumerGroupConsumeFails(chConsumeCalled),
-			mutex:    &sync.Mutex{},
-			wgClose:  &sync.WaitGroup{},
+			state:          NewConsumerStateMachine(),
+			channels:       channels,
+			saramaCg:       saramaConsumerGroupConsumeFails(chConsumeCalled),
+			mutex:          &sync.Mutex{},
+			wgClose:        &sync.WaitGroup{},
+			minRetryPeriod: defaultMinRetryPeriod,
+			maxRetryPeriod: defaultMaxRetryPeriod,
 		}
 		cg.state.Set(Starting)
 		wg := &sync.WaitGroup{}
@@ -852,10 +853,12 @@ func TestCreateLoopUninitialised(t *testing.T) {
 	Convey("Given a consumer group in Initialising state", t, func() {
 		channels := CreateConsumerGroupChannels(1)
 		cg := &ConsumerGroup{
-			state:    NewConsumerStateMachine(),
-			channels: channels,
-			mutex:    &sync.Mutex{},
-			wgClose:  &sync.WaitGroup{},
+			state:          NewConsumerStateMachine(),
+			channels:       channels,
+			mutex:          &sync.Mutex{},
+			wgClose:        &sync.WaitGroup{},
+			minRetryPeriod: defaultMinRetryPeriod,
+			maxRetryPeriod: defaultMaxRetryPeriod,
 		}
 
 		Convey("Where createLoopUninitialised is called", func() {

@@ -29,15 +29,17 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	producer     sarama.AsyncProducer
-	producerInit producerInitialiser
-	brokerAddrs  []string
-	brokers      []SaramaBroker
-	topic        string
-	channels     *ProducerChannels
-	config       *sarama.Config
-	mutex        *sync.Mutex
-	wgClose      *sync.WaitGroup
+	producer       sarama.AsyncProducer
+	producerInit   producerInitialiser
+	brokerAddrs    []string
+	brokers        []SaramaBroker
+	topic          string
+	channels       *ProducerChannels
+	config         *sarama.Config
+	mutex          *sync.Mutex
+	wgClose        *sync.WaitGroup
+	minRetryPeriod time.Duration
+	maxRetryPeriod time.Duration
 }
 
 // New returns a new producer instance using the provided config and channels.
@@ -59,14 +61,16 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 
 	// Producer initialised with provided brokers and topic
 	producer := &Producer{
-		producerInit: pInit,
-		brokerAddrs:  pConfig.BrokerAddrs,
-		channels:     CreateProducerChannels(),
-		brokers:      []SaramaBroker{},
-		topic:        pConfig.Topic,
-		config:       config,
-		mutex:        &sync.Mutex{},
-		wgClose:      &sync.WaitGroup{},
+		producerInit:   pInit,
+		brokerAddrs:    pConfig.BrokerAddrs,
+		channels:       CreateProducerChannels(),
+		brokers:        []SaramaBroker{},
+		topic:          pConfig.Topic,
+		config:         config,
+		mutex:          &sync.Mutex{},
+		wgClose:        &sync.WaitGroup{},
+		minRetryPeriod: *pConfig.MinRetryPeriod,
+		maxRetryPeriod: *pConfig.MaxRetryPeriod,
 	}
 
 	// Close producer on context.Done
@@ -249,7 +253,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-p.channels.Closer:
 				return
-			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod, MaxRetryInterval)):
+			case <-time.After(GetRetryTime(initAttempt, p.minRetryPeriod, p.maxRetryPeriod)):
 				if err := p.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
 					initAttempt++

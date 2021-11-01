@@ -8,11 +8,19 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+// Consumer config constants
+const (
+	OffsetNewest = sarama.OffsetNewest
+	OffsetOldest = sarama.OffsetOldest
+)
+
 var (
 	defaultMessageConsumeTimeout = 10 * time.Second
 	defaultNumWorkers            = 1
 	defaultBatchSize             = 1
 	defaultBatchWaitTime         = 200 * time.Millisecond
+	defaultMinRetryPeriod        = 200 * time.Millisecond
+	defaultMaxRetryPeriod        = 32 * time.Second
 )
 
 // ConsumerGroupConfig exposes the configurable parameters for a consumer group
@@ -33,21 +41,19 @@ type ConsumerGroupConfig struct {
 	MessageConsumeTimeout *time.Duration
 
 	// dp-kafka specific config overrides
-	NumWorkers    *int
-	BatchSize     *int
-	BatchWaitTime *time.Duration
-	Topic         string
-	GroupName     string
-	BrokerAddrs   []string
+	NumWorkers     *int
+	BatchSize      *int
+	BatchWaitTime  *time.Duration
+	MinRetryPeriod *time.Duration
+	MaxRetryPeriod *time.Duration
+	Topic          string
+	GroupName      string
+	BrokerAddrs    []string
 }
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
 // If any required value is not provided or any override is invalid, an error will be returned
 func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
-	if err := c.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-
 	// Get default Sarama config and apply overrides
 	cfg := sarama.NewConfig()
 	cfg.Consumer.MaxWaitTime = 50 * time.Millisecond
@@ -94,6 +100,16 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	if c.BatchWaitTime == nil {
 		c.BatchWaitTime = &defaultBatchWaitTime
 	}
+	if c.MinRetryPeriod == nil {
+		c.MinRetryPeriod = &defaultMinRetryPeriod
+	}
+	if c.MaxRetryPeriod == nil {
+		c.MaxRetryPeriod = &defaultMaxRetryPeriod
+	}
+
+	if err := c.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
 
 	return cfg, nil
 }
@@ -108,6 +124,15 @@ func (c *ConsumerGroupConfig) Validate() error {
 	}
 	if len(c.BrokerAddrs) == 0 {
 		return errors.New("brokerAddrs is compulsory but was not provided in config")
+	}
+	if *c.MinRetryPeriod <= 0 {
+		return errors.New("minRetryPeriod must be greater than zero")
+	}
+	if *c.MaxRetryPeriod <= 0 {
+		return errors.New("maxRetryPeriod must be greater than zero")
+	}
+	if *c.MinRetryPeriod > *c.MaxRetryPeriod {
+		return errors.New("minRetryPeriod must be smaller or equal to maxRetryPeriod")
 	}
 	return nil
 }

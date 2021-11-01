@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -31,6 +32,11 @@ func TestProducerConfig(t *testing.T) {
 			So(config.Producer.Retry.Backoff, ShouldEqual, testRetryBackoff)
 			So(config.Producer.Retry.BackoffFunc, ShouldBeNil)
 			So(config.Net.TLS.Enable, ShouldBeFalse)
+
+			Convey("And the default values are set for the non-kafka configuration", func() {
+				So(*pConfig.MinRetryPeriod, ShouldEqual, defaultMinRetryPeriod)
+				So(*pConfig.MaxRetryPeriod, ShouldEqual, defaultMaxRetryPeriod)
+			})
 		})
 
 		Convey("getProducerConfig with a valid fully-populated producerConfig results in the expected values being overwritten in the default sarama config", func() {
@@ -44,8 +50,10 @@ func TestProducerConfig(t *testing.T) {
 				SecurityConfig: &SecurityConfig{
 					InsecureSkipVerify: true,
 				},
-				Topic:       testTopic,
-				BrokerAddrs: testBrokerAddrs,
+				Topic:          testTopic,
+				BrokerAddrs:    testBrokerAddrs,
+				MinRetryPeriod: &testMinRetryPeriod,
+				MaxRetryPeriod: &testMaxRetryPeriod,
 			}
 			config, err := pConfig.Get()
 			So(err, ShouldBeNil)
@@ -57,6 +65,11 @@ func TestProducerConfig(t *testing.T) {
 			So(config.Producer.Retry.BackoffFunc, ShouldEqual, testProducerRetryBackoffFunc)
 			So(config.Net.TLS.Enable, ShouldBeTrue)
 			So(config.Net.TLS.Config.InsecureSkipVerify, ShouldBeTrue)
+
+			Convey("And the values are overwritten for the non-kafka configuration", func() {
+				So(*pConfig.MinRetryPeriod, ShouldEqual, testMinRetryPeriod)
+				So(*pConfig.MaxRetryPeriod, ShouldEqual, testMaxRetryPeriod)
+			})
 		})
 
 		Convey("getProducerConfig with producerConfig containing an invalid kafka version returns the expected error", func() {
@@ -97,5 +110,56 @@ func TestProducerValidate(t *testing.T) {
 		}
 		err := pConfig.Validate()
 		So(err, ShouldResemble, errors.New("topic is compulsory but was not provided in config"))
+	})
+}
+
+func TestProducerConfigValidation(t *testing.T) {
+	Convey("Given a producer config", t, func() {
+		cfg := ProducerConfig{
+			Topic:          testTopic,
+			BrokerAddrs:    testBrokerAddrs,
+			MinRetryPeriod: &testMinRetryPeriod,
+			MaxRetryPeriod: &testMaxRetryPeriod,
+		}
+
+		Convey("With all values being valid, then Validate does not return an error", func() {
+			err := cfg.Validate()
+			So(err, ShouldBeNil)
+		})
+
+		Convey("With an empty topic value, then Validate fails with the expected error", func() {
+			cfg.Topic = ""
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("topic is compulsory but was not provided in config"))
+		})
+
+		Convey("With an empty array of broker addrs, then Validate fails with the expected error", func() {
+			cfg.BrokerAddrs = []string{}
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("brokerAddrs is compulsory but was not provided in config"))
+		})
+
+		Convey("With a zero value for MinRetryPeriod, then Validate fails with the expected error", func() {
+			var minRetryPeriod time.Duration = 0
+			cfg.MinRetryPeriod = &minRetryPeriod
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("minRetryPeriod must be greater than zero"))
+		})
+
+		Convey("With a zero value for MaxRetryPeriod, then Validate fails with the expected error", func() {
+			var maxRetryPeriod time.Duration = 0
+			cfg.MaxRetryPeriod = &maxRetryPeriod
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("maxRetryPeriod must be greater than zero"))
+		})
+
+		Convey("With MinRetryPeriod greater than MaxRetryPeriod, then Validate fails with the expected error", func() {
+			var minRetryPeriod time.Duration = 1001 * time.Millisecond
+			var maxRetryPeriod time.Duration = time.Second
+			cfg.MinRetryPeriod = &minRetryPeriod
+			cfg.MaxRetryPeriod = &maxRetryPeriod
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("minRetryPeriod must be smaller or equal to maxRetryPeriod"))
+		})
 	})
 }

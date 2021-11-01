@@ -9,30 +9,10 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// Common constants
-const (
-	OffsetNewest = sarama.OffsetNewest
-	OffsetOldest = sarama.OffsetOldest
-)
-
-// InitRetryPeriod is the initial time period between initialisation retries (for producers and consumer gropus)
-var InitRetryPeriod = 250 * time.Millisecond
-
-// ConsumeErrRetryPeriod is the initial time period between consumer retries on error (for consumer groups)
-var ConsumeErrRetryPeriod = 250 * time.Millisecond
-
-// MaxRetryInterval is the maximum time between retries (plus or minus a random amount)
-var MaxRetryInterval = 31 * time.Second
-
 // SetMaxMessageSize sets the Sarama MaxRequestSize and MaxResponseSize values to the provided maxSize
 func SetMaxMessageSize(maxSize int32) {
 	sarama.MaxRequestSize = maxSize
 	sarama.MaxResponseSize = maxSize
-}
-
-// SetMaxRetryInterval sets MaxRetryInterval to its duration argument
-func SetMaxRetryInterval(maxPause time.Duration) {
-	MaxRetryInterval = maxPause
 }
 
 // maxAttempts calculates the maximum number of attempts

@@ -52,6 +52,8 @@ type ConsumerGroup struct {
 	numWorkers      int
 	batchSize       int
 	batchWaitTime   time.Duration
+	minRetryPeriod  time.Duration
+	maxRetryPeriod  time.Duration
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
@@ -82,20 +84,22 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 
 	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
-		brokerAddrs:   cgConfig.BrokerAddrs,
-		brokers:       []SaramaBroker{},
-		channels:      channels,
-		topic:         cgConfig.Topic,
-		group:         cgConfig.GroupName,
-		state:         stateMachine,
-		initialState:  Stopped,
-		saramaConfig:  cfg,
-		mutex:         &sync.Mutex{},
-		wgClose:       &sync.WaitGroup{},
-		saramaCgInit:  cgInit,
-		numWorkers:    *cgConfig.NumWorkers,
-		batchSize:     *cgConfig.BatchSize,
-		batchWaitTime: *cgConfig.BatchWaitTime,
+		brokerAddrs:    cgConfig.BrokerAddrs,
+		brokers:        []SaramaBroker{},
+		channels:       channels,
+		topic:          cgConfig.Topic,
+		group:          cgConfig.GroupName,
+		state:          stateMachine,
+		initialState:   Stopped,
+		saramaConfig:   cfg,
+		mutex:          &sync.Mutex{},
+		wgClose:        &sync.WaitGroup{},
+		saramaCgInit:   cgInit,
+		numWorkers:     *cgConfig.NumWorkers,
+		batchSize:      *cgConfig.BatchSize,
+		batchWaitTime:  *cgConfig.BatchWaitTime,
+		minRetryPeriod: *cgConfig.MinRetryPeriod,
+		maxRetryPeriod: *cgConfig.MaxRetryPeriod,
 	}
 
 	// Close consumer group on context.Done
@@ -383,7 +387,7 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-cg.channels.Closer:
 				return
-			case <-time.After(GetRetryTime(initAttempt, InitRetryPeriod, MaxRetryInterval)):
+			case <-time.After(GetRetryTime(initAttempt, cg.minRetryPeriod, cg.maxRetryPeriod)):
 				if err := cg.Initialise(ctx); err != nil {
 					log.Warn(ctx, "error initialising consumer group, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
@@ -492,7 +496,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
-				case <-time.After(GetRetryTime(consumeAttempt, ConsumeErrRetryPeriod, MaxRetryInterval)):
+				case <-time.After(GetRetryTime(consumeAttempt, cg.minRetryPeriod, cg.maxRetryPeriod)):
 					consumeAttempt++
 				case <-ctx.Done():
 				}

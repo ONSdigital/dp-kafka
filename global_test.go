@@ -42,7 +42,7 @@ func TestGetRetryTime(t *testing.T) {
 			for attempt := 1; attempt < 100; attempt++ {
 				interval := GetRetryTime(attempt, initialInterval, maxRetryTime)
 				So(interval, ShouldBeBetweenOrEqual, expectedInterval*75/100, expectedInterval*125/100)
-				So(interval, ShouldBeLessThanOrEqualTo, MaxRetryInterval)
+				So(interval, ShouldBeLessThanOrEqualTo, maxRetryTime)
 
 				expectedInterval *= 2
 				if expectedInterval >= maxRetryTime {

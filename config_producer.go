@@ -21,16 +21,14 @@ type ProducerConfig struct {
 	SecurityConfig   *SecurityConfig
 
 	// dp-kafka specific config
-	Topic       string
-	BrokerAddrs []string
+	Topic          string
+	BrokerAddrs    []string
+	MinRetryPeriod *time.Duration
+	MaxRetryPeriod *time.Duration
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
 func (p *ProducerConfig) Get() (*sarama.Config, error) {
-	if err := p.Validate(); err != nil {
-		return nil, fmt.Errorf("validation error: %w", err)
-	}
-
 	// Get default Sarama config and apply overrides
 	cfg := sarama.NewConfig()
 	if p.KafkaVersion != nil {
@@ -58,6 +56,18 @@ func (p *ProducerConfig) Get() (*sarama.Config, error) {
 		return nil, fmt.Errorf("error adding tls: %w", err)
 	}
 
+	// Override any other optional value
+	if p.MinRetryPeriod == nil {
+		p.MinRetryPeriod = &defaultMinRetryPeriod
+	}
+	if p.MaxRetryPeriod == nil {
+		p.MaxRetryPeriod = &defaultMaxRetryPeriod
+	}
+
+	if err := p.Validate(); err != nil {
+		return nil, fmt.Errorf("validation error: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -68,6 +78,15 @@ func (p *ProducerConfig) Validate() error {
 	}
 	if len(p.BrokerAddrs) == 0 {
 		return errors.New("brokerAddrs is compulsory but was not provided in config")
+	}
+	if *p.MinRetryPeriod <= 0 {
+		return errors.New("minRetryPeriod must be greater than zero")
+	}
+	if *p.MaxRetryPeriod <= 0 {
+		return errors.New("maxRetryPeriod must be greater than zero")
+	}
+	if *p.MinRetryPeriod > *p.MaxRetryPeriod {
+		return errors.New("minRetryPeriod must be smaller or equal to maxRetryPeriod")
 	}
 	return nil
 }
