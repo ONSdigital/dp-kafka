@@ -1,5 +1,5 @@
 test:
-	go test -race -cover ./...
+	go test -v -count=1 -race -cover ./...
 .PHONY: test
 
 audit:
@@ -10,6 +10,6 @@ build:
 	go build ./...
 .PHONY: build
 
-.PHONY: lint
 lint:
 	exit
+.PHONY: lint

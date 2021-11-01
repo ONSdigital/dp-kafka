@@ -28,11 +28,13 @@ func (h *Handler) Handle(ctx context.Context, batch []kafka.Message) error {
 	// calculate time to sleep, and create a log before sleeping
 	sleepTime := getSleepTime(h.Cfg)
 	logData := log.Data{
-		"consumeCount":       consumeCount,
-		"sleep":              sleepTime,
-		"messages_by_offset": msgDataByOffset}
+		"consumeCount": consumeCount,
+		"sleep":        sleepTime,
+	}
+	if !h.Cfg.LogQuiet {
+		logData["messages_by_offset"] = msgDataByOffset
+	}
 	log.Info(ctx, "[KAFKA-TEST] Received batch", logData)
-
 	// sleep (simulates message processing time)
 	if sleepTime > time.Duration(0) {
 		time.Sleep(sleepTime)
