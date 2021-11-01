@@ -258,13 +258,19 @@ Note that initialised consumers will be in 'Stopped' state until `Start` is call
 
 ## Message production
 
-Messages are sent to Kafka by sending them to a producer Output channel, as byte arrays:
+Messages can be safely sent to Kafka by using the producer `Send` function, which marshals the provided event with the provided schema and then sends the data to the Output channel.
+An error will be returned if marshal fails or the Output channel is closed:
+
+```go
+    err := producer.Send(schema, event)
+    ...
+```
+
+Alternatively, you may send the byte array directly to the Output channel, like so:
 
 ```go
     producer.Channels().Output <- []byte(msg)
 ```
-
-You may obtain the byte array from Marshaling an event using the avro Schema.
 
 ## Message consumption using handlers
 
@@ -385,6 +391,21 @@ If the caller needs to block until the consumer has completely stopped consuming
 A consumer can be started by calling `Start()`:
 - If the consumer was not initialised, this will set the initial state to 'starting', so the consumer will start consuming straight away after being initialised.
 - If the consumer is Stopping/Stopped, the idle loop will be notified that it needs to start consuming.
+
+
+### Waiting for a state to be reached
+
+If your code requires to perform some action only after a specific state has been reached, you may use the corresponding State channel. Each state channel is closed every time a state is reached, and reopened when the state is left.
+
+For example, the following code will only be executed once the `Consuming` state has been reached. If the consumer is already in `Consuming` state, the code will not block:
+
+```go
+    ...
+    // Wait for consuming state
+    <-consumer.Channels().State.Consuming
+    doStuffThatRequiresConsuming()
+    ...
+```
 
 ## Closing
 

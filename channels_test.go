@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/log.go/v2/log"
+	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -290,6 +291,63 @@ func TestSafeClose(t *testing.T) {
 	})
 }
 
+func TestSafeSendBool(t *testing.T) {
+	Convey("A bool value can be safely sent to a bool chan an does not panic if it is closed", t, func(c C) {
+		ch := make(chan bool)
+		go func() {
+			err := SafeSendBool(ch, true)
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesBool(ch, true)
+		close(ch)
+		err := SafeSendBool(ch, true)
+		So(err, ShouldResemble, errors.New("failed to send bool value to channel: send on closed channel"))
+	})
+}
+
+func TestSafeSendBytes(t *testing.T) {
+	Convey("A byte array value can be safely sent to a byte array chan an does not panic if it is closed", t, func(c C) {
+		ch := make(chan []byte)
+		go func() {
+			err := SafeSendBytes(ch, []byte{1, 2, 3})
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesBytes(ch, []byte{1, 2, 3})
+		close(ch)
+		err := SafeSendBytes(ch, []byte{1, 2, 3})
+		So(err, ShouldResemble, errors.New("failed to send byte array value to channel: send on closed channel"))
+	})
+}
+
+func TestSafeSendProducerMessage(t *testing.T) {
+	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed", t, func(c C) {
+		ch := make(chan *sarama.ProducerMessage)
+		go func() {
+			err := SafeSendProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+		close(ch)
+		err := SafeSendProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+		So(err, ShouldResemble, errors.New("failed to send ProducerMessage value to channel: send on closed channel"))
+	})
+}
+
+func TestSafeSendErr(t *testing.T) {
+	Convey("An error value can be safely sent to an error chan an does not panic if it is closed", t, func(c C) {
+		ch := make(chan error)
+		val := errors.New("error to be sent")
+		go func() {
+			err := SafeSendErr(ch, val)
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesErr(ch, val)
+		close(ch)
+		err := SafeSendErr(ch, val)
+		So(err, ShouldResemble, errors.New("failed to send err value to channel: send on closed channel"))
+	})
+}
+
 // validateChanClosed validates that a struct channel is closed before a timeout expires
 func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
 	var (
@@ -378,4 +436,80 @@ func validateChanErrClosed(c C, ch chan error, expectedClosed bool) {
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
 	c.So(closed, ShouldEqual, expectedClosed)
+}
+
+// validateChanReceivesBool validates that a bool channel receives a provided bool value
+func validateChanReceivesBool(ch chan bool, expectedVal bool) {
+	var (
+		rxVal   bool
+		timeout bool
+	)
+	select {
+	case val, ok := <-ch:
+		if !ok {
+			break
+		}
+		rxVal = val
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	So(timeout, ShouldBeFalse)
+	So(rxVal, ShouldResemble, expectedVal)
+}
+
+// validateChanReceivesBytes validates that a byte array channel receives a provided byte array value
+func validateChanReceivesBytes(ch chan []byte, expectedVal []byte) {
+	var (
+		rxVal   []byte
+		timeout bool
+	)
+	select {
+	case val, ok := <-ch:
+		if !ok {
+			break
+		}
+		rxVal = val
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	So(timeout, ShouldBeFalse)
+	So(rxVal, ShouldResemble, expectedVal)
+}
+
+// validateChanReceivesProducerMessage validates that a ProducerMessage channel receives a provided ProducerMessage
+func validateChanReceivesProducerMessage(ch chan *sarama.ProducerMessage, expectedVal *sarama.ProducerMessage) {
+	var (
+		rxVal   *sarama.ProducerMessage
+		timeout bool
+	)
+	select {
+	case e, ok := <-ch:
+		if !ok {
+			break
+		}
+		rxVal = e
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	So(timeout, ShouldBeFalse)
+	So(rxVal, ShouldResemble, expectedVal)
+}
+
+// validateChanReceivesErr validates that an error channel receives a provided error
+func validateChanReceivesErr(ch chan error, expectedErr error) {
+	var (
+		rxVal   error
+		timeout bool
+	)
+	select {
+	case e, ok := <-ch:
+		if !ok {
+			break
+		}
+		rxVal = e
+	case <-time.After(TIMEOUT):
+		timeout = true
+	}
+	So(timeout, ShouldBeFalse)
+	So(rxVal, ShouldResemble, expectedErr)
 }

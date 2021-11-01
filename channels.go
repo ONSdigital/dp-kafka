@@ -2,8 +2,10 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ONSdigital/log.go/v2/log"
+	"github.com/Shopify/sarama"
 )
 
 // channel names
@@ -196,5 +198,49 @@ func SafeCloseErr(ch chan error) (justClosed bool) {
 	}()
 	close(ch)
 	justClosed = true
+	return
+}
+
+// SafeSendBool sends a provided bool value to the provided bool chan and returns an error instead of panicking if the channel is closed
+func SafeSendBool(ch chan bool, val bool) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send bool value to channel: %v", pErr)
+		}
+	}()
+	ch <- val
+	return
+}
+
+// SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instad of panicking if the channel is closed
+func SafeSendProducerMessage(ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
+		}
+	}()
+	ch <- val
+	return
+}
+
+// SafeSendBytes sends a provided byte array value to the provided byte array chan and returns an error instead of panicking if the channel is closed
+func SafeSendBytes(ch chan []byte, val []byte) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send byte array value to channel: %v", pErr)
+		}
+	}()
+	ch <- val
+	return
+}
+
+// SafeSendErr sends a provided error value to the provided error chan and returns an error instead of panicking if the channel is closed
+func SafeSendErr(ch chan error, val error) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send err value to channel: %v", pErr)
+		}
+	}()
+	ch <- val
 	return
 }

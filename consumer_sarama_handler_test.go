@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -240,12 +241,12 @@ func TestConsume(t *testing.T) {
 			wgConsumeClaims.Add(1)
 			go func() {
 				defer wgConsumeClaims.Done()
-				cgHandler.ConsumeClaim(cgSession, cgClaim)
+				err := cgHandler.ConsumeClaim(cgSession, cgClaim)
+				c.So(err, ShouldBeNil)
 			}()
 		}
 
 		Convey("And no message is received from Sarama message channel", func(c C) {
-
 			var validateNoConsumption = func() {
 				// consume any remaining message
 				numConsum := consume(c, channels.Upstream)
@@ -381,6 +382,35 @@ func TestConsume(t *testing.T) {
 					So(cgHandler.state.Get(), ShouldEqual, Closing)
 				})
 			})
+		})
+	})
+}
+
+func TestConsumeMessage(t *testing.T) {
+	Convey("Given a saramaCgHandler with Upstream channel closed", t, func(c C) {
+		bufferSize := 1
+		channels := CreateConsumerGroupChannels(bufferSize)
+		cgState := NewConsumerStateMachine()
+		cgState.Set(Starting)
+		cgHandler := newSaramaHandler(ctx, channels, cgState)
+		cgSession := &mock.SaramaConsumerGroupSessionMock{
+			ContextFunc:  func() context.Context { return ctx },
+			MemberIDFunc: func() string { return "123456789" },
+			ClaimsFunc: func() map[string][]int32 {
+				return testClaims
+			},
+		}
+		close(cgHandler.channels.Upstream)
+
+		Convey("Then consuming a sarama message results in the expected error being returned", func() {
+			saramaMsg := &sarama.ConsumerMessage{
+				Topic:     testTopic,
+				Partition: 1,
+				Offset:    int64(123),
+			}
+
+			err := cgHandler.consumeMessage(NewSaramaMessage(saramaMsg, cgSession, make(chan struct{})))
+			So(err, ShouldResemble, errors.New("failed to send sarama message to upstream channel: send on closed channel"))
 		})
 	})
 }

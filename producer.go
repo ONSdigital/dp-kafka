@@ -114,10 +114,15 @@ func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) e
 // LogErrors creates a go-routine that waits on Errors channel and logs any error received.
 // It exits on Closer channel closed.
 func (p *Producer) LogErrors(ctx context.Context) {
+	p.wgClose.Add(1)
 	go func() {
+		defer p.wgClose.Done()
 		for {
 			select {
-			case err := <-p.channels.Errors:
+			case err, ok := <-p.channels.Errors:
+				if !ok {
+					return
+				}
 				logData := UnwrapLogData(err)
 				logData["topic"] = p.topic
 				log.Error(ctx, "received kafka producer error", err, logData)
@@ -167,7 +172,9 @@ func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
-	p.channels.Output <- bytes
+	if err := SafeSendBytes(p.channels.Output, bytes); err != nil {
+		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
+	}
 	return nil
 }
 
@@ -232,9 +239,12 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		initAttempt := 1
 		for {
 			select {
-			case message := <-p.channels.Output:
+			case message, ok := <-p.channels.Output:
+				if !ok {
+					return
+				}
 				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
-				p.channels.Errors <- errors.New("producer is not initialised")
+				SafeSendErr(p.channels.Errors, errors.New("producer is not initialised"))
 			case <-p.channels.Initialised:
 				return
 			case <-p.channels.Closer:
@@ -270,10 +280,19 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 		defer p.wgClose.Done()
 		for {
 			select {
-			case err := <-p.producer.Errors():
-				p.channels.Errors <- err
-			case message := <-p.channels.Output:
-				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)}
+			case err, ok := <-p.producer.Errors():
+				if !ok {
+					return
+				}
+				SafeSendErr(p.channels.Errors, err)
+			case message, ok := <-p.channels.Output:
+				if !ok {
+					return
+				}
+				SafeSendProducerMessage(
+					p.producer.Input(),
+					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)},
+				)
 			case <-p.channels.Closer:
 				return
 			}

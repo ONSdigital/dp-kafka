@@ -104,19 +104,27 @@ func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 				return nil // claim ConsumerMessage channel is closed, stop consuming
 			}
 			// new message available to be consumed
-			sh.consumeMessage(NewSaramaMessage(m, session, make(chan struct{})))
+			if err := sh.consumeMessage(NewSaramaMessage(m, session, make(chan struct{}))); err != nil {
+				return fmt.Errorf("error consuming message: %w", err)
+			}
 		}
 	}
 }
 
 // consumeMessage sends the message to the consumer Upstream channel, and waits for upstream done.
 // Note that this doesn't make the consumer synchronous: we still have other go-routines processing messages.
-func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) {
+func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send sarama message to upstream channel: %v", pErr)
+		}
+	}()
+
 	select {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
 		<-msg.UpstreamDone() // Wait until the message is released
-		return               // Message has been released
+		return nil           // Message has been released
 	case <-sh.sessionConsuming:
-		return // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
+		return nil // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
 	}
 }

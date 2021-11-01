@@ -238,7 +238,7 @@ func (cg *ConsumerGroup) Start() error {
 		cg.initialState = Starting // when the consumer is initialised, it will start straight away
 		return nil
 	case Stopping, Stopped:
-		cg.channels.Consume <- true
+		SafeSendBool(cg.channels.Consume, true)
 		return nil
 	case Starting, Consuming:
 		return nil // already started, nothing to do
@@ -278,7 +278,7 @@ func (cg *ConsumerGroup) stop(sync bool) {
 	case Stopping, Stopped:
 		return // already stopped, nothing to do
 	case Starting, Consuming:
-		cg.channels.Consume <- false
+		SafeSendBool(cg.channels.Consume, false)
 		if sync {
 			<-cg.saramaCgHandler.sessionConsuming // wait until the active kafka session finishes
 		}
@@ -291,10 +291,15 @@ func (cg *ConsumerGroup) stop(sync bool) {
 // LogErrors creates a go-routine that waits on Errors channel and logs any error received.
 // It exits on Closer channel closed.
 func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
+	cg.wgClose.Add(1)
 	go func() {
+		defer cg.wgClose.Done()
 		for {
 			select {
-			case err := <-cg.channels.Errors:
+			case err, ok := <-cg.channels.Errors:
+				if !ok {
+					return
+				}
 				logData := UnwrapLogData(err)
 				logData["topic"] = cg.topic
 				logData["group_name"] = cg.group
@@ -548,7 +553,7 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 				if !ok {
 					return
 				}
-				cg.channels.Errors <- err
+				SafeSendErr(cg.channels.Errors, err)
 			}
 		}
 	}()

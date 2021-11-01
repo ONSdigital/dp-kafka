@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -182,7 +183,7 @@ func TestProducer(t *testing.T) {
 				Err: errors.New("error text"),
 			}
 			chSaramaErr <- producerError
-			validateChannelReceivesError(producer.Channels().Errors, producerError)
+			validateChanReceivesErr(producer.Channels().Errors, producerError)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
@@ -200,25 +201,6 @@ func TestProducer(t *testing.T) {
 			validateChanClosed(c, producer.Channels().Closed, false)
 		})
 	})
-}
-
-// validateChannelReceivesError validates that an error channel receives a specific error
-func validateChannelReceivesError(ch chan error, expectedErr error) {
-	var (
-		rxErr   error
-		timeout bool
-	)
-	select {
-	case e, ok := <-ch:
-		if !ok {
-			break
-		}
-		rxErr = e
-	case <-time.After(TIMEOUT):
-		timeout = true
-	}
-	So(timeout, ShouldBeFalse)
-	So(rxErr, ShouldResemble, expectedErr)
 }
 
 func TestProducerNotInitialised(t *testing.T) {
@@ -259,13 +241,78 @@ func TestProducerNotInitialised(t *testing.T) {
 			producer.Channels().Output <- []byte(message)
 
 			// Read and validate error
-			validateChannelReceivesError(producer.Channels().Errors, errors.New("producer is not initialised"))
+			validateChanReceivesErr(producer.Channels().Errors, errors.New("producer is not initialised"))
 		})
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
 			producer.Close(ctx)
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
+		})
+	})
+}
+
+func TestSend(t *testing.T) {
+	var TestSchema = &avro.Schema{
+		Definition: `{
+			"type": "record",
+			"name": "test-name",
+			"fields": [
+			  {"name": "resource_id", "type": "string", "default": ""},
+			  {"name": "resource_url", "type": "string", "default": ""}
+			]
+		  }`,
+	}
+
+	type TestEvent struct {
+		ResourceID  string `avro:"resource_id"`
+		ResourceURL string `avro:"resource_url"`
+	}
+
+	Convey("Given a producer with an Output channel", t, func() {
+		p := Producer{
+			channels: &ProducerChannels{
+				Output: make(chan []byte),
+			},
+		}
+
+		testEvent := TestEvent{
+			ResourceID:  "res1",
+			ResourceURL: "http://res1.com",
+		}
+		expectedBytes, err := TestSchema.Marshal(testEvent)
+		So(err, ShouldBeNil)
+
+		Convey("Then sending a valid message results in the expected message being sent to the Output channel", func(c C) {
+			go func() {
+				rx := <-p.channels.Output
+				c.So(rx, ShouldResemble, expectedBytes)
+			}()
+
+			err = p.Send(TestSchema, testEvent)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Then sending an invalid message results in the expected error being returned", func() {
+			type DifferentEvent struct {
+				ResourceID    int    `avro:"resource_id"`
+				SomethingElse string `avro:"something_else"`
+			}
+
+			err = p.Send(TestSchema, DifferentEvent{
+				SomethingElse: "should fail to marshal",
+			})
+			So(err, ShouldResemble, fmt.Errorf("failed to marshal event with avro schema: %w",
+				errors.New("unsupported field type")),
+			)
+		})
+
+		Convey("Then sending a valid message after the Output channel is closed results in the expected error being returned", func() {
+			close(p.channels.Output)
+			err = p.Send(TestSchema, testEvent)
+			So(err, ShouldResemble, fmt.Errorf("failed to send marshalled message to output channel: %w",
+				errors.New("failed to send byte array value to channel: send on closed channel")),
+			)
 		})
 	})
 }
