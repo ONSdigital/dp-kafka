@@ -47,39 +47,39 @@ func NewSaramaMessage(m *sarama.ConsumerMessage, s sarama.ConsumerGroupSession, 
 }
 
 // GetData returns the message contents.
-func (M SaramaMessage) GetData() []byte {
-	return M.message.Value
+func (m SaramaMessage) GetData() []byte {
+	return m.message.Value
 }
 
 // Offset returns the message offset
-func (M SaramaMessage) Offset() int64 {
-	return M.message.Offset
+func (m SaramaMessage) Offset() int64 {
+	return m.message.Offset
 }
 
 // Mark marks the message as consumed, but doesn't commit the offset to the backend
-func (M SaramaMessage) Mark() {
-	M.session.MarkMessage(M.message, "metadata")
+func (m SaramaMessage) Mark() {
+	m.session.MarkMessage(m.message, "metadata")
 }
 
 // Commit marks the message as consumed, and then commits the offset to the backend
-func (M SaramaMessage) Commit() {
-	M.session.MarkMessage(M.message, "metadata")
-	M.session.Commit()
+func (m SaramaMessage) Commit() {
+	m.session.MarkMessage(m.message, "metadata")
+	m.session.Commit()
 }
 
 // Release closes the UpstreamDone channel, but doesn't mark the message or commit the offset
-func (M SaramaMessage) Release() {
-	SafeClose(M.upstreamDone)
+func (m SaramaMessage) Release() {
+	SafeClose(m.upstreamDone)
 }
 
 // CommitAndRelease marks the message as consumed, commits the offset to the backend and releases the UpstreamDone channel
-func (M SaramaMessage) CommitAndRelease() {
-	M.session.MarkMessage(M.message, "metadata")
-	M.session.Commit()
-	SafeClose(M.upstreamDone)
+func (m SaramaMessage) CommitAndRelease() {
+	m.session.MarkMessage(m.message, "metadata")
+	m.session.Commit()
+	SafeClose(m.upstreamDone)
 }
 
 // UpstreamDone returns the upstreamDone channel. Closing this channel notifies that the message has been consumed (same effect as calling Release)
-func (M SaramaMessage) UpstreamDone() chan struct{} {
-	return M.upstreamDone
+func (m SaramaMessage) UpstreamDone() chan struct{} {
+	return m.upstreamDone
 }

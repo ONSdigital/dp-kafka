@@ -44,7 +44,7 @@ func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Durat
 
 	// add or subtract a random factor of up to 25%
 	rnd := (rand.Int63n(50) - 25) * retryTime.Milliseconds() / 100
-	retryPause = retryPause + time.Duration(rnd)*time.Millisecond
+	retryPause += time.Duration(rnd) * time.Millisecond
 
 	// cap the value to MaxRetryInterval if it was exceeded
 	if retryPause > maxRetryTime {

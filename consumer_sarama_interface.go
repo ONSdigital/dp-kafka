@@ -18,6 +18,4 @@ type SaramaConsumerGroupClaim = sarama.ConsumerGroupClaim
 // Types for sarama initialisers
 type consumerGroupInitialiser = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error)
 
-var saramaNewConsumerGroup = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
-	return sarama.NewConsumerGroup(addrs, groupID, config)
-}
+var saramaNewConsumerGroup = sarama.NewConsumerGroup

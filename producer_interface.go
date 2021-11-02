@@ -10,6 +10,4 @@ type SaramaAsyncProducer = sarama.AsyncProducer
 // Types for sarama initialisers
 type producerInitialiser = func(addrs []string, config *sarama.Config) (sarama.AsyncProducer, error)
 
-var saramaNewAsyncProducer = func(addrs []string, config *sarama.Config) (sarama.AsyncProducer, error) {
-	return sarama.NewAsyncProducer(addrs, config)
-}
+var saramaNewAsyncProducer = sarama.NewAsyncProducer
