@@ -1,5 +1,5 @@
 test:
-	go test -v -count=1 -race -cover ./...
+	go test -count=1 -race -cover ./...
 .PHONY: test
 
 audit:

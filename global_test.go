@@ -8,24 +8,24 @@ import (
 )
 
 func TestMaxAttempts(t *testing.T) {
-	Convey("Given a valid retry interval and power of 2 MaxRetryInterval then 'maxAttempts' returns the expected value for number of attempts", t, func() {
-		maxRetryTime := 32 * time.Second
+	Convey("Given a valid retry interval and power of 2 'maxRetryPeriod' then 'maxAttempts' returns the expected value for number of attempts", t, func() {
+		maxRetryPeriod := 32 * time.Second
 		retryTime := 1 * time.Second
-		m := maxAttempts(retryTime, maxRetryTime)
+		m := maxAttempts(retryTime, maxRetryPeriod)
 		So(m, ShouldEqual, 5)
 	})
 
-	Convey("Given a valid retry interval and MaxRetryInterval then 'maxAttempts' returns the expected value for number of attempts", t, func() {
-		maxRetryTime := 31 * time.Second
+	Convey("Given a valid retry interval and 'maxRetryPeriod' then 'maxAttempts' returns the expected value for number of attempts", t, func() {
+		maxRetryPeriod := 31 * time.Second
 		retryTime := 1 * time.Second
-		m := maxAttempts(retryTime, maxRetryTime)
+		m := maxAttempts(retryTime, maxRetryPeriod)
 		So(m, ShouldEqual, 4)
 	})
 }
 
 func TestGetRetryTime(t *testing.T) {
 	Convey("given valid max retry and initial retry intervals", t, func() {
-		maxRetryTime := 25601 * time.Millisecond // near 25.6 sec, so that MaxRetryInterval check is likely triggered
+		maxRetryTime := 25601 * time.Millisecond // near 25.6 sec, so that maxRetryPeriod check is likely to be triggered
 		initialInterval := 200 * time.Millisecond
 
 		Convey("Then providing a value lower than 1 to GetRetryTime results in a value within 25 percent of initialInterval being returned", func() {
@@ -37,7 +37,7 @@ func TestGetRetryTime(t *testing.T) {
 			So(interval, ShouldBeBetweenOrEqual, initialInterval*75/100, initialInterval*125/100)
 		})
 
-		Convey("Then the interval for each iteration has a value that falls within 25 percent of 2^n, resetting n every time that MaxRetryInterval is reached", func() {
+		Convey("Then the interval for each iteration has a value that falls within 25 percent of 2^n, resetting n every time that maxRetryTime is reached", func() {
 			expectedInterval := initialInterval
 			for attempt := 1; attempt < 100; attempt++ {
 				interval := GetRetryTime(attempt, initialInterval, maxRetryTime)

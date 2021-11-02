@@ -18,7 +18,7 @@ func SetMaxMessageSize(maxSize int32) {
 // maxAttempts calculates the maximum number of attempts
 // such that starting with the provided retryTime
 // and applying an exponential algorithm between iterations (2^n)
-// the MaxRetryInterval value is never exceeded.
+// the maxRetryTime value is never exceeded.
 // Note that attempt 0 is considered the first attempt
 func maxAttempts(retryTime, maxRetryTime time.Duration) int {
 	maxAttempts := math.Log2(float64(maxRetryTime / retryTime))
@@ -27,10 +27,10 @@ func maxAttempts(retryTime, maxRetryTime time.Duration) int {
 
 // GetRetryTime will return a duration based on the attempt and initial retry time.
 // It uses the algorithm `2^n` where `n` is the modulerised attempt number,
-// so that we don't get values greater than MaxRetryInterval.
+// so that we don't get values greater than 'maxRetryTime'.
 // A randomization factor of ±25% is added to the initial retry time
 // so that the server isn't being hit at the same time by many clients.
-// The first attempt is assumed to be number 1
+// The first attempt is assumed to be number 1, any negative or 0 value will be assumed to be 1.
 func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Duration {
 	if attempt < 1 {
 		attempt = 1 // negative or 0 values will be assumed to be 'first attempt'
@@ -46,7 +46,7 @@ func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Durat
 	rnd := (rand.Int63n(50) - 25) * retryTime.Milliseconds() / 100
 	retryPause += time.Duration(rnd) * time.Millisecond
 
-	// cap the value to MaxRetryInterval if it was exceeded
+	// cap the value to maxRetryTime if it was exceeded
 	if retryPause > maxRetryTime {
 		retryPause = maxRetryTime
 	}
@@ -54,9 +54,8 @@ func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Durat
 	return retryPause
 }
 
-// WaitWithTimeout blocks until all go-routines tracked by a WaitGroup are done,
-// or until the timeout defined in a context expires.
-// It returns true only if the context timeout expired
+// WaitWithTimeout blocks until all go-routines tracked by a WaitGroup are done or a timeout expires.
+// It returns true if the timeout expired, or false if the waitgroup finished before the timeout.
 func WaitWithTimeout(wg *sync.WaitGroup) bool {
 	chWaiting := make(chan struct{})
 	go func() {

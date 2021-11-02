@@ -372,7 +372,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 // createLoopUninitialised creates a goroutine to handle uninitialised consumer groups.
 // It retries to initialise the consumer with an exponential backoff retrial algorithm,
-// starting with 'InitRetryPeriod' and restarted when MaxRetryInterval is reached.
+// starting with 'minRetryPeriod' and restarted when 'maxRetryPeriod' is reached.
 func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 	if cg.IsInitialised() {
 		return // do nothing if consumer group already initialised
@@ -441,8 +441,8 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 // before calling consume again after a session finishes, we check if one of the following events has happened:
 // - A 'false' value is received from the Consume channel: the state is set to 'Stopping' and the func will return
 // - The Closer channel or the Consume channel is closed: the state is set to 'Closing' and the func will return
-// If saramaCg.Consume fails, we retry after an initial period of InitRetryPeriod,
-// following an exponential backoff between retries, until MaxRetryInterval is reached, at which point the retry algorithm is restarted.
+// If saramaCg.Consume fails, we retry after an initial period of 'minRetryPeriod',
+// following an exponential backoff between retries, until 'maxRetryPeriod' is reached, at which point the retry algorithm is restarted.
 // If the consumer changes its state between retries, we abort the loop as described above.
 func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	cg.state.Set(Starting)
