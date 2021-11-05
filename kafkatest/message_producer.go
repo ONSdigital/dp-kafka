@@ -2,8 +2,10 @@ package kafkatest
 
 import (
 	"context"
+	"fmt"
 
 	kafka "github.com/ONSdigital/dp-kafka/v3"
+	"github.com/ONSdigital/dp-kafka/v3/avro"
 )
 
 // MessageProducer is an extension of the moq Producer, with channels
@@ -46,6 +48,7 @@ func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitial
 			IsInitialisedFunc: internal.isInitialisedFunc,
 			ChannelsFunc:      internal.channelsFunc,
 			CloseFunc:         internal.closeFunc,
+			SendFunc:          internal.sendFunc,
 		},
 	}
 }
@@ -72,5 +75,16 @@ func (internal *pInternal) closeFunc(ctx context.Context) (err error) {
 	close(internal.pChannels.Closed)
 	close(internal.pChannels.Errors)
 	close(internal.pChannels.Output)
+	return nil
+}
+
+func (internal *pInternal) sendFunc(schema *avro.Schema, event interface{}) error {
+	bytes, err := schema.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
+	}
+	if err := kafka.SafeSendBytes(internal.pChannels.Output, bytes); err != nil {
+		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
+	}
 	return nil
 }
