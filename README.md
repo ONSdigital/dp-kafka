@@ -79,7 +79,7 @@ the app itself needs to be updated to use TLS. To achieve this, please do the fo
    ```markdown
    | Environment variable         | Default                                   | Description
    | ---------------------------- | ----------------------------------------- | -----------
-   | KAFKA_ADDR                   | localhost:9092                            | The kafka broker addresses (can be comma separated)
+   | KAFKA_ADDR                   | localhost:39092                           | The kafka broker addresses (can be comma separated)
    | KAFKA_VERSION                | "1.0.2"                                   | The kafka version that this service expects to connect to
    | KAFKA_SEC_PROTO              | _unset_                                   | if set to `TLS`, kafka connections will use TLS [[1]](#notes_1)
    | KAFKA_SEC_CA_CERTS           | _unset_                                   | CA cert chain for the server cert [[1]](#notes_1)
