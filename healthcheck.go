@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/v2/log"
@@ -18,104 +18,41 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
+// MinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical
+const MinBrokersHealthy = 1
+
 // Checker checks health of Kafka producer and updates the provided CheckState accordingly
 func (p *Producer) Checker(ctx context.Context, state *health.CheckState) error {
-	err := p.healthcheck(ctx)
-	if err != nil {
-		state.Update(getStatusFromError(err), err.Error(), 0)
-		return nil
+	if !p.IsInitialised() {
+		return state.Update(health.StatusWarning, "kafka producer is not initialised", 0)
 	}
-	state.Update(health.StatusOK, MsgHealthyProducer, 0)
+	info := healthcheck(ctx, p.brokers, p.topic, p.config)
+	if err := info.UpdateStatus(state, MinBrokersHealthy, MsgHealthyProducer); err != nil {
+		return fmt.Errorf("error updating producer healthcheck status: %w", err)
+	}
 	return nil
 }
 
 // Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
 func (cg *ConsumerGroup) Checker(ctx context.Context, state *health.CheckState) error {
-	err := cg.healthcheck(ctx)
-	if err != nil {
-		state.Update(getStatusFromError(err), err.Error(), 0)
-		return nil
+	if !cg.IsInitialised() {
+		return state.Update(health.StatusWarning, "kafka consumer-group is not initialised", 0)
 	}
-	state.Update(health.StatusOK, MsgHealthyConsumerGroup, 0)
-	return nil
-}
-
-// getStatusFromError decides the health status (severity) according to the provided error
-func getStatusFromError(err error) string {
-	switch err.(type) {
-	case *ErrInvalidBrokers:
-		return health.StatusCritical
-	default:
-		return health.StatusCritical
-	}
-}
-
-// healthcheck performs the healthcheck logic for a kafka producer.
-func (p *Producer) healthcheck(ctx context.Context) error {
-	err := healthcheck(ctx, p.brokers, p.topic, p.config)
-	if err != nil {
-		return err
-	}
-	// If Sarama client is not initialised, we need to initialise it
-	err = p.Initialise(ctx)
-	if err != nil {
-		log.Warn(ctx, "error initialising sarama producer", log.Data{"topic": p.topic}, log.FormatErrors([]error{err}))
-		return ErrInitSarama
+	info := healthcheck(ctx, cg.brokers, cg.topic, cg.config)
+	if err := info.UpdateStatus(state, MinBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
+		return fmt.Errorf("error updating consumer-group healthcheck status: %w", err)
 	}
 	return nil
 }
 
-// healthcheck performs the healthcheck logic for a kafka consumer group.
-func (cg *ConsumerGroup) healthcheck(ctx context.Context) error {
-	err := healthcheck(ctx, cg.brokers, cg.topic, cg.config)
-	if err != nil {
-		return err
-	}
-	// If Sarama client is not initialised, we need to initialise it
-	err = cg.Initialise(ctx)
-	if err != nil {
-		log.Warn(ctx, "error initialising sarama consumer-group", log.Data{"topic": cg.topic, "group": cg.group}, log.FormatErrors([]error{err}))
-		return ErrInitSarama
-	}
-	return nil
-}
-
-// healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided
-// brokers and asking for topic metadata. Possible errors:
-// - ErrBrokersNotReachable if a broker cannot be contacted.
-// - ErrInvalidBrokers if topic metadata is not returned by a broker.
-func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string, cfg *sarama.Config) error {
-
-	// Vars to keep track of validation state
-	unreachableBrokers := []string{}
-	invalidBrokers := []string{}
-	if len(brokers) == 0 {
-		return errors.New("no brokers defined")
-	}
-
-	// Validate all brokers
+// healthcheck validates all the provided brokers for the provided topic.
+// It returns a HealthInfoMap containing all the information.
+func healthcheck(ctx context.Context, brokers []*sarama.Broker, topic string, cfg *sarama.Config) HealthInfoMap {
+	brokersHealthInfo := HealthInfoMap{}
 	for _, broker := range brokers {
-		reachable, valid := validateBroker(ctx, broker, topic, cfg)
-		if !reachable {
-			unreachableBrokers = append(unreachableBrokers, broker.Addr())
-			continue
-		}
-		if !valid {
-			invalidBrokers = append(invalidBrokers, broker.Addr())
-		}
+		brokersHealthInfo[broker] = validateBroker(ctx, broker, topic, cfg)
 	}
-
-	// If any connection is not established, the healthcheck will fail
-	if len(unreachableBrokers) > 0 {
-		return &ErrBrokersNotReachable{Addrs: unreachableBrokers}
-	}
-
-	// If any broker returned invalid metadata response, the healthcheck will fail
-	if len(invalidBrokers) > 0 {
-		return &ErrInvalidBrokers{Addrs: invalidBrokers}
-	}
-
-	return nil
+	return brokersHealthInfo
 }
 
 func ensureBrokerOpen(ctx context.Context, broker *sarama.Broker, cfg *sarama.Config) (err error) {
@@ -130,8 +67,11 @@ func ensureBrokerOpen(ctx context.Context, broker *sarama.Broker, cfg *sarama.Co
 	return
 }
 
-// validateBroker checks that the provider broker is reachable and the topic is in its metadata
-func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cfg *sarama.Config) (reachable, valid bool) {
+// validateBroker checks that the provider broker is reachable and the topic is in its metadata.
+// If a broker is not reachable, it will retry to contact it.
+// It returns the information in a HealthInfo struct
+func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cfg *sarama.Config) HealthInfo {
+	healthInfo := HealthInfo{}
 
 	var resp *sarama.MetadataResponse
 	var err error
@@ -141,7 +81,7 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cf
 	request := sarama.MetadataRequest{Topics: []string{topic}}
 
 	// note: `!reachable` also a loop condition
-	for retriesLeft := 1; retriesLeft >= 0 && !reachable; retriesLeft-- {
+	for retriesLeft := 1; retriesLeft >= 0 && !healthInfo.Reachable; retriesLeft-- {
 		if err = ensureBrokerOpen(ctx, broker, cfg); err != nil {
 			if retriesLeft == 0 {
 				// will exit loop, err will cause failure
@@ -164,21 +104,21 @@ func validateBroker(ctx context.Context, broker *sarama.Broker, topic string, cf
 			// when retriesLeft == 0, will exit loop and err will be returned
 		} else {
 			// GetMetadata success, this exits retry loop
-			reachable = true
+			healthInfo.Reachable = true
 		}
 	}
 	// catch any errors during final retry loop
-	if err != nil || !reachable {
+	if err != nil || !healthInfo.Reachable {
 		log.Warn(ctx, "failed to obtain metadata from broker", logData, log.FormatErrors([]error{err}))
-		return
+		return healthInfo
 	}
 
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
-			valid = true
-			return
+			healthInfo.HasTopic = true
+			return healthInfo
 		}
 	}
 
-	return
+	return healthInfo
 }
