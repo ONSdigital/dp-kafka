@@ -14,12 +14,13 @@ const (
 	testBroker0 = "localhost:12300"
 	testBroker1 = "localhost:12301"
 	testBroker2 = "localhost:12302"
+	testBroker3 = "localhost:12303"
 )
 
 const testTopic2 = "testTopic2"
 
 // testBrokers is a list of valid broker addresses for testing
-var testBrokers = []string{testBroker0, testBroker1}
+var testBrokers = []string{testBroker0, testBroker1, testBroker2}
 
 func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 	var (
@@ -43,18 +44,27 @@ func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 			SetLeader(testTopic, partition, leaderID),
 	})
 
-	// Broker 2 is the leader of testTopic2 partition 0
+	// Broker 2 is available for testTopic partition 0
 	broker2 := sarama.NewMockBrokerAddr(t, 0, testBroker2)
 	broker2.SetHandlerByMap(map[string]sarama.MockResponse{
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker2.Addr(), broker2.BrokerID()).
-			SetLeader(testTopic2, 0, broker2.BrokerID()),
+			SetLeader(testTopic, partition, leaderID),
+	})
+
+	// Broker 3 is the leader of testTopic2 partition 0
+	broker3 := sarama.NewMockBrokerAddr(t, 0, testBroker3)
+	broker3.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker3.Addr(), broker3.BrokerID()).
+			SetLeader(testTopic2, partition, broker3.BrokerID()),
 	})
 
 	return map[string]*sarama.MockBroker{
 		broker0.Addr(): broker0,
 		broker1.Addr(): broker1,
 		broker2.Addr(): broker2,
+		broker3.Addr(): broker3,
 	}
 }
 
@@ -117,7 +127,7 @@ func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (
 }
 
 func TestKafkaProducerHealthcheck(t *testing.T) {
-	Convey("Given 2 kafka brokers for one topic and 1 for another", t, func() {
+	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
 		brokers := createMockBrokers(t)
 		defer closeMockBrokers(brokers)
 
@@ -135,10 +145,10 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			})
 		})
 
-		Convey("And a producer configured with the right topic and a reachable and unreachable broker", func() {
-			p, err := createProducerForTesting([]string{testBroker0, "localhost:0000"}, testTopic)
+		Convey("And a producer configured with the right topic and 2 reachable and 1 unreachable brokers", func() {
+			p, err := createProducerForTesting([]string{testBroker0, testBroker1, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
 				p.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
@@ -146,21 +156,21 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			})
 		})
 
-		Convey("And a producer configured with the right topic and 2 reachable brokers, but only one containing the topic in its metadata", func() {
-			p, err := createProducerForTesting([]string{testBroker0, testBroker2}, testTopic)
+		Convey("And a producer configured with the right topic and 3 reachable brokers, but only 2 containing the topic in its metadata", func() {
+			p, err := createProducerForTesting([]string{testBroker0, testBroker1, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
 				p.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
-				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12302]")
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
 
-		Convey("And a producer configured with the right topic and only unreachable brokers", func() {
-			p, err := createProducerForTesting([]string{"localhost:0000", "localhost:1111"}, testTopic)
+		Convey("And a producer configured with the right topic and only 1 reachable broker", func() {
+			p, err := createProducerForTesting([]string{testBroker0, "localhost:0000", "localhost:1111"}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+			Convey("Then Checker sets the health status to 'CRITICAL' because at least 2 valid brokers are required", func() {
 				p.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
@@ -178,20 +188,24 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 				p.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
-					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301]",
-					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12302 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12302 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12300 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12301 localhost:12300]",
 				})
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
 
-		Convey("And a producer configured with one unreachable broker and one reachable broker with the wrong topic", func() {
-			p, err := createProducerForTesting([]string{testBroker2, "localhost:0000"}, testTopic)
+		Convey("And a producer configured with one reachable broker, one unreachable broker and one reachable broker with the wrong topic", func() {
+			p, err := createProducerForTesting([]string{testBroker2, testBroker3, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
 				p.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
-				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12302]")
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
@@ -222,7 +236,7 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 }
 
 func TestKafkaConsumerHealthcheck(t *testing.T) {
-	Convey("Given 2 kafka brokers for one topic and 1 for another", t, func() {
+	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
 		brokers := createMockBrokers(t)
 		defer closeMockBrokers(brokers)
 
@@ -252,12 +266,12 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 		})
 
 		Convey("And a consumer-group configured with the right topic and 2 reachable brokers, but only one containing the topic in its metadata", func() {
-			cg, err := createConsumerForTesting([]string{testBroker0, testBroker2}, testTopic)
+			cg, err := createConsumerForTesting([]string{testBroker0, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
 				cg.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
-				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12302]")
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
@@ -283,20 +297,24 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 				cg.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
-					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301]",
-					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12302 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12302 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12301 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12300 localhost:12301]",
 				})
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
 
 		Convey("And a consumer-group configured with one unreachable broker and one reachable broker with the wrong topic", func() {
-			cg, err := createConsumerForTesting([]string{testBroker2, "localhost:0000"}, testTopic)
+			cg, err := createConsumerForTesting([]string{testBroker3, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
 				cg.Checker(context.Background(), checkState)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
-				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12302]")
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})

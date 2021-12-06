@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"errors"
 	"fmt"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
@@ -20,6 +21,9 @@ type HealthInfoMap map[*sarama.Broker]HealthInfo
 // to the provided minimum number of healthy brokers for the group to be considered healthy.
 // If the health status is OK, the provided msgHealthy will be used as status message.
 func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThreshold int, msgHealthy string) error {
+	if state == nil {
+		return errors.New("state in UpdateStatus must not be nil")
+	}
 	if h == nil || len(*h) == 0 {
 		return state.Update(health.StatusCritical, "no brokers defined", 0)
 	}

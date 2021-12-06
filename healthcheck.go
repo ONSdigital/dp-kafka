@@ -18,8 +18,11 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// MinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical
-const MinBrokersHealthy = 1
+// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a producer
+const ProducerMinBrokersHealthy = 2
+
+// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a consumer
+const ConsumerMinBrokersHealthy = 1
 
 // Checker checks health of Kafka producer and updates the provided CheckState accordingly
 func (p *Producer) Checker(ctx context.Context, state *health.CheckState) error {
@@ -27,7 +30,7 @@ func (p *Producer) Checker(ctx context.Context, state *health.CheckState) error 
 		return state.Update(health.StatusWarning, "kafka producer is not initialised", 0)
 	}
 	info := healthcheck(ctx, p.brokers, p.topic, p.config)
-	if err := info.UpdateStatus(state, MinBrokersHealthy, MsgHealthyProducer); err != nil {
+	if err := info.UpdateStatus(state, ProducerMinBrokersHealthy, MsgHealthyProducer); err != nil {
 		return fmt.Errorf("error updating producer healthcheck status: %w", err)
 	}
 	return nil
@@ -39,7 +42,7 @@ func (cg *ConsumerGroup) Checker(ctx context.Context, state *health.CheckState) 
 		return state.Update(health.StatusWarning, "kafka consumer-group is not initialised", 0)
 	}
 	info := healthcheck(ctx, cg.brokers, cg.topic, cg.config)
-	if err := info.UpdateStatus(state, MinBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
+	if err := info.UpdateStatus(state, ConsumerMinBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
 		return fmt.Errorf("error updating consumer-group healthcheck status: %w", err)
 	}
 	return nil
