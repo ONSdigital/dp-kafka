@@ -49,7 +49,7 @@ func run(ctx context.Context) error {
 
 	// Read Config
 	cfg := &Config{
-		Brokers:                 []string{"localhost:19092", "localhost:29092", "localhost:39092"},
+		Brokers:                 []string{"localhost:9092", "localhost:9093", "localhost:9094"},
 		KafkaMaxBytes:           50 * 1024 * 1024,
 		KafkaVersion:            "1.0.2",
 		KafkaBatchSize:          10,
