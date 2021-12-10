@@ -15,12 +15,13 @@ const (
 )
 
 var (
-	defaultMessageConsumeTimeout = 10 * time.Second
-	defaultNumWorkers            = 1
-	defaultBatchSize             = 1
-	defaultBatchWaitTime         = 200 * time.Millisecond
-	defaultMinRetryPeriod        = 200 * time.Millisecond
-	defaultMaxRetryPeriod        = 32 * time.Second
+	defaultMessageConsumeTimeout     = 10 * time.Second
+	defaultNumWorkers                = 1
+	defaultBatchSize                 = 1
+	defaultBatchWaitTime             = 200 * time.Millisecond
+	defaultMinRetryPeriod            = 200 * time.Millisecond
+	defaultMaxRetryPeriod            = 32 * time.Second
+	defaultConsumerMinBrokersHealthy = 1
 )
 
 // ConsumerGroupConfig exposes the configurable parameters for a consumer group
@@ -41,14 +42,15 @@ type ConsumerGroupConfig struct {
 	MessageConsumeTimeout *time.Duration
 
 	// dp-kafka specific config overrides
-	NumWorkers     *int
-	BatchSize      *int
-	BatchWaitTime  *time.Duration
-	MinRetryPeriod *time.Duration
-	MaxRetryPeriod *time.Duration
-	Topic          string
-	GroupName      string
-	BrokerAddrs    []string
+	NumWorkers        *int
+	BatchSize         *int
+	BatchWaitTime     *time.Duration
+	MinRetryPeriod    *time.Duration
+	MaxRetryPeriod    *time.Duration
+	MinBrokersHealthy *int
+	Topic             string
+	GroupName         string
+	BrokerAddrs       []string
 }
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
@@ -106,6 +108,9 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	if c.MaxRetryPeriod == nil {
 		c.MaxRetryPeriod = &defaultMaxRetryPeriod
 	}
+	if c.MinBrokersHealthy == nil {
+		c.MinBrokersHealthy = &defaultConsumerMinBrokersHealthy
+	}
 
 	if err := c.Validate(); err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
@@ -133,6 +138,12 @@ func (c *ConsumerGroupConfig) Validate() error {
 	}
 	if *c.MinRetryPeriod > *c.MaxRetryPeriod {
 		return errors.New("minRetryPeriod must be smaller or equal to maxRetryPeriod")
+	}
+	if *c.MinBrokersHealthy <= 0 {
+		return errors.New("minBrokersHealthy must be greater than zero")
+	}
+	if *c.MinBrokersHealthy > len(c.BrokerAddrs) {
+		return errors.New("minBrokersHealthy must be smaller or equal to the total number of brokers provided in brokerAddrs")
 	}
 	return nil
 }

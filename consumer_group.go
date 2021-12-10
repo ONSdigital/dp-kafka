@@ -34,26 +34,27 @@ type IConsumerGroup interface {
 
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
-	brokerAddrs     []string
-	brokers         []SaramaBroker
-	channels        *ConsumerGroupChannels
-	saramaCg        sarama.ConsumerGroup
-	saramaCgHandler *saramaHandler
-	saramaCgInit    consumerGroupInitialiser
-	topic           string
-	group           string
-	initialState    State // target state for a consumer that is still being initialised
-	state           *StateMachine
-	saramaConfig    *sarama.Config
-	mutex           *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
-	wgClose         *sync.WaitGroup
-	handler         Handler
-	batchHandler    BatchHandler
-	numWorkers      int
-	batchSize       int
-	batchWaitTime   time.Duration
-	minRetryPeriod  time.Duration
-	maxRetryPeriod  time.Duration
+	brokerAddrs       []string
+	brokers           []SaramaBroker
+	channels          *ConsumerGroupChannels
+	saramaCg          sarama.ConsumerGroup
+	saramaCgHandler   *saramaHandler
+	saramaCgInit      consumerGroupInitialiser
+	topic             string
+	group             string
+	initialState      State // target state for a consumer that is still being initialised
+	state             *StateMachine
+	saramaConfig      *sarama.Config
+	mutex             *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
+	wgClose           *sync.WaitGroup
+	handler           Handler
+	batchHandler      BatchHandler
+	numWorkers        int
+	batchSize         int
+	batchWaitTime     time.Duration
+	minRetryPeriod    time.Duration
+	maxRetryPeriod    time.Duration
+	minBrokersHealthy int
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
@@ -84,22 +85,23 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 
 	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
-		brokerAddrs:    cgConfig.BrokerAddrs,
-		brokers:        []SaramaBroker{},
-		channels:       channels,
-		topic:          cgConfig.Topic,
-		group:          cgConfig.GroupName,
-		state:          stateMachine,
-		initialState:   Stopped,
-		saramaConfig:   cfg,
-		mutex:          &sync.Mutex{},
-		wgClose:        &sync.WaitGroup{},
-		saramaCgInit:   cgInit,
-		numWorkers:     *cgConfig.NumWorkers,
-		batchSize:      *cgConfig.BatchSize,
-		batchWaitTime:  *cgConfig.BatchWaitTime,
-		minRetryPeriod: *cgConfig.MinRetryPeriod,
-		maxRetryPeriod: *cgConfig.MaxRetryPeriod,
+		brokerAddrs:       cgConfig.BrokerAddrs,
+		brokers:           []SaramaBroker{},
+		channels:          channels,
+		topic:             cgConfig.Topic,
+		group:             cgConfig.GroupName,
+		state:             stateMachine,
+		initialState:      Stopped,
+		saramaConfig:      cfg,
+		mutex:             &sync.Mutex{},
+		wgClose:           &sync.WaitGroup{},
+		saramaCgInit:      cgInit,
+		numWorkers:        *cgConfig.NumWorkers,
+		batchSize:         *cgConfig.BatchSize,
+		batchWaitTime:     *cgConfig.BatchWaitTime,
+		minRetryPeriod:    *cgConfig.MinRetryPeriod,
+		maxRetryPeriod:    *cgConfig.MaxRetryPeriod,
+		minBrokersHealthy: *cgConfig.MinBrokersHealthy,
 	}
 
 	// Close consumer group on context.Done
@@ -170,7 +172,7 @@ func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckSt
 		return state.Update(healthcheck.StatusWarning, "kafka consumer-group is not initialised", 0)
 	}
 	info := Healthcheck(ctx, cg.brokers, cg.topic, cg.saramaConfig)
-	if err := info.UpdateStatus(state, ConsumerMinBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
+	if err := info.UpdateStatus(state, cg.minBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
 		return fmt.Errorf("error updating consumer-group healthcheck status: %w", err)
 	}
 	return nil

@@ -17,4 +17,5 @@ var (
 	testBrokerAddrs              = []string{"kafka:9092", "kafka:9093", "kafka:9094"}
 	testMinRetryPeriod           = 100 * time.Millisecond
 	testMaxRetryPeriod           = 45 * time.Second
+	testMinBrokersHealthy        = 1
 )

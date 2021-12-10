@@ -16,12 +16,6 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a producer
-const ProducerMinBrokersHealthy = 2
-
-// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a consumer
-const ConsumerMinBrokersHealthy = 1
-
 // Healthcheck validates all the provided brokers for the provided topic.
 // It returns a HealthInfoMap containing all the information.
 func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {

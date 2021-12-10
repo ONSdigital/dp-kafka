@@ -29,17 +29,18 @@ type IProducer interface {
 
 // Producer is a producer of Kafka messages
 type Producer struct {
-	producer       sarama.AsyncProducer
-	producerInit   producerInitialiser
-	brokerAddrs    []string
-	brokers        []SaramaBroker
-	topic          string
-	channels       *ProducerChannels
-	config         *sarama.Config
-	mutex          *sync.Mutex
-	wgClose        *sync.WaitGroup
-	minRetryPeriod time.Duration
-	maxRetryPeriod time.Duration
+	producer          sarama.AsyncProducer
+	producerInit      producerInitialiser
+	brokerAddrs       []string
+	brokers           []SaramaBroker
+	topic             string
+	channels          *ProducerChannels
+	config            *sarama.Config
+	mutex             *sync.Mutex
+	wgClose           *sync.WaitGroup
+	minRetryPeriod    time.Duration
+	maxRetryPeriod    time.Duration
+	minBrokersHealthy int
 }
 
 // New returns a new producer instance using the provided config and channels.
@@ -61,16 +62,17 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 
 	// Producer initialised with provided brokers and topic
 	producer := &Producer{
-		producerInit:   pInit,
-		brokerAddrs:    pConfig.BrokerAddrs,
-		channels:       CreateProducerChannels(),
-		brokers:        []SaramaBroker{},
-		topic:          pConfig.Topic,
-		config:         config,
-		mutex:          &sync.Mutex{},
-		wgClose:        &sync.WaitGroup{},
-		minRetryPeriod: *pConfig.MinRetryPeriod,
-		maxRetryPeriod: *pConfig.MaxRetryPeriod,
+		producerInit:      pInit,
+		brokerAddrs:       pConfig.BrokerAddrs,
+		channels:          CreateProducerChannels(),
+		brokers:           []SaramaBroker{},
+		topic:             pConfig.Topic,
+		config:            config,
+		mutex:             &sync.Mutex{},
+		wgClose:           &sync.WaitGroup{},
+		minRetryPeriod:    *pConfig.MinRetryPeriod,
+		maxRetryPeriod:    *pConfig.MaxRetryPeriod,
+		minBrokersHealthy: *pConfig.MinBrokersHealthy,
 	}
 
 	// Close producer on context.Done
@@ -111,7 +113,7 @@ func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) e
 		return state.Update(healthcheck.StatusWarning, "kafka producer is not initialised", 0)
 	}
 	info := Healthcheck(ctx, p.brokers, p.topic, p.config)
-	if err := info.UpdateStatus(state, ProducerMinBrokersHealthy, MsgHealthyProducer); err != nil {
+	if err := info.UpdateStatus(state, p.minBrokersHealthy, MsgHealthyProducer); err != nil {
 		return fmt.Errorf("error updating producer healthcheck status: %w", err)
 	}
 	return nil

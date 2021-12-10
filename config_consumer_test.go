@@ -117,11 +117,12 @@ func TestConsumerGroupConfig(t *testing.T) {
 func TestConsumerGroupConfigValidation(t *testing.T) {
 	Convey("Given a consumer group config", t, func() {
 		cfg := ConsumerGroupConfig{
-			Topic:          testTopic,
-			GroupName:      testGroupName,
-			BrokerAddrs:    testBrokerAddrs,
-			MinRetryPeriod: &testMinRetryPeriod,
-			MaxRetryPeriod: &testMaxRetryPeriod,
+			Topic:             testTopic,
+			GroupName:         testGroupName,
+			BrokerAddrs:       testBrokerAddrs,
+			MinRetryPeriod:    &testMinRetryPeriod,
+			MaxRetryPeriod:    &testMaxRetryPeriod,
+			MinBrokersHealthy: &testMinBrokersHealthy,
 		}
 
 		Convey("With all values being valid, then Validate does not return an error", func() {
@@ -168,6 +169,20 @@ func TestConsumerGroupConfigValidation(t *testing.T) {
 			cfg.MaxRetryPeriod = &maxRetryPeriod
 			err := cfg.Validate()
 			So(err, ShouldResemble, errors.New("minRetryPeriod must be smaller or equal to maxRetryPeriod"))
+		})
+
+		Convey("With a zero value for MinBrokersHealthy, then Validate fails with the expected error", func() {
+			minBrokersHealthy := 0
+			cfg.MinBrokersHealthy = &minBrokersHealthy
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("minBrokersHealthy must be greater than zero"))
+		})
+
+		Convey("With a zero value for MinBrokersHealthy greater than the total number of brokers, then Validate fails with the expected error", func() {
+			minBrokersHealthy := 4
+			cfg.MinBrokersHealthy = &minBrokersHealthy
+			err := cfg.Validate()
+			So(err, ShouldResemble, errors.New("minBrokersHealthy must be smaller or equal to the total number of brokers provided in brokerAddrs"))
 		})
 	})
 }
