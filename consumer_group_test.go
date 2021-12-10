@@ -19,7 +19,6 @@ var (
 	testGroup    = "testGroup"
 	errMock      = errors.New("sarama mock error")
 	errNoBrokers = errors.New("kafka client has run out of available brokers to talk to (Is your cluster reachable?)")
-	testBrokers  = []string{"localhost:12300", "localhost:12301"}
 )
 
 func TestConsumerCreation(t *testing.T) {
@@ -310,60 +309,6 @@ func TestRegisterBatchHandler(t *testing.T) {
 			testBatchHandler := func(ctx context.Context, batch []Message) error { return nil }
 			err := cg.RegisterBatchHandler(ctx, testBatchHandler)
 			So(err.Error(), ShouldEqual, "failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
-		})
-	})
-}
-
-func TestConsumerChecker(t *testing.T) {
-	Convey("Given a valid connected broker", t, func() {
-		mockBroker := &mock.SaramaBrokerMock{
-			AddrFunc: func() string {
-				return "localhost:9092"
-			},
-			ConnectedFunc: func() (bool, error) {
-				return true, nil
-			},
-			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-				return &sarama.MetadataResponse{
-					Topics: []*sarama.TopicMetadata{
-						{Name: testTopic},
-					},
-				}, nil
-			},
-		}
-
-		Convey("And a consumer group connected to the same topic", func() {
-			cg := &ConsumerGroup{
-				topic:   testTopic,
-				brokers: []SaramaBroker{mockBroker},
-			}
-
-			Convey("Calling Checker updates the check struct OK state", func() {
-				checkState := healthcheck.NewCheckState(ServiceName)
-				t0 := time.Now()
-				cg.Checker(ctx, checkState)
-				t1 := time.Now()
-				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
-				So(checkState.Status(), ShouldEqual, healthcheck.StatusOK)
-				So(checkState.Message(), ShouldEqual, MsgHealthyConsumerGroup)
-			})
-		})
-
-		Convey("And a consumer group connected to a different topic", func() {
-			cg := &ConsumerGroup{
-				topic:   "wrongTopic",
-				brokers: []SaramaBroker{mockBroker},
-			}
-
-			Convey("Calling Checker updates the check struct to Critical state", func() {
-				checkState := healthcheck.NewCheckState(ServiceName)
-				t0 := time.Now()
-				cg.Checker(ctx, checkState)
-				t1 := time.Now()
-				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
-				So(checkState.Status(), ShouldEqual, healthcheck.StatusCritical)
-				So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:9092]")
-			})
 		})
 	})
 }

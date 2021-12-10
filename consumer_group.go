@@ -166,11 +166,13 @@ func (cg *ConsumerGroup) RegisterBatchHandler(ctx context.Context, batchHandler 
 
 // Checker checks health of Kafka consumer-group and updates the provided CheckState accordingly
 func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckState) error {
-	if err := Healthcheck(ctx, cg.brokers, cg.topic, cg.saramaConfig); err != nil {
-		state.Update(healthcheck.StatusCritical, err.Error(), 0)
-		return nil
+	if !cg.IsInitialised() {
+		return state.Update(healthcheck.StatusWarning, "kafka consumer-group is not initialised", 0)
 	}
-	state.Update(healthcheck.StatusOK, MsgHealthyConsumerGroup, 0)
+	info := Healthcheck(ctx, cg.brokers, cg.topic, cg.saramaConfig)
+	if err := info.UpdateStatus(state, ConsumerMinBrokersHealthy, MsgHealthyConsumerGroup); err != nil {
+		return fmt.Errorf("error updating consumer-group healthcheck status: %w", err)
+	}
 	return nil
 }
 

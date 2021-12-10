@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/Shopify/sarama"
@@ -317,56 +316,56 @@ func TestSend(t *testing.T) {
 	})
 }
 
-func TestChecker(t *testing.T) {
-	Convey("Given a valid connected broker", t, func() {
-		mockBroker := &mock.SaramaBrokerMock{
-			AddrFunc: func() string {
-				return "localhost:9092"
-			},
-			ConnectedFunc: func() (bool, error) {
-				return true, nil
-			},
-			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-				return &sarama.MetadataResponse{
-					Topics: []*sarama.TopicMetadata{
-						{Name: testTopic},
-					},
-				}, nil
-			},
-		}
+// func TestChecker(t *testing.T) {
+// 	Convey("Given a valid connected broker", t, func() {
+// 		mockBroker := &mock.SaramaBrokerMock{
+// 			AddrFunc: func() string {
+// 				return "localhost:9092"
+// 			},
+// 			ConnectedFunc: func() (bool, error) {
+// 				return true, nil
+// 			},
+// 			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
+// 				return &sarama.MetadataResponse{
+// 					Topics: []*sarama.TopicMetadata{
+// 						{Name: testTopic},
+// 					},
+// 				}, nil
+// 			},
+// 		}
 
-		Convey("And a consumer group connected to the same topic", func() {
-			p := &Producer{
-				topic:   testTopic,
-				brokers: []SaramaBroker{mockBroker},
-			}
+// 		Convey("And a consumer group connected to the same topic", func() {
+// 			p := &Producer{
+// 				topic:   testTopic,
+// 				brokers: []SaramaBroker{mockBroker},
+// 			}
 
-			Convey("Calling Checker updates the check struct OK state", func() {
-				checkState := healthcheck.NewCheckState(ServiceName)
-				t0 := time.Now()
-				p.Checker(ctx, checkState)
-				t1 := time.Now()
-				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
-				So(checkState.Status(), ShouldEqual, healthcheck.StatusOK)
-				So(checkState.Message(), ShouldEqual, MsgHealthyProducer)
-			})
-		})
+// 			Convey("Calling Checker updates the check struct OK state", func() {
+// 				checkState := healthcheck.NewCheckState(ServiceName)
+// 				t0 := time.Now()
+// 				p.Checker(ctx, checkState)
+// 				t1 := time.Now()
+// 				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+// 				So(checkState.Status(), ShouldEqual, healthcheck.StatusOK)
+// 				So(checkState.Message(), ShouldEqual, MsgHealthyProducer)
+// 			})
+// 		})
 
-		Convey("And a consumer group connected to a different topic", func() {
-			p := &Producer{
-				topic:   "wrongTopic",
-				brokers: []SaramaBroker{mockBroker},
-			}
+// 		Convey("And a consumer group connected to a different topic", func() {
+// 			p := &Producer{
+// 				topic:   "wrongTopic",
+// 				brokers: []SaramaBroker{mockBroker},
+// 			}
 
-			Convey("Calling Checker updates the check struct to Critical state", func() {
-				checkState := healthcheck.NewCheckState(ServiceName)
-				t0 := time.Now()
-				p.Checker(ctx, checkState)
-				t1 := time.Now()
-				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
-				So(checkState.Status(), ShouldEqual, healthcheck.StatusCritical)
-				So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:9092]")
-			})
-		})
-	})
-}
+// 			Convey("Calling Checker updates the check struct to Critical state", func() {
+// 				checkState := healthcheck.NewCheckState(ServiceName)
+// 				t0 := time.Now()
+// 				p.Checker(ctx, checkState)
+// 				t1 := time.Now()
+// 				So(*checkState.LastChecked(), ShouldHappenOnOrBetween, t0, t1)
+// 				So(checkState.Status(), ShouldEqual, healthcheck.StatusCritical)
+// 				So(checkState.Message(), ShouldEqual, "unexpected metadata response for broker(s). Invalid brokers: [localhost:9092]")
+// 			})
+// 		})
+// 	})
+// }

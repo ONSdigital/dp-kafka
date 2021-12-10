@@ -107,11 +107,13 @@ func (p *Producer) Channels() *ProducerChannels {
 
 // Checker checks health of Kafka producer and updates the provided CheckState accordingly
 func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) error {
-	if err := Healthcheck(ctx, p.brokers, p.topic, p.config); err != nil {
-		state.Update(healthcheck.StatusCritical, err.Error(), 0)
-		return nil
+	if !p.IsInitialised() {
+		return state.Update(healthcheck.StatusWarning, "kafka producer is not initialised", 0)
 	}
-	state.Update(healthcheck.StatusOK, MsgHealthyProducer, 0)
+	info := Healthcheck(ctx, p.brokers, p.topic, p.config)
+	if err := info.UpdateStatus(state, ProducerMinBrokersHealthy, MsgHealthyProducer); err != nil {
+		return fmt.Errorf("error updating producer healthcheck status: %w", err)
+	}
 	return nil
 }
 

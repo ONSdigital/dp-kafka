@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -11,47 +10,26 @@ import (
 // ServiceName is the name of this service: Kafka.
 const ServiceName = "Kafka"
 
-const (
-	MsgHealthyProducer      = "kafka producer is healthy"
-	MsgHealthyConsumerGroup = "kafka consumer group is healthy"
-)
+// MsgHealthyProducer Check message returned when Kafka producer is healthy.
+const MsgHealthyProducer = "kafka producer is healthy"
 
-// Healthcheck implements the common healthcheck logic for kafka producers and consumers, by contacting the provided
-// brokers and asking for topic metadata. Possible errors:
-// - ErrBrokersNotReachable if a broker cannot be contacted.
-// - ErrInvalidBrokers if topic metadata is not returned by a broker.
-func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg *sarama.Config) error {
+// MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
+const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-	// Vars to keep track of validation state
-	unreachableBrokers := []string{}
-	invalidBrokers := []string{}
-	if len(brokers) == 0 {
-		return errors.New("no brokers defined")
-	}
+// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a producer
+const ProducerMinBrokersHealthy = 2
 
-	// Validate all brokers
+// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a consumer
+const ConsumerMinBrokersHealthy = 1
+
+// Healthcheck validates all the provided brokers for the provided topic.
+// It returns a HealthInfoMap containing all the information.
+func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {
+	brokersHealthInfo := HealthInfoMap{}
 	for _, broker := range brokers {
-		reachable, valid := validateBroker(ctx, broker, topic, cfg)
-		if !reachable {
-			unreachableBrokers = append(unreachableBrokers, broker.Addr())
-			continue
-		}
-		if !valid {
-			invalidBrokers = append(invalidBrokers, broker.Addr())
-		}
+		brokersHealthInfo[broker] = validateBroker(ctx, broker, topic, cfg)
 	}
-
-	// If any connection is not established, the healthcheck will fail
-	if len(unreachableBrokers) > 0 {
-		return &ErrBrokersNotReachable{Addrs: unreachableBrokers}
-	}
-
-	// If any broker returned invalid metadata response, the healthcheck will fail
-	if len(invalidBrokers) > 0 {
-		return &ErrInvalidBrokers{Addrs: invalidBrokers}
-	}
-
-	return nil
+	return brokersHealthInfo
 }
 
 func ensureBrokerOpen(ctx context.Context, broker SaramaBroker, cfg *sarama.Config) (err error) {
@@ -66,8 +44,11 @@ func ensureBrokerOpen(ctx context.Context, broker SaramaBroker, cfg *sarama.Conf
 	return
 }
 
-// validateBroker checks that the provider broker is reachable and the topic is in its metadata
-func validateBroker(ctx context.Context, broker SaramaBroker, topic string, cfg *sarama.Config) (reachable, valid bool) {
+// validateBroker checks that the provider broker is reachable and the topic is in its metadata.
+// If a broker is not reachable, it will retry to contact it.
+// It returns the information in a HealthInfo struct
+func validateBroker(ctx context.Context, broker SaramaBroker, topic string, cfg *sarama.Config) HealthInfo {
+	healthInfo := HealthInfo{}
 
 	var resp *sarama.MetadataResponse
 	var err error
@@ -77,7 +58,7 @@ func validateBroker(ctx context.Context, broker SaramaBroker, topic string, cfg 
 	request := sarama.MetadataRequest{Topics: []string{topic}}
 
 	// note: `!reachable` also a loop condition
-	for retriesLeft := 1; retriesLeft >= 0 && !reachable; retriesLeft-- {
+	for retriesLeft := 1; retriesLeft >= 0 && !healthInfo.Reachable; retriesLeft-- {
 		if err = ensureBrokerOpen(ctx, broker, cfg); err != nil {
 			if retriesLeft == 0 {
 				// will exit loop, err will cause failure
@@ -100,22 +81,21 @@ func validateBroker(ctx context.Context, broker SaramaBroker, topic string, cfg 
 			// when retriesLeft == 0, will exit loop and err will be returned
 		} else {
 			// GetMetadata success, this exits retry loop
-			reachable = true
+			healthInfo.Reachable = true
 		}
 	}
 	// catch any errors during final retry loop
-	if err != nil || !reachable {
+	if err != nil || !healthInfo.Reachable {
 		log.Warn(ctx, "failed to obtain metadata from broker", logData, log.FormatErrors([]error{err}))
-		return
+		return healthInfo
 	}
 
-	// check that the topic is present in metadata
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
-			valid = true
-			return
+			healthInfo.HasTopic = true
+			return healthInfo
 		}
 	}
 
-	return
+	return healthInfo
 }

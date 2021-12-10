@@ -2,194 +2,342 @@ package kafka
 
 import (
 	"context"
-	"errors"
 	"testing"
 
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var (
-	testAddrs = []string{"localhost:12300", "localhost:12301"}
-	testTopic = "testTopic"
-	ctx       = context.Background()
+const (
+	testBroker0 = "localhost:12300"
+	testBroker1 = "localhost:12301"
+	testBroker2 = "localhost:12302"
+	testBroker3 = "localhost:12303"
 )
 
-func TestHealthcheck(t *testing.T) {
+const (
+	testTopic  = "testTopic"
+	testTopic2 = "testTopic2"
+)
 
-	Convey("Given that all brokers are available with the expected metadata", t, func() {
-		brokers := CreateMockBrokersHappy(t)
+// testBrokers is a list of valid broker addresses for testing
+var testBrokers = []string{testBroker0, testBroker1, testBroker2}
 
-		Convey("When Healthcheck is caled", func() {
-			err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
+var ctx = context.Background()
 
-			Convey("Then no error is returned", func() {
-				So(err, ShouldBeNil)
-			})
+func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
+	var (
+		partition int32 = 0
+		leaderID  int32 = 0 // broker0 is the leader
+	)
 
-			Convey("Then all broker connections are checked and validated", func() {
-				for _, broker := range brokers {
-					b := broker.(*mock.SaramaBrokerMock)
-					So(b.ConnectedCalls(), ShouldHaveLength, 1)
-					So(b.GetMetadataCalls(), ShouldHaveLength, 1)
-				}
-			})
-		})
+	// Broker 0 is the leader of testTopic partition 0
+	broker0 := sarama.NewMockBrokerAddr(t, 0, testBroker0)
+	broker0.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker0.Addr(), broker0.BrokerID()).
+			SetLeader(testTopic, partition, leaderID),
 	})
 
-	Convey("Given that a broker connection is closed", t, func() {
-		brokers := CreateMockBrokersHappy(t)
-		brokers[0].(*mock.SaramaBrokerMock).ConnectedFunc = func() (bool, error) {
-			return false, nil
-		}
-		brokers[0].(*mock.SaramaBrokerMock).OpenFunc = func(conf *sarama.Config) error {
+	// Broker 1 is available for testTopic partition 0
+	broker1 := sarama.NewMockBrokerAddr(t, 0, testBroker1)
+	broker1.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker1.Addr(), broker1.BrokerID()).
+			SetLeader(testTopic, partition, leaderID),
+	})
+
+	// Broker 2 is available for testTopic partition 0
+	broker2 := sarama.NewMockBrokerAddr(t, 0, testBroker2)
+	broker2.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker2.Addr(), broker2.BrokerID()).
+			SetLeader(testTopic, partition, leaderID),
+	})
+
+	// Broker 3 is the leader of testTopic2 partition 0
+	broker3 := sarama.NewMockBrokerAddr(t, 0, testBroker3)
+	broker3.SetHandlerByMap(map[string]sarama.MockResponse{
+		"MetadataRequest": sarama.NewMockMetadataResponse(t).
+			SetBroker(broker3.Addr(), broker3.BrokerID()).
+			SetLeader(testTopic2, partition, broker3.BrokerID()),
+	})
+
+	return map[string]*sarama.MockBroker{
+		broker0.Addr(): broker0,
+		broker1.Addr(): broker1,
+		broker2.Addr(): broker2,
+		broker3.Addr(): broker3,
+	}
+}
+
+// closeMockBrokers closes the mock brokers passed as parameter
+func closeMockBrokers(brokers map[string]*sarama.MockBroker) {
+	for _, broker := range brokers {
+		broker.Close()
+	}
+}
+
+// createProducerForTesting creates a producer with a mock Sarama library for testing
+func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, error) {
+	chSaramaErr, chSaramaIn := createSaramaChannels()
+	asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
+	pInit := func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
+		return asyncProducerMock, nil
+	}
+	pConfig := &ProducerConfig{
+		BrokerAddrs: brokerAddrs,
+		Topic:       topic,
+	}
+	return newProducer(ctx, pConfig, pInit)
+}
+
+// createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
+func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (*Producer, error) {
+	pInit := func(addrs []string, conf *sarama.Config) (sarama.AsyncProducer, error) {
+		return nil, ErrSaramaNoBrokers
+	}
+	pConfig := &ProducerConfig{
+		BrokerAddrs: brokerAddrs,
+		Topic:       topic,
+	}
+	return newProducer(ctx, pConfig, pInit)
+}
+
+// createConsumerForTesting creates a consumer with a mock Sarama library for testing
+func createConsumerForTesting(brokerAddrs []string, topic string) (*ConsumerGroup, error) {
+	channels := CreateConsumerGroupChannels(1)
+	saramaConsumerGroupMock := &mock.SaramaConsumerGroupMock{
+		ErrorsFunc: func() <-chan error {
+			return make(chan error)
+		},
+		ConsumeFunc: func(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
+			select {
+			case <-channels.Initialised:
+			default:
+				close(channels.Initialised)
+			}
 			return nil
-		}
+		},
+	}
+	cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
+		return saramaConsumerGroupMock, nil
+	}
+	cgConfig := &ConsumerGroupConfig{
+		BrokerAddrs: brokerAddrs,
+		Topic:       topic,
+		GroupName:   testGroup,
+	}
+	return newConsumerGroup(ctx, cgConfig, cgInit)
+}
 
-		Convey("When Healthcheck is called", func() {
-			err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
+// createConsumerForTesting creates a consumer for testing without a valid Sarama ConsuerGroup
+func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (*ConsumerGroup, error) {
+	cgInit := func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
+		return nil, ErrSaramaNoBrokers
+	}
+	cgConfig := &ConsumerGroupConfig{
+		BrokerAddrs: brokerAddrs,
+		Topic:       topic,
+		GroupName:   testGroup,
+	}
+	return newConsumerGroup(ctx, cgConfig, cgInit)
+}
 
-			Convey("Then no error is returned", func() {
-				So(err, ShouldBeNil)
-			})
+func TestKafkaProducerHealthcheck(t *testing.T) {
+	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
+		brokers := createMockBrokers(t)
+		defer closeMockBrokers(brokers)
 
-			Convey("Then all broker connections are checked, broker 0 is reconnected and all are and validated", func() {
-				for _, broker := range brokers {
-					b := broker.(*mock.SaramaBrokerMock)
-					So(b.ConnectedCalls(), ShouldHaveLength, 1)
-					So(b.GetMetadataCalls(), ShouldHaveLength, 1)
-				}
-				So(brokers[0].(*mock.SaramaBrokerMock).OpenCalls(), ShouldHaveLength, 1)
-			})
-		})
-	})
+		// CheckState for test validation
+		checkState := health.NewCheckState(ServiceName)
 
-	Convey("Given that a broker connection is closed and it cannot reconnect", t, func() {
-		brokers := CreateMockBrokersHappy(t)
-		brokers[0] = &mock.SaramaBrokerMock{
-			ConnectedFunc: func() (bool, error) {
-				return false, nil
-			},
-			OpenFunc: func(conf *sarama.Config) error {
-				return errors.New("cannot reconnect broker")
-			},
-			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-				return nil, errors.New("cannot get broker metadata")
-			},
-			AddrFunc: func() string {
-				return testAddrs[0]
-			},
-			CloseFunc: func() error {
-				return nil
-			},
-		}
-
-		Convey("When Healthcheck is called", func() {
-			err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
-
-			Convey("Then the expected error is returned", func() {
-				So(err.Error(), ShouldResemble, "broker(s) not reachable at addresses: [localhost:12300]")
-			})
-
-			Convey("Then all broker connections are checked and validated; broker 0 tries to reconnect", func() {
-				b := brokers[0].(*mock.SaramaBrokerMock)
-				So(b.ConnectedCalls(), ShouldHaveLength, 2)
-				So(b.OpenCalls(), ShouldHaveLength, 2)
-
-				for i, broker := range brokers {
-					if i == 0 {
-						continue
-					}
-					b := broker.(*mock.SaramaBrokerMock)
-					So(b.ConnectedCalls(), ShouldHaveLength, 1)
-					So(b.GetMetadataCalls(), ShouldHaveLength, 1)
-				}
+		Convey("And a producer configured with the right brokers and topic", func() {
+			p, err := createProducerForTesting(testBrokers, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'OK'", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
+				So(checkState.Message(), ShouldEqual, MsgHealthyProducer)
+				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
 
-		Convey("And given that Close also returns an error", func() {
-			brokers[0].(*mock.SaramaBrokerMock).CloseFunc = func() error {
-				return errors.New("error closing broker")
-			}
+		Convey("And a producer configured with the right topic and 2 reachable and 1 unreachable brokers", func() {
+			p, err := createProducerForTesting([]string{testBroker0, testBroker1, "localhost:0000"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
 
-			Convey("When Healthcheck is called", func() {
-				err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
+		Convey("And a producer configured with the right topic and 3 reachable brokers, but only 2 containing the topic in its metadata", func() {
+			p, err := createProducerForTesting([]string{testBroker0, testBroker1, testBroker3}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
 
-				Convey("Then the expected error is returned", func() {
-					So(err.Error(), ShouldResemble, "broker(s) not reachable at addresses: [localhost:12300]")
+		Convey("And a producer configured with the right topic and only 1 reachable broker", func() {
+			p, err := createProducerForTesting([]string{testBroker0, "localhost:0000", "localhost:1111"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL' because at least 2 valid brokers are required", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldBeIn, []string{
+					"broker(s) not reachable at: [localhost:0000 localhost:1111]",
+					"broker(s) not reachable at: [localhost:1111 localhost:0000]",
 				})
+				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
 
-		Convey("And given that 'Connected' also returns an error", func() {
-			brokers[0].(*mock.SaramaBrokerMock).ConnectedFunc = func() (bool, error) {
-				return false, errors.New("error closing broker")
-			}
-
-			Convey("When Healthcheck is called", func() {
-				err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
-
-				Convey("Then the expected error is returned", func() {
-					So(err.Error(), ShouldResemble, "broker(s) not reachable at addresses: [localhost:12300]")
+		Convey("And a producer configured with a topic that is not available in the brokers metadata", func() {
+			p, err := createProducerForTesting(testBrokers, "anotherTopic")
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldBeIn, []string{
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12302 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12302 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12300 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12301 localhost:12300]",
 				})
+				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
-	})
 
-	Convey("Given that all brokers are available and one has a wrong topic metadata", t, func() {
-		brokers := CreateMockBrokersHappy(t)
-		brokers[1].(*mock.SaramaBrokerMock).GetMetadataFunc = func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-			return &sarama.MetadataResponse{
-				Topics: []*sarama.TopicMetadata{
-					{Name: "wrongTopic"},
-				},
-			}, nil
-		}
-
-		Convey("When Healthcheck is called", func() {
-			err := Healthcheck(ctx, brokers, testTopic, &sarama.Config{})
-
-			Convey("Then the expected error is returned", func() {
-				So(err.Error(), ShouldResemble, "unexpected metadata response for broker(s). Invalid brokers: [localhost:12301]")
-			})
-
-			Convey("Then all broker connections are checked and validated", func() {
-				for _, broker := range brokers {
-					So(broker.(*mock.SaramaBrokerMock).ConnectedCalls(), ShouldHaveLength, 1)
-					So(broker.(*mock.SaramaBrokerMock).GetMetadataCalls(), ShouldHaveLength, 1)
-				}
+		Convey("And a producer configured with one reachable broker, one unreachable broker and one reachable broker with the wrong topic", func() {
+			p, err := createProducerForTesting([]string{testBroker2, testBroker3, "localhost:0000"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12303]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
 		})
-	})
 
-	Convey("Given that Healthcheck is called with an empty list of brokers", t, func() {
-		err := Healthcheck(ctx, []SaramaBroker{}, testTopic, &sarama.Config{})
-
-		Convey("Then the expected error is returned", func() {
-			So(err.Error(), ShouldResemble, "no brokers defined")
+		Convey("And an uninitialised producer", func() {
+			p, err := createUninitialisedProducerForTesting(testBrokers, testTopic)
+			So(err, ShouldBeNil)
+			So(p.IsInitialised(), ShouldBeFalse)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				p.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "kafka producer is not initialised")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
 		})
 	})
 }
 
-// CreateMockBrokersHappy creates mock brokers for testing for a healthy scenario
-func CreateMockBrokersHappy(t *testing.T) (brokers []SaramaBroker) {
-	for _, addr := range testAddrs {
-		mockBroker := &mock.SaramaBrokerMock{}
-		mockBroker.AddrFunc = func() string {
-			return addr
-		}
-		mockBroker.ConnectedFunc = func() (bool, error) {
-			return true, nil
-		}
-		mockBroker.GetMetadataFunc = func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-			return &sarama.MetadataResponse{
-				Topics: []*sarama.TopicMetadata{
-					{Name: testTopic},
-				},
-			}, nil
-		}
-		brokers = append(brokers, mockBroker)
-	}
-	return brokers
+func TestKafkaConsumerHealthcheck(t *testing.T) {
+	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
+		brokers := createMockBrokers(t)
+		defer closeMockBrokers(brokers)
+
+		// CheckState for test validation
+		checkState := health.NewCheckState(ServiceName)
+
+		Convey("And a consumer-group configured with the right brokers and topic", func() {
+			cg, err := createConsumerForTesting(testBrokers, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'OK'", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
+				So(checkState.Message(), ShouldEqual, MsgHealthyConsumerGroup)
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And a consumer-group configured with the right topic and a reachable and unreachable broker", func() {
+			cg, err := createConsumerForTesting([]string{testBroker0, "localhost:0000"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And a consumer-group configured with the right topic and 2 reachable brokers, but only one containing the topic in its metadata", func() {
+			cg, err := createConsumerForTesting([]string{testBroker0, testBroker3}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And a consumer-group configured with the right topic and only unreachable brokers", func() {
+			cg, err := createConsumerForTesting([]string{"localhost:0000", "localhost:1111"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldBeIn, []string{
+					"broker(s) not reachable at: [localhost:0000 localhost:1111]",
+					"broker(s) not reachable at: [localhost:1111 localhost:0000]",
+				})
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And a consumer-group configured with a topic that is not available in the brokers metadata", func() {
+			cg, err := createConsumerForTesting(testBrokers, "test2")
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldBeIn, []string{
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12301 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12300 localhost:12302 localhost:12301]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12300 localhost:12302]",
+					"unexpected metadata response from broker(s): [localhost:12301 localhost:12302 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12301 localhost:12300]",
+					"unexpected metadata response from broker(s): [localhost:12302 localhost:12300 localhost:12301]",
+				})
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And a consumer-group configured with one unreachable broker and one reachable broker with the wrong topic", func() {
+			cg, err := createConsumerForTesting([]string{testBroker3, "localhost:0000"}, testTopic)
+			So(err, ShouldBeNil)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusCritical)
+				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], unexpected metadata response from broker(s): [localhost:12303]")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+
+		Convey("And an uninitialised consumer-group", func() {
+			cg, err := createUninitialisedConsumerForTesting(testBrokers, testTopic)
+			So(err, ShouldBeNil)
+			So(cg.IsInitialised(), ShouldBeFalse)
+			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
+				cg.Checker(context.Background(), checkState)
+				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Message(), ShouldEqual, "kafka consumer-group is not initialised")
+				So(checkState.StatusCode(), ShouldEqual, 0)
+			})
+		})
+	})
 }
