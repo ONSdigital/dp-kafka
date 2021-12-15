@@ -19,9 +19,9 @@ const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 // Healthcheck validates all the provided brokers for the provided topic.
 // It returns a HealthInfoMap containing all the information.
 func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {
-	brokersHealthInfo := HealthInfoMap{}
+	brokersHealthInfo := HealthInfoMap{topic: topic}
 	for _, broker := range brokers {
-		brokersHealthInfo[broker] = validateBroker(ctx, broker, topic, cfg)
+		brokersHealthInfo.Set(broker, validateBroker(ctx, broker, topic, cfg))
 	}
 	return brokersHealthInfo
 }

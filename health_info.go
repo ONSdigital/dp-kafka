@@ -14,7 +14,19 @@ type HealthInfo struct {
 }
 
 // HealthInfoMap contains the health information for a set of brokers
-type HealthInfoMap map[SaramaBroker]HealthInfo
+// with a common topic expected to be available in all of them
+type HealthInfoMap struct {
+	topic   string
+	infoMap map[SaramaBroker]HealthInfo
+}
+
+// Set creates or overrides a HealthInfo value for the provided broker
+func (h *HealthInfoMap) Set(broker SaramaBroker, healthInfo HealthInfo) {
+	if h.infoMap == nil {
+		h.infoMap = map[SaramaBroker]HealthInfo{}
+	}
+	h.infoMap[broker] = healthInfo
+}
 
 // UpdateStatus update the provided health.Check state with the current state according
 // to the provided minimum number of healthy brokers for the group to be considered healthy.
@@ -23,25 +35,27 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 	if state == nil {
 		return errors.New("state in UpdateStatus must not be nil")
 	}
-	if h == nil || len(*h) == 0 {
+	if h == nil || len(h.infoMap) == 0 {
 		return state.Update(health.StatusCritical, "no brokers defined", 0)
 	}
 
 	numHealthy := 0
-	for _, healthInfo := range *h {
+	for _, healthInfo := range h.infoMap {
 		if healthInfo.Reachable && healthInfo.HasTopic {
 			numHealthy++
 		}
 	}
 
+	if numHealthy == len(h.infoMap) {
+		// All brokers are healthy
+		return state.Update(health.StatusOK, msgHealthy, 0)
+	}
+
 	if numHealthy >= minHealthyThreshold {
-		if numHealthy == len(*h) {
-			// All brokers are healthy
-			return state.Update(health.StatusOK, msgHealthy, 0)
-		}
 		// Enough brokers are healthy, but not all of them
 		return state.Update(health.StatusWarning, h.ErrorMsg(), 0)
 	}
+
 	// Not enough brokers are healthy
 	return state.Update(health.StatusCritical, h.ErrorMsg(), 0)
 }
@@ -50,8 +64,9 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 func (h *HealthInfoMap) ErrorMsg() string {
 	errorMsg := ""
 
+	// Check for unhealthy brokers and add as list to error message if present
 	unreachableAddrs := []string{}
-	for broker, healthInfo := range *h {
+	for broker, healthInfo := range h.infoMap {
 		if !healthInfo.Reachable {
 			unreachableAddrs = append(unreachableAddrs, broker.Addr())
 		}
@@ -61,21 +76,11 @@ func (h *HealthInfoMap) ErrorMsg() string {
 		errorMsg = fmt.Sprintf("broker(s) not reachable at: %v", unreachableAddrs)
 	}
 
-	var isReachable = func(addr string) bool {
-		for _, u := range unreachableAddrs {
-			if u == addr {
-				return false
-			}
-		}
-		return true
-	}
-
+	// Check for brokers that are missing the topic and add as list to error message if present
 	noTopicAddrs := []string{}
-	for broker, healthInfo := range *h {
-		if !healthInfo.HasTopic {
-			if isReachable(broker.Addr()) {
-				noTopicAddrs = append(noTopicAddrs, broker.Addr())
-			}
+	for broker, healthInfo := range h.infoMap {
+		if healthInfo.Reachable && !healthInfo.HasTopic {
+			noTopicAddrs = append(noTopicAddrs, broker.Addr())
 		}
 	}
 
@@ -83,7 +88,7 @@ func (h *HealthInfoMap) ErrorMsg() string {
 		if errorMsg != "" {
 			errorMsg += ", "
 		}
-		errorMsg += fmt.Sprintf("unexpected metadata response from broker(s): %v", noTopicAddrs)
+		errorMsg += fmt.Sprintf("topic %s not available in broker(s): %v", h.topic, noTopicAddrs)
 	}
 
 	return errorMsg
