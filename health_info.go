@@ -53,15 +53,15 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 
 	if numHealthy >= minHealthyThreshold {
 		// Enough brokers are healthy, but not all of them
-		return state.Update(health.StatusWarning, h.ErrorMsg(), 0)
+		return state.Update(health.StatusWarning, h.errorMsg(), 0)
 	}
 
 	// Not enough brokers are healthy
-	return state.Update(health.StatusCritical, h.ErrorMsg(), 0)
+	return state.Update(health.StatusCritical, h.errorMsg(), 0)
 }
 
-// ErrorMsg returns an tailored message according to the information kept in HealthInfoMap
-func (h *HealthInfoMap) ErrorMsg() string {
+// errorMsg returns an tailored message according to the information kept in HealthInfoMap
+func (h *HealthInfoMap) errorMsg() string {
 	errorMsg := ""
 
 	// Check for unhealthy brokers and add as list to error message if present
