@@ -26,7 +26,7 @@ func TestSetup(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine()
+		cgState := NewConsumerStateMachine(&sync.RWMutex{})
 		cgState.Set(Starting)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
@@ -88,7 +88,7 @@ func TestControlRoutine(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession mock in Consuming state and a newly created sessionConsuming channel", t, func() {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine()
+		cgState := NewConsumerStateMachine(&sync.RWMutex{})
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		close(channels.Initialised)
@@ -158,7 +158,7 @@ func TestCleanup(t *testing.T) {
 
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine()
+		cgState := NewConsumerStateMachine(&sync.RWMutex{})
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
@@ -214,7 +214,7 @@ func TestConsume(t *testing.T) {
 
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine()
+		cgState := NewConsumerStateMachine(&sync.RWMutex{})
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{
@@ -390,7 +390,7 @@ func TestConsumeMessage(t *testing.T) {
 	Convey("Given a saramaCgHandler with Upstream channel closed", t, func(c C) {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize)
-		cgState := NewConsumerStateMachine()
+		cgState := NewConsumerStateMachine(&sync.RWMutex{})
 		cgState.Set(Starting)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		cgSession := &mock.SaramaConsumerGroupSessionMock{

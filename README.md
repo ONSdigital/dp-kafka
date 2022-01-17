@@ -149,6 +149,7 @@ the app itself needs to be updated to use TLS. To achieve this, please do the fo
 ## Creation
 
 Kafka producers and consumers can be created with constructors that accept the required configuration. You may get the channels struct using `producer.Channels()` and `consumer.Channels()` respectively.
+Note that consumer channels acquire a read lock, to prevent any race condition with State channels during state transitions (where channels for abandoned states will be re-created)
 
 For optional config values, the Sarama default config values will be used unless an override is provided. If a compulsory value is not provided, the config validation will fail, and the error will be returned by the constructor function.
 

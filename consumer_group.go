@@ -44,7 +44,8 @@ type ConsumerGroup struct {
 	initialState      State // target state for a consumer that is still being initialised
 	state             *StateMachine
 	saramaConfig      *sarama.Config
-	mutex             *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
+	mutex             *sync.Mutex   // Mutex for consumer funcs that are not supposed to run concurrently
+	chanMutex         *sync.RWMutex // RW Mutex to guarantee concurrency safe access to channels
 	wgClose           *sync.WaitGroup
 	handler           Handler
 	batchHandler      BatchHandler
@@ -79,7 +80,8 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 	}
 
 	channels := CreateConsumerGroupChannels(upstreamBufferSize)
-	stateMachine := NewConsumerStateMachine()
+	chanMutex := &sync.RWMutex{}
+	stateMachine := NewConsumerStateMachine(chanMutex)
 	channels.State = stateMachine.channels
 
 	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
@@ -93,6 +95,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		initialState:      Stopped,
 		saramaConfig:      cfg,
 		mutex:             &sync.Mutex{},
+		chanMutex:         chanMutex,
 		wgClose:           &sync.WaitGroup{},
 		saramaCgInit:      cgInit,
 		numWorkers:        *cgConfig.NumWorkers,
@@ -129,6 +132,8 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 
 // Channels returns the ConsumerGroup channels for this consumer group
 func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
+	cg.chanMutex.RLock()
+	defer cg.chanMutex.RUnlock()
 	return cg.channels
 }
 

@@ -22,14 +22,14 @@ func (s State) String() string {
 
 type StateMachine struct {
 	state    State
-	mutex    *sync.Mutex
+	mutex    *sync.RWMutex
 	channels *ConsumerStateChannels
 }
 
-func NewConsumerStateMachine() *StateMachine {
+func NewConsumerStateMachine(mutex *sync.RWMutex) *StateMachine {
 	return &StateMachine{
 		state: Initialising,
-		mutex: &sync.Mutex{},
+		mutex: mutex,
 		channels: &ConsumerStateChannels{
 			Initialising: make(chan struct{}),
 			Stopped:      make(chan struct{}),
@@ -43,15 +43,15 @@ func NewConsumerStateMachine() *StateMachine {
 
 // Get returns the current state
 func (sm *StateMachine) Get() State {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
 	return sm.state
 }
 
 // String returns the string representation of the current state
 func (sm *StateMachine) String() string {
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
 	return sm.state.String()
 }
 

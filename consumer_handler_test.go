@@ -34,6 +34,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			chanMutex:  &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
@@ -70,6 +71,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			chanMutex:  &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
@@ -106,6 +108,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			chanMutex:  &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
@@ -142,6 +145,7 @@ func TestHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:      &sync.Mutex{},
+			chanMutex:  &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
@@ -185,6 +189,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			chanMutex:     &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
@@ -248,6 +253,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			chanMutex:     &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
@@ -293,6 +299,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			chanMutex:     &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,
@@ -338,6 +345,7 @@ func TestBatchHandler(t *testing.T) {
 		wg.Add(1)
 		cg := &ConsumerGroup{
 			mutex:         &sync.Mutex{},
+			chanMutex:     &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(3),
 			batchSize:     3,

@@ -11,7 +11,7 @@ import (
 
 func TestSet(t *testing.T) {
 	Convey("Given a consumer-group state machine", t, func() {
-		sm := NewConsumerStateMachine()
+		sm := NewConsumerStateMachine(&sync.RWMutex{})
 
 		validateTransition(sm, Stopped, sm.channels.Stopped, sm.channels.Initialising)
 		validateTransition(sm, Starting, sm.channels.Starting, sm.channels.Stopped)
@@ -23,7 +23,7 @@ func TestSet(t *testing.T) {
 
 func TestSetIf(t *testing.T) {
 	Convey("Given a consumer-group state machine in Stopped state, with the Stopped channel closed", t, func(c C) {
-		sm := NewConsumerStateMachine()
+		sm := NewConsumerStateMachine(&sync.RWMutex{})
 		sm.Set(Stopped)
 		validateChanClosed(c, sm.channels.Stopped, true)
 
