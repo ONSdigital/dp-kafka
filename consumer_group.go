@@ -10,7 +10,6 @@ import (
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
-	"github.com/rcrowley/go-metrics"
 )
 
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
@@ -114,9 +113,6 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 			return
 		}
 	}()
-
-	// disable metrics to prevent memory leak on broker.Open()
-	metrics.UseNilMetrics = true
 
 	// create broker objects
 	for _, addr := range cg.brokerAddrs {

@@ -7,7 +7,15 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/rcrowley/go-metrics"
 )
+
+// init is executed only once, when the package is imported.
+// Global variables are set here, to prevent any data race during runtime.
+func init() {
+	// disable metrics to prevent memory leak on broker.Open()
+	metrics.UseNilMetrics = true
+}
 
 // SetMaxMessageSize sets the Sarama MaxRequestSize and MaxResponseSize values to the provided maxSize
 func SetMaxMessageSize(maxSize int32) {

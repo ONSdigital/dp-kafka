@@ -11,7 +11,6 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
-	"github.com/rcrowley/go-metrics"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
@@ -85,9 +84,6 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 			return
 		}
 	}()
-
-	// disable metrics to prevent memory leak on broker.Open()
-	metrics.UseNilMetrics = true
 
 	// Create broker objects
 	for _, addr := range pConfig.BrokerAddrs {
