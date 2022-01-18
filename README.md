@@ -396,14 +396,14 @@ A consumer can be started by calling `Start()`:
 
 ### Waiting for a state to be reached
 
-If your code requires to perform some action only after a specific state has been reached, you may use the corresponding State channel. Each state channel is closed every time a state is reached, and reopened when the state is left.
+If your code requires to perform some action only after a specific state has been reached, you may use the corresponding State channel. Each state channel is closed every time a state is reached, and reopened when the state is left. In order to access the channels in a thread-safe manner, they have been wrapped with a RW-Mutex, and a Wait() func has been implemented.
 
 For example, the following code will only be executed once the `Consuming` state has been reached. If the consumer is already in `Consuming` state, the code will not block:
 
 ```go
     ...
     // Wait for consuming state
-    <-consumer.Channels().State.Consuming
+    consumer.Channels().State.Consuming.Wait()
     doStuffThatRequiresConsuming()
     ...
 ```

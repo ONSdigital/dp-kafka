@@ -31,12 +31,12 @@ func NewConsumerStateMachine(mutex *sync.RWMutex) *StateMachine {
 		state: Initialising,
 		mutex: mutex,
 		channels: &ConsumerStateChannels{
-			Initialising: make(chan struct{}),
-			Stopped:      make(chan struct{}),
-			Starting:     make(chan struct{}),
-			Consuming:    make(chan struct{}),
-			Stopping:     make(chan struct{}),
-			Closing:      make(chan struct{}),
+			Initialising: NewStateChan(),
+			Stopped:      NewStateChan(),
+			Starting:     NewStateChan(),
+			Consuming:    NewStateChan(),
+			Stopping:     NewStateChan(),
+			Closing:      NewStateChan(),
 		},
 	}
 }
@@ -46,6 +46,24 @@ func (sm *StateMachine) Get() State {
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
 	return sm.state
+}
+
+func (sm *StateMachine) GetChan(s State) *StateChan {
+	switch s {
+	case Initialising:
+		return sm.channels.Initialising
+	case Stopped:
+		return sm.channels.Stopped
+	case Starting:
+		return sm.channels.Starting
+	case Consuming:
+		return sm.channels.Consuming
+	case Stopping:
+		return sm.channels.Stopping
+	case Closing:
+		return sm.channels.Closing
+	}
+	return nil
 }
 
 // String returns the string representation of the current state
@@ -80,37 +98,11 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 	return nil
 }
 
-// transitionTo restores the old-state channel, sets the new state, and closes the new state channel.
+// transitionTo leaves the old state (restore the old state channel)
+// then sets the new state value
+// and then enters to the new state (close the new state channel)
 func (sm *StateMachine) transitionTo(newState State) {
-	switch sm.state {
-	case Initialising:
-		sm.channels.Initialising = make(chan struct{})
-	case Stopped:
-		sm.channels.Stopped = make(chan struct{})
-	case Starting:
-		sm.channels.Starting = make(chan struct{})
-	case Consuming:
-		sm.channels.Consuming = make(chan struct{})
-	case Stopping:
-		sm.channels.Stopping = make(chan struct{})
-	case Closing:
-		sm.channels.Closing = make(chan struct{})
-	}
-
+	sm.GetChan(sm.state).Leave()
 	sm.state = newState
-
-	switch newState {
-	case Initialising:
-		SafeClose(sm.channels.Initialising)
-	case Stopped:
-		SafeClose(sm.channels.Stopped)
-	case Starting:
-		SafeClose(sm.channels.Starting)
-	case Consuming:
-		SafeClose(sm.channels.Consuming)
-	case Stopping:
-		SafeClose(sm.channels.Stopping)
-	case Closing:
-		SafeClose(sm.channels.Closing)
-	}
+	sm.GetChan(newState).Enter()
 }

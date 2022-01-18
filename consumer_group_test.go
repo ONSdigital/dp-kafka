@@ -192,6 +192,49 @@ func TestState(t *testing.T) {
 	})
 }
 
+func TestStateWait(t *testing.T) {
+	var waitForCheck = 10 * time.Millisecond
+
+	Convey("Given a consumer group with a state machine", t, func() {
+		chanMutex := &sync.RWMutex{}
+		cg := &ConsumerGroup{
+			chanMutex: chanMutex,
+			state:     NewConsumerStateMachine(chanMutex),
+		}
+		cg.state.Set(Initialising)
+
+		var validateWait = func(newState State, shouldWait bool) {
+			wg := &sync.WaitGroup{}
+			wg.Add(1)
+			isWaiting := true
+			go func() {
+				defer func() {
+					isWaiting = false
+					wg.Done()
+				}()
+				cg.state.GetChan(newState).Wait()
+			}()
+			time.Sleep(waitForCheck)
+			So(isWaiting, ShouldEqual, shouldWait)
+			cg.state.Set(newState)
+			wg.Wait()
+		}
+
+		Convey("Then Waiting for the current satte returns straight away for the current state", func() {
+			validateWait(Initialising, false)
+		})
+
+		Convey("Then Waiting for any other state, blocks execution until the state is reached", func() {
+			validateWait(Starting, true)
+			validateWait(Stopped, true)
+			validateWait(Starting, true)
+			validateWait(Consuming, true)
+			validateWait(Stopping, true)
+			validateWait(Closing, true)
+		})
+	})
+}
+
 func TestRegisterHandler(t *testing.T) {
 	Convey("Given a consumer group without any handler", t, func() {
 		cg := &ConsumerGroup{

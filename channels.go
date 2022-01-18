@@ -3,6 +3,7 @@ package kafka
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -33,12 +34,48 @@ type ConsumerGroupChannels struct {
 
 // ConsumerStateChannels represents the channels that are used to notify of consumer-group state changes
 type ConsumerStateChannels struct {
-	Initialising chan struct{}
-	Stopped      chan struct{}
-	Starting     chan struct{}
-	Consuming    chan struct{}
-	Stopping     chan struct{}
-	Closing      chan struct{}
+	Initialising *StateChan
+	Stopped      *StateChan
+	Starting     *StateChan
+	Consuming    *StateChan
+	Stopping     *StateChan
+	Closing      *StateChan
+}
+
+// StateChan provides a concurrency-safe channel for state machines,
+// representing one state.
+type StateChan struct {
+	channel chan struct{}
+	mutex   *sync.RWMutex
+}
+
+// NewStateChan creates a new StateChan with a new struct channel and read-write mutex
+func NewStateChan() *StateChan {
+	return &StateChan{
+		channel: make(chan struct{}),
+		mutex:   &sync.RWMutex{},
+	}
+}
+
+// Enter signals that the state has been reached, by closing the channel in a concurrency-safe manner
+func (sc *StateChan) Enter() {
+	sc.mutex.RLock()
+	defer sc.mutex.RUnlock()
+	SafeClose(sc.channel)
+}
+
+// Leave signals that the state has been left by resetting the channel in a concurrency-safe manner
+func (sc *StateChan) Leave() {
+	sc.mutex.Lock()
+	defer sc.mutex.Unlock()
+	sc.channel = make(chan struct{})
+}
+
+// Wait blocks the calling thread until the state is reached (channel is closed)
+func (sc *StateChan) Wait() {
+	sc.mutex.RLock()
+	defer sc.mutex.RUnlock()
+	<-sc.channel
 }
 
 // ProducerChannels represents the channels used by Producer.
