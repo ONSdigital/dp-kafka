@@ -48,7 +48,14 @@ func (sm *StateMachine) Get() State {
 	return sm.state
 }
 
+// GetChan returns the StateChan pointer corresponding to the provided state
 func (sm *StateMachine) GetChan(s State) *StateChan {
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+	return sm.getChan(s)
+}
+
+func (sm *StateMachine) getChan(s State) *StateChan {
 	switch s {
 	case Initialising:
 		return sm.channels.Initialising
@@ -102,7 +109,7 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 // then sets the new state value
 // and then enters to the new state (close the new state channel)
 func (sm *StateMachine) transitionTo(newState State) {
-	sm.GetChan(sm.state).Leave()
+	sm.getChan(sm.state).Leave()
 	sm.state = newState
-	sm.GetChan(newState).Enter()
+	sm.getChan(newState).Enter()
 }

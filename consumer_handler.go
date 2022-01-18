@@ -69,11 +69,10 @@ func (cg *ConsumerGroup) handleBatch(ctx context.Context, batch *Batch) {
 // This function is to be called as a go routine because it implements a blocking loop
 func (cg *ConsumerGroup) consumeMessage(ctx context.Context, workerID int) {
 	defer cg.wgClose.Done()
-	upstream := cg.Channels().Upstream
 
 	for {
 		select {
-		case msg, ok := <-upstream:
+		case msg, ok := <-cg.Channels().Upstream:
 			if !ok {
 				log.Info(ctx, "upstream channel closed - closing event handler loop", log.Data{"worker_id": workerID})
 				return
@@ -95,11 +94,10 @@ func (cg *ConsumerGroup) consumeMessage(ctx context.Context, workerID int) {
 func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 	defer cg.wgClose.Done()
 	batch := NewBatch(cg.batchSize)
-	upstream := cg.Channels().Upstream
 
 	for {
 		select {
-		case msg, ok := <-upstream:
+		case msg, ok := <-cg.Channels().Upstream:
 			if !ok {
 				log.Info(ctx, "upstream channel closed - closing event batch handler loop")
 				return
