@@ -232,7 +232,7 @@ func TestStateWait(t *testing.T) {
 			wg.Wait()
 		}
 
-		Convey("Then Waiting for the current satte returns straight away for the current state", func() {
+		Convey("Then Waiting for the current state returns straight away for the current state", func() {
 			validateWait(Initialising, false)
 		})
 

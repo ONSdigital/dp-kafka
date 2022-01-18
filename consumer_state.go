@@ -109,7 +109,7 @@ func (sm *StateMachine) SetIf(allowed []State, newState State) error {
 // then sets the new state value
 // and then enters to the new state (close the new state channel)
 func (sm *StateMachine) transitionTo(newState State) {
-	sm.getChan(sm.state).Leave()
+	sm.getChan(sm.state).leave()
 	sm.state = newState
-	sm.getChan(newState).Enter()
+	sm.getChan(newState).enter()
 }

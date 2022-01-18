@@ -58,14 +58,14 @@ func NewStateChan() *StateChan {
 }
 
 // Enter signals that the state has been reached, by closing the channel in a concurrency-safe manner
-func (sc *StateChan) Enter() {
+func (sc *StateChan) enter() {
 	sc.mutex.RLock()
 	defer sc.mutex.RUnlock()
 	SafeClose(sc.channel)
 }
 
 // Leave signals that the state has been left by resetting the channel in a concurrency-safe manner
-func (sc *StateChan) Leave() {
+func (sc *StateChan) leave() {
 	sc.mutex.Lock()
 	defer sc.mutex.Unlock()
 	sc.channel = make(chan struct{})
