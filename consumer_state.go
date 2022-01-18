@@ -26,10 +26,10 @@ type StateMachine struct {
 	channels *ConsumerStateChannels
 }
 
-func NewConsumerStateMachine(mutex *sync.RWMutex) *StateMachine {
+func NewConsumerStateMachine() *StateMachine {
 	return &StateMachine{
 		state: Initialising,
-		mutex: mutex,
+		mutex: &sync.RWMutex{},
 		channels: &ConsumerStateChannels{
 			Initialising: NewStateChan(),
 			Stopped:      NewStateChan(),
