@@ -205,17 +205,31 @@ func TestStateWait(t *testing.T) {
 
 		var validateWait = func(newState State, shouldWait bool) {
 			wg := &sync.WaitGroup{}
-			wg.Add(1)
+			mutex := &sync.Mutex{}
+
 			isWaiting := true
+
+			// go-routine that waits until newState is reached
+			wg.Add(1)
 			go func() {
 				defer func() {
+					mutex.Lock()
 					isWaiting = false
+					mutex.Unlock()
 					wg.Done()
 				}()
 				cg.state.GetChan(newState).Wait()
 			}()
+
+			// sleep enough time to make sure the go-routine is either waiting or has finished execution
 			time.Sleep(waitForCheck)
+
+			// validate wether the go-routine is still waiting or not
+			mutex.Lock()
 			So(isWaiting, ShouldEqual, shouldWait)
+			mutex.Unlock()
+
+			// set the target state and wait for the go-routine to finish execution
 			cg.state.Set(newState)
 			wg.Wait()
 		}
