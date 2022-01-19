@@ -9,53 +9,42 @@ import (
 	"sync"
 )
 
-var (
-	lockSaramaConsumerGroupSessionMockClaims       sync.RWMutex
-	lockSaramaConsumerGroupSessionMockCommit       sync.RWMutex
-	lockSaramaConsumerGroupSessionMockContext      sync.RWMutex
-	lockSaramaConsumerGroupSessionMockGenerationID sync.RWMutex
-	lockSaramaConsumerGroupSessionMockMarkMessage  sync.RWMutex
-	lockSaramaConsumerGroupSessionMockMarkOffset   sync.RWMutex
-	lockSaramaConsumerGroupSessionMockMemberID     sync.RWMutex
-	lockSaramaConsumerGroupSessionMockResetOffset  sync.RWMutex
-)
-
 // SaramaConsumerGroupSessionMock is a mock implementation of kafka.SaramaConsumerGroupSession.
 //
-//     func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
+// 	func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroupSession
-//         mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
-//             ClaimsFunc: func() map[string][]int32 {
-// 	               panic("mock out the Claims method")
-//             },
-//             CommitFunc: func()  {
-// 	               panic("mock out the Commit method")
-//             },
-//             ContextFunc: func() context.Context {
-// 	               panic("mock out the Context method")
-//             },
-//             GenerationIDFunc: func() int32 {
-// 	               panic("mock out the GenerationID method")
-//             },
-//             MarkMessageFunc: func(msg *sarama.ConsumerMessage, metadata string)  {
-// 	               panic("mock out the MarkMessage method")
-//             },
-//             MarkOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
-// 	               panic("mock out the MarkOffset method")
-//             },
-//             MemberIDFunc: func() string {
-// 	               panic("mock out the MemberID method")
-//             },
-//             ResetOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
-// 	               panic("mock out the ResetOffset method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.SaramaConsumerGroupSession
+// 		mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
+// 			ClaimsFunc: func() map[string][]int32 {
+// 				panic("mock out the Claims method")
+// 			},
+// 			CommitFunc: func()  {
+// 				panic("mock out the Commit method")
+// 			},
+// 			ContextFunc: func() context.Context {
+// 				panic("mock out the Context method")
+// 			},
+// 			GenerationIDFunc: func() int32 {
+// 				panic("mock out the GenerationID method")
+// 			},
+// 			MarkMessageFunc: func(msg *sarama.ConsumerMessage, metadata string)  {
+// 				panic("mock out the MarkMessage method")
+// 			},
+// 			MarkOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
+// 				panic("mock out the MarkOffset method")
+// 			},
+// 			MemberIDFunc: func() string {
+// 				panic("mock out the MemberID method")
+// 			},
+// 			ResetOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
+// 				panic("mock out the ResetOffset method")
+// 			},
+// 		}
 //
-//         // use mockedSaramaConsumerGroupSession in code that requires kafka.SaramaConsumerGroupSession
-//         // and then make assertions.
+// 		// use mockedSaramaConsumerGroupSession in code that requires kafka.SaramaConsumerGroupSession
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type SaramaConsumerGroupSessionMock struct {
 	// ClaimsFunc mocks the Claims method.
 	ClaimsFunc func() map[string][]int32
@@ -128,6 +117,14 @@ type SaramaConsumerGroupSessionMock struct {
 			Metadata string
 		}
 	}
+	lockClaims       sync.RWMutex
+	lockCommit       sync.RWMutex
+	lockContext      sync.RWMutex
+	lockGenerationID sync.RWMutex
+	lockMarkMessage  sync.RWMutex
+	lockMarkOffset   sync.RWMutex
+	lockMemberID     sync.RWMutex
+	lockResetOffset  sync.RWMutex
 }
 
 // Claims calls ClaimsFunc.
@@ -137,9 +134,9 @@ func (mock *SaramaConsumerGroupSessionMock) Claims() map[string][]int32 {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupSessionMockClaims.Lock()
+	mock.lockClaims.Lock()
 	mock.calls.Claims = append(mock.calls.Claims, callInfo)
-	lockSaramaConsumerGroupSessionMockClaims.Unlock()
+	mock.lockClaims.Unlock()
 	return mock.ClaimsFunc()
 }
 
@@ -150,9 +147,9 @@ func (mock *SaramaConsumerGroupSessionMock) ClaimsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupSessionMockClaims.RLock()
+	mock.lockClaims.RLock()
 	calls = mock.calls.Claims
-	lockSaramaConsumerGroupSessionMockClaims.RUnlock()
+	mock.lockClaims.RUnlock()
 	return calls
 }
 
@@ -163,9 +160,9 @@ func (mock *SaramaConsumerGroupSessionMock) Commit() {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupSessionMockCommit.Lock()
+	mock.lockCommit.Lock()
 	mock.calls.Commit = append(mock.calls.Commit, callInfo)
-	lockSaramaConsumerGroupSessionMockCommit.Unlock()
+	mock.lockCommit.Unlock()
 	mock.CommitFunc()
 }
 
@@ -176,9 +173,9 @@ func (mock *SaramaConsumerGroupSessionMock) CommitCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupSessionMockCommit.RLock()
+	mock.lockCommit.RLock()
 	calls = mock.calls.Commit
-	lockSaramaConsumerGroupSessionMockCommit.RUnlock()
+	mock.lockCommit.RUnlock()
 	return calls
 }
 
@@ -189,9 +186,9 @@ func (mock *SaramaConsumerGroupSessionMock) Context() context.Context {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupSessionMockContext.Lock()
+	mock.lockContext.Lock()
 	mock.calls.Context = append(mock.calls.Context, callInfo)
-	lockSaramaConsumerGroupSessionMockContext.Unlock()
+	mock.lockContext.Unlock()
 	return mock.ContextFunc()
 }
 
@@ -202,9 +199,9 @@ func (mock *SaramaConsumerGroupSessionMock) ContextCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupSessionMockContext.RLock()
+	mock.lockContext.RLock()
 	calls = mock.calls.Context
-	lockSaramaConsumerGroupSessionMockContext.RUnlock()
+	mock.lockContext.RUnlock()
 	return calls
 }
 
@@ -215,9 +212,9 @@ func (mock *SaramaConsumerGroupSessionMock) GenerationID() int32 {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupSessionMockGenerationID.Lock()
+	mock.lockGenerationID.Lock()
 	mock.calls.GenerationID = append(mock.calls.GenerationID, callInfo)
-	lockSaramaConsumerGroupSessionMockGenerationID.Unlock()
+	mock.lockGenerationID.Unlock()
 	return mock.GenerationIDFunc()
 }
 
@@ -228,9 +225,9 @@ func (mock *SaramaConsumerGroupSessionMock) GenerationIDCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupSessionMockGenerationID.RLock()
+	mock.lockGenerationID.RLock()
 	calls = mock.calls.GenerationID
-	lockSaramaConsumerGroupSessionMockGenerationID.RUnlock()
+	mock.lockGenerationID.RUnlock()
 	return calls
 }
 
@@ -246,9 +243,9 @@ func (mock *SaramaConsumerGroupSessionMock) MarkMessage(msg *sarama.ConsumerMess
 		Msg:      msg,
 		Metadata: metadata,
 	}
-	lockSaramaConsumerGroupSessionMockMarkMessage.Lock()
+	mock.lockMarkMessage.Lock()
 	mock.calls.MarkMessage = append(mock.calls.MarkMessage, callInfo)
-	lockSaramaConsumerGroupSessionMockMarkMessage.Unlock()
+	mock.lockMarkMessage.Unlock()
 	mock.MarkMessageFunc(msg, metadata)
 }
 
@@ -263,9 +260,9 @@ func (mock *SaramaConsumerGroupSessionMock) MarkMessageCalls() []struct {
 		Msg      *sarama.ConsumerMessage
 		Metadata string
 	}
-	lockSaramaConsumerGroupSessionMockMarkMessage.RLock()
+	mock.lockMarkMessage.RLock()
 	calls = mock.calls.MarkMessage
-	lockSaramaConsumerGroupSessionMockMarkMessage.RUnlock()
+	mock.lockMarkMessage.RUnlock()
 	return calls
 }
 
@@ -285,9 +282,9 @@ func (mock *SaramaConsumerGroupSessionMock) MarkOffset(topic string, partition i
 		Offset:    offset,
 		Metadata:  metadata,
 	}
-	lockSaramaConsumerGroupSessionMockMarkOffset.Lock()
+	mock.lockMarkOffset.Lock()
 	mock.calls.MarkOffset = append(mock.calls.MarkOffset, callInfo)
-	lockSaramaConsumerGroupSessionMockMarkOffset.Unlock()
+	mock.lockMarkOffset.Unlock()
 	mock.MarkOffsetFunc(topic, partition, offset, metadata)
 }
 
@@ -306,9 +303,9 @@ func (mock *SaramaConsumerGroupSessionMock) MarkOffsetCalls() []struct {
 		Offset    int64
 		Metadata  string
 	}
-	lockSaramaConsumerGroupSessionMockMarkOffset.RLock()
+	mock.lockMarkOffset.RLock()
 	calls = mock.calls.MarkOffset
-	lockSaramaConsumerGroupSessionMockMarkOffset.RUnlock()
+	mock.lockMarkOffset.RUnlock()
 	return calls
 }
 
@@ -319,9 +316,9 @@ func (mock *SaramaConsumerGroupSessionMock) MemberID() string {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupSessionMockMemberID.Lock()
+	mock.lockMemberID.Lock()
 	mock.calls.MemberID = append(mock.calls.MemberID, callInfo)
-	lockSaramaConsumerGroupSessionMockMemberID.Unlock()
+	mock.lockMemberID.Unlock()
 	return mock.MemberIDFunc()
 }
 
@@ -332,9 +329,9 @@ func (mock *SaramaConsumerGroupSessionMock) MemberIDCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupSessionMockMemberID.RLock()
+	mock.lockMemberID.RLock()
 	calls = mock.calls.MemberID
-	lockSaramaConsumerGroupSessionMockMemberID.RUnlock()
+	mock.lockMemberID.RUnlock()
 	return calls
 }
 
@@ -354,9 +351,9 @@ func (mock *SaramaConsumerGroupSessionMock) ResetOffset(topic string, partition 
 		Offset:    offset,
 		Metadata:  metadata,
 	}
-	lockSaramaConsumerGroupSessionMockResetOffset.Lock()
+	mock.lockResetOffset.Lock()
 	mock.calls.ResetOffset = append(mock.calls.ResetOffset, callInfo)
-	lockSaramaConsumerGroupSessionMockResetOffset.Unlock()
+	mock.lockResetOffset.Unlock()
 	mock.ResetOffsetFunc(topic, partition, offset, metadata)
 }
 
@@ -375,8 +372,8 @@ func (mock *SaramaConsumerGroupSessionMock) ResetOffsetCalls() []struct {
 		Offset    int64
 		Metadata  string
 	}
-	lockSaramaConsumerGroupSessionMockResetOffset.RLock()
+	mock.lockResetOffset.RLock()
 	calls = mock.calls.ResetOffset
-	lockSaramaConsumerGroupSessionMockResetOffset.RUnlock()
+	mock.lockResetOffset.RUnlock()
 	return calls
 }

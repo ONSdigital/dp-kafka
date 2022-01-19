@@ -187,7 +187,8 @@ func TestProducer(t *testing.T) {
 		})
 
 		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
-			producer.Close(ctx)
+			err := producer.Close(ctx)
+			So(err, ShouldBeNil)
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
@@ -244,7 +245,8 @@ func TestProducerNotInitialised(t *testing.T) {
 		})
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
-			producer.Close(ctx)
+			err := producer.Close(ctx)
+			So(err, ShouldBeNil)
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
 		})

@@ -8,41 +8,33 @@ import (
 	"sync"
 )
 
-var (
-	lockSaramaBrokerMockAddr        sync.RWMutex
-	lockSaramaBrokerMockClose       sync.RWMutex
-	lockSaramaBrokerMockConnected   sync.RWMutex
-	lockSaramaBrokerMockGetMetadata sync.RWMutex
-	lockSaramaBrokerMockOpen        sync.RWMutex
-)
-
 // SaramaBrokerMock is a mock implementation of kafka.SaramaBroker.
 //
-//     func TestSomethingThatUsesSaramaBroker(t *testing.T) {
+// 	func TestSomethingThatUsesSaramaBroker(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaBroker
-//         mockedSaramaBroker := &SaramaBrokerMock{
-//             AddrFunc: func() string {
-// 	               panic("mock out the Addr method")
-//             },
-//             CloseFunc: func() error {
-// 	               panic("mock out the Close method")
-//             },
-//             ConnectedFunc: func() (bool, error) {
-// 	               panic("mock out the Connected method")
-//             },
-//             GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-// 	               panic("mock out the GetMetadata method")
-//             },
-//             OpenFunc: func(conf *sarama.Config) error {
-// 	               panic("mock out the Open method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.SaramaBroker
+// 		mockedSaramaBroker := &SaramaBrokerMock{
+// 			AddrFunc: func() string {
+// 				panic("mock out the Addr method")
+// 			},
+// 			CloseFunc: func() error {
+// 				panic("mock out the Close method")
+// 			},
+// 			ConnectedFunc: func() (bool, error) {
+// 				panic("mock out the Connected method")
+// 			},
+// 			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
+// 				panic("mock out the GetMetadata method")
+// 			},
+// 			OpenFunc: func(conf *sarama.Config) error {
+// 				panic("mock out the Open method")
+// 			},
+// 		}
 //
-//         // use mockedSaramaBroker in code that requires kafka.SaramaBroker
-//         // and then make assertions.
+// 		// use mockedSaramaBroker in code that requires kafka.SaramaBroker
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type SaramaBrokerMock struct {
 	// AddrFunc mocks the Addr method.
 	AddrFunc func() string
@@ -81,6 +73,11 @@ type SaramaBrokerMock struct {
 			Conf *sarama.Config
 		}
 	}
+	lockAddr        sync.RWMutex
+	lockClose       sync.RWMutex
+	lockConnected   sync.RWMutex
+	lockGetMetadata sync.RWMutex
+	lockOpen        sync.RWMutex
 }
 
 // Addr calls AddrFunc.
@@ -90,9 +87,9 @@ func (mock *SaramaBrokerMock) Addr() string {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaBrokerMockAddr.Lock()
+	mock.lockAddr.Lock()
 	mock.calls.Addr = append(mock.calls.Addr, callInfo)
-	lockSaramaBrokerMockAddr.Unlock()
+	mock.lockAddr.Unlock()
 	return mock.AddrFunc()
 }
 
@@ -103,9 +100,9 @@ func (mock *SaramaBrokerMock) AddrCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaBrokerMockAddr.RLock()
+	mock.lockAddr.RLock()
 	calls = mock.calls.Addr
-	lockSaramaBrokerMockAddr.RUnlock()
+	mock.lockAddr.RUnlock()
 	return calls
 }
 
@@ -116,9 +113,9 @@ func (mock *SaramaBrokerMock) Close() error {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaBrokerMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockSaramaBrokerMockClose.Unlock()
+	mock.lockClose.Unlock()
 	return mock.CloseFunc()
 }
 
@@ -129,9 +126,9 @@ func (mock *SaramaBrokerMock) CloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaBrokerMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockSaramaBrokerMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -142,9 +139,9 @@ func (mock *SaramaBrokerMock) Connected() (bool, error) {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaBrokerMockConnected.Lock()
+	mock.lockConnected.Lock()
 	mock.calls.Connected = append(mock.calls.Connected, callInfo)
-	lockSaramaBrokerMockConnected.Unlock()
+	mock.lockConnected.Unlock()
 	return mock.ConnectedFunc()
 }
 
@@ -155,9 +152,9 @@ func (mock *SaramaBrokerMock) ConnectedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaBrokerMockConnected.RLock()
+	mock.lockConnected.RLock()
 	calls = mock.calls.Connected
-	lockSaramaBrokerMockConnected.RUnlock()
+	mock.lockConnected.RUnlock()
 	return calls
 }
 
@@ -171,9 +168,9 @@ func (mock *SaramaBrokerMock) GetMetadata(request *sarama.MetadataRequest) (*sar
 	}{
 		Request: request,
 	}
-	lockSaramaBrokerMockGetMetadata.Lock()
+	mock.lockGetMetadata.Lock()
 	mock.calls.GetMetadata = append(mock.calls.GetMetadata, callInfo)
-	lockSaramaBrokerMockGetMetadata.Unlock()
+	mock.lockGetMetadata.Unlock()
 	return mock.GetMetadataFunc(request)
 }
 
@@ -186,9 +183,9 @@ func (mock *SaramaBrokerMock) GetMetadataCalls() []struct {
 	var calls []struct {
 		Request *sarama.MetadataRequest
 	}
-	lockSaramaBrokerMockGetMetadata.RLock()
+	mock.lockGetMetadata.RLock()
 	calls = mock.calls.GetMetadata
-	lockSaramaBrokerMockGetMetadata.RUnlock()
+	mock.lockGetMetadata.RUnlock()
 	return calls
 }
 
@@ -202,9 +199,9 @@ func (mock *SaramaBrokerMock) Open(conf *sarama.Config) error {
 	}{
 		Conf: conf,
 	}
-	lockSaramaBrokerMockOpen.Lock()
+	mock.lockOpen.Lock()
 	mock.calls.Open = append(mock.calls.Open, callInfo)
-	lockSaramaBrokerMockOpen.Unlock()
+	mock.lockOpen.Unlock()
 	return mock.OpenFunc(conf)
 }
 
@@ -217,8 +214,8 @@ func (mock *SaramaBrokerMock) OpenCalls() []struct {
 	var calls []struct {
 		Conf *sarama.Config
 	}
-	lockSaramaBrokerMockOpen.RLock()
+	mock.lockOpen.RLock()
 	calls = mock.calls.Open
-	lockSaramaBrokerMockOpen.RUnlock()
+	mock.lockOpen.RUnlock()
 	return calls
 }

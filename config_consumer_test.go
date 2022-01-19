@@ -26,7 +26,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
-			So(config.Consumer.Offsets.Initial, ShouldEqual, sarama.OffsetOldest)
+			So(config.Consumer.Offsets.Initial, ShouldEqual, OffsetOldest)
 			So(config.Consumer.Return.Errors, ShouldBeTrue)
 			So(config.Consumer.Group.Rebalance.Strategy, ShouldEqual, sarama.BalanceStrategyRoundRobin)
 			So(config.Consumer.Group.Session.Timeout, ShouldEqual, time.Second*10)
@@ -163,8 +163,8 @@ func TestConsumerGroupConfigValidation(t *testing.T) {
 		})
 
 		Convey("With MinRetryPeriod greater than MaxRetryPeriod, then Validate fails with the expected error", func() {
-			var minRetryPeriod time.Duration = 1001 * time.Millisecond
-			var maxRetryPeriod time.Duration = time.Second
+			minRetryPeriod := 1001 * time.Millisecond
+			maxRetryPeriod := time.Second
 			cfg.MinRetryPeriod = &minRetryPeriod
 			cfg.MaxRetryPeriod = &maxRetryPeriod
 			err := cfg.Validate()

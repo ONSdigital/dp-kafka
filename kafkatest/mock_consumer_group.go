@@ -5,25 +5,9 @@ package kafkatest
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3"
 	"sync"
-)
-
-var (
-	lockIConsumerGroupMockChannels             sync.RWMutex
-	lockIConsumerGroupMockChecker              sync.RWMutex
-	lockIConsumerGroupMockClose                sync.RWMutex
-	lockIConsumerGroupMockInitialise           sync.RWMutex
-	lockIConsumerGroupMockIsInitialised        sync.RWMutex
-	lockIConsumerGroupMockLogErrors            sync.RWMutex
-	lockIConsumerGroupMockOnHealthUpdate       sync.RWMutex
-	lockIConsumerGroupMockRegisterBatchHandler sync.RWMutex
-	lockIConsumerGroupMockRegisterHandler      sync.RWMutex
-	lockIConsumerGroupMockStart                sync.RWMutex
-	lockIConsumerGroupMockState                sync.RWMutex
-	lockIConsumerGroupMockStop                 sync.RWMutex
-	lockIConsumerGroupMockStopAndWait          sync.RWMutex
 )
 
 // Ensure, that IConsumerGroupMock does implement kafka.IConsumerGroup.
@@ -32,61 +16,64 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 
 // IConsumerGroupMock is a mock implementation of kafka.IConsumerGroup.
 //
-//     func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
+// 	func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked kafka.IConsumerGroup
-//         mockedIConsumerGroup := &IConsumerGroupMock{
-//             ChannelsFunc: func() *kafka.ConsumerGroupChannels {
-// 	               panic("mock out the Channels method")
-//             },
-//             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
-// 	               panic("mock out the Checker method")
-//             },
-//             CloseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Close method")
-//             },
-//             InitialiseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Initialise method")
-//             },
-//             IsInitialisedFunc: func() bool {
-// 	               panic("mock out the IsInitialised method")
-//             },
-//             LogErrorsFunc: func(ctx context.Context)  {
-// 	               panic("mock out the LogErrors method")
-//             },
-//             OnHealthUpdateFunc: func(status string)  {
-// 	               panic("mock out the OnHealthUpdate method")
-//             },
-//             RegisterBatchHandlerFunc: func(ctx context.Context, batchHandler kafka.BatchHandler) error {
-// 	               panic("mock out the RegisterBatchHandler method")
-//             },
-//             RegisterHandlerFunc: func(ctx context.Context, h kafka.Handler) error {
-// 	               panic("mock out the RegisterHandler method")
-//             },
-//             StartFunc: func() error {
-// 	               panic("mock out the Start method")
-//             },
-//             StateFunc: func() string {
-// 	               panic("mock out the State method")
-//             },
-//             StopFunc: func()  {
-// 	               panic("mock out the Stop method")
-//             },
-//             StopAndWaitFunc: func()  {
-// 	               panic("mock out the StopAndWait method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.IConsumerGroup
+// 		mockedIConsumerGroup := &IConsumerGroupMock{
+// 			ChannelsFunc: func() *kafka.ConsumerGroupChannels {
+// 				panic("mock out the Channels method")
+// 			},
+// 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
+// 				panic("mock out the Checker method")
+// 			},
+// 			CloseFunc: func(ctx context.Context) error {
+// 				panic("mock out the Close method")
+// 			},
+// 			InitialiseFunc: func(ctx context.Context) error {
+// 				panic("mock out the Initialise method")
+// 			},
+// 			IsInitialisedFunc: func() bool {
+// 				panic("mock out the IsInitialised method")
+// 			},
+// 			LogErrorsFunc: func(ctx context.Context)  {
+// 				panic("mock out the LogErrors method")
+// 			},
+// 			OnHealthUpdateFunc: func(status string)  {
+// 				panic("mock out the OnHealthUpdate method")
+// 			},
+// 			RegisterBatchHandlerFunc: func(ctx context.Context, batchHandler kafka.BatchHandler) error {
+// 				panic("mock out the RegisterBatchHandler method")
+// 			},
+// 			RegisterHandlerFunc: func(ctx context.Context, h kafka.Handler) error {
+// 				panic("mock out the RegisterHandler method")
+// 			},
+// 			StartFunc: func() error {
+// 				panic("mock out the Start method")
+// 			},
+// 			StateFunc: func() string {
+// 				panic("mock out the State method")
+// 			},
+// 			StateWaitFunc: func()  {
+// 				panic("mock out the StateWait method")
+// 			},
+// 			StopFunc: func() error {
+// 				panic("mock out the Stop method")
+// 			},
+// 			StopAndWaitFunc: func() error {
+// 				panic("mock out the StopAndWait method")
+// 			},
+// 		}
 //
-//         // use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
-//         // and then make assertions.
+// 		// use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ConsumerGroupChannels
 
 	// CheckerFunc mocks the Checker method.
-	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
+	CheckerFunc func(ctx context.Context, state *health.CheckState) error
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
@@ -115,11 +102,14 @@ type IConsumerGroupMock struct {
 	// StateFunc mocks the State method.
 	StateFunc func() string
 
+	// StateWaitFunc mocks the StateWait method.
+	StateWaitFunc func()
+
 	// StopFunc mocks the Stop method.
-	StopFunc func()
+	StopFunc func() error
 
 	// StopAndWaitFunc mocks the StopAndWait method.
-	StopAndWaitFunc func()
+	StopAndWaitFunc func() error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -131,7 +121,7 @@ type IConsumerGroupMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// State is the state argument value.
-			State *healthcheck.CheckState
+			State *health.CheckState
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
@@ -176,6 +166,9 @@ type IConsumerGroupMock struct {
 		// State holds details about calls to the State method.
 		State []struct {
 		}
+		// StateWait holds details about calls to the StateWait method.
+		StateWait []struct {
+		}
 		// Stop holds details about calls to the Stop method.
 		Stop []struct {
 		}
@@ -183,6 +176,20 @@ type IConsumerGroupMock struct {
 		StopAndWait []struct {
 		}
 	}
+	lockChannels             sync.RWMutex
+	lockChecker              sync.RWMutex
+	lockClose                sync.RWMutex
+	lockInitialise           sync.RWMutex
+	lockIsInitialised        sync.RWMutex
+	lockLogErrors            sync.RWMutex
+	lockOnHealthUpdate       sync.RWMutex
+	lockRegisterBatchHandler sync.RWMutex
+	lockRegisterHandler      sync.RWMutex
+	lockStart                sync.RWMutex
+	lockState                sync.RWMutex
+	lockStateWait            sync.RWMutex
+	lockStop                 sync.RWMutex
+	lockStopAndWait          sync.RWMutex
 }
 
 // Channels calls ChannelsFunc.
@@ -192,9 +199,9 @@ func (mock *IConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockChannels.Lock()
+	mock.lockChannels.Lock()
 	mock.calls.Channels = append(mock.calls.Channels, callInfo)
-	lockIConsumerGroupMockChannels.Unlock()
+	mock.lockChannels.Unlock()
 	return mock.ChannelsFunc()
 }
 
@@ -205,27 +212,27 @@ func (mock *IConsumerGroupMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockChannels.RLock()
+	mock.lockChannels.RLock()
 	calls = mock.calls.Channels
-	lockIConsumerGroupMockChannels.RUnlock()
+	mock.lockChannels.RUnlock()
 	return calls
 }
 
 // Checker calls CheckerFunc.
-func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *health.CheckState) error {
 	if mock.CheckerFunc == nil {
 		panic("IConsumerGroupMock.CheckerFunc: method is nil but IConsumerGroup.Checker was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}{
 		Ctx:   ctx,
 		State: state,
 	}
-	lockIConsumerGroupMockChecker.Lock()
+	mock.lockChecker.Lock()
 	mock.calls.Checker = append(mock.calls.Checker, callInfo)
-	lockIConsumerGroupMockChecker.Unlock()
+	mock.lockChecker.Unlock()
 	return mock.CheckerFunc(ctx, state)
 }
 
@@ -234,15 +241,15 @@ func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *healthcheck.
 //     len(mockedIConsumerGroup.CheckerCalls())
 func (mock *IConsumerGroupMock) CheckerCalls() []struct {
 	Ctx   context.Context
-	State *healthcheck.CheckState
+	State *health.CheckState
 } {
 	var calls []struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}
-	lockIConsumerGroupMockChecker.RLock()
+	mock.lockChecker.RLock()
 	calls = mock.calls.Checker
-	lockIConsumerGroupMockChecker.RUnlock()
+	mock.lockChecker.RUnlock()
 	return calls
 }
 
@@ -256,9 +263,9 @@ func (mock *IConsumerGroupMock) Close(ctx context.Context) error {
 	}{
 		Ctx: ctx,
 	}
-	lockIConsumerGroupMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockIConsumerGroupMockClose.Unlock()
+	mock.lockClose.Unlock()
 	return mock.CloseFunc(ctx)
 }
 
@@ -271,9 +278,9 @@ func (mock *IConsumerGroupMock) CloseCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIConsumerGroupMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockIConsumerGroupMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -287,9 +294,9 @@ func (mock *IConsumerGroupMock) Initialise(ctx context.Context) error {
 	}{
 		Ctx: ctx,
 	}
-	lockIConsumerGroupMockInitialise.Lock()
+	mock.lockInitialise.Lock()
 	mock.calls.Initialise = append(mock.calls.Initialise, callInfo)
-	lockIConsumerGroupMockInitialise.Unlock()
+	mock.lockInitialise.Unlock()
 	return mock.InitialiseFunc(ctx)
 }
 
@@ -302,9 +309,9 @@ func (mock *IConsumerGroupMock) InitialiseCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIConsumerGroupMockInitialise.RLock()
+	mock.lockInitialise.RLock()
 	calls = mock.calls.Initialise
-	lockIConsumerGroupMockInitialise.RUnlock()
+	mock.lockInitialise.RUnlock()
 	return calls
 }
 
@@ -315,9 +322,9 @@ func (mock *IConsumerGroupMock) IsInitialised() bool {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockIsInitialised.Lock()
+	mock.lockIsInitialised.Lock()
 	mock.calls.IsInitialised = append(mock.calls.IsInitialised, callInfo)
-	lockIConsumerGroupMockIsInitialised.Unlock()
+	mock.lockIsInitialised.Unlock()
 	return mock.IsInitialisedFunc()
 }
 
@@ -328,9 +335,9 @@ func (mock *IConsumerGroupMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockIsInitialised.RLock()
+	mock.lockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
-	lockIConsumerGroupMockIsInitialised.RUnlock()
+	mock.lockIsInitialised.RUnlock()
 	return calls
 }
 
@@ -344,9 +351,9 @@ func (mock *IConsumerGroupMock) LogErrors(ctx context.Context) {
 	}{
 		Ctx: ctx,
 	}
-	lockIConsumerGroupMockLogErrors.Lock()
+	mock.lockLogErrors.Lock()
 	mock.calls.LogErrors = append(mock.calls.LogErrors, callInfo)
-	lockIConsumerGroupMockLogErrors.Unlock()
+	mock.lockLogErrors.Unlock()
 	mock.LogErrorsFunc(ctx)
 }
 
@@ -359,9 +366,9 @@ func (mock *IConsumerGroupMock) LogErrorsCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIConsumerGroupMockLogErrors.RLock()
+	mock.lockLogErrors.RLock()
 	calls = mock.calls.LogErrors
-	lockIConsumerGroupMockLogErrors.RUnlock()
+	mock.lockLogErrors.RUnlock()
 	return calls
 }
 
@@ -375,9 +382,9 @@ func (mock *IConsumerGroupMock) OnHealthUpdate(status string) {
 	}{
 		Status: status,
 	}
-	lockIConsumerGroupMockOnHealthUpdate.Lock()
+	mock.lockOnHealthUpdate.Lock()
 	mock.calls.OnHealthUpdate = append(mock.calls.OnHealthUpdate, callInfo)
-	lockIConsumerGroupMockOnHealthUpdate.Unlock()
+	mock.lockOnHealthUpdate.Unlock()
 	mock.OnHealthUpdateFunc(status)
 }
 
@@ -390,9 +397,9 @@ func (mock *IConsumerGroupMock) OnHealthUpdateCalls() []struct {
 	var calls []struct {
 		Status string
 	}
-	lockIConsumerGroupMockOnHealthUpdate.RLock()
+	mock.lockOnHealthUpdate.RLock()
 	calls = mock.calls.OnHealthUpdate
-	lockIConsumerGroupMockOnHealthUpdate.RUnlock()
+	mock.lockOnHealthUpdate.RUnlock()
 	return calls
 }
 
@@ -408,9 +415,9 @@ func (mock *IConsumerGroupMock) RegisterBatchHandler(ctx context.Context, batchH
 		Ctx:          ctx,
 		BatchHandler: batchHandler,
 	}
-	lockIConsumerGroupMockRegisterBatchHandler.Lock()
+	mock.lockRegisterBatchHandler.Lock()
 	mock.calls.RegisterBatchHandler = append(mock.calls.RegisterBatchHandler, callInfo)
-	lockIConsumerGroupMockRegisterBatchHandler.Unlock()
+	mock.lockRegisterBatchHandler.Unlock()
 	return mock.RegisterBatchHandlerFunc(ctx, batchHandler)
 }
 
@@ -425,9 +432,9 @@ func (mock *IConsumerGroupMock) RegisterBatchHandlerCalls() []struct {
 		Ctx          context.Context
 		BatchHandler kafka.BatchHandler
 	}
-	lockIConsumerGroupMockRegisterBatchHandler.RLock()
+	mock.lockRegisterBatchHandler.RLock()
 	calls = mock.calls.RegisterBatchHandler
-	lockIConsumerGroupMockRegisterBatchHandler.RUnlock()
+	mock.lockRegisterBatchHandler.RUnlock()
 	return calls
 }
 
@@ -443,9 +450,9 @@ func (mock *IConsumerGroupMock) RegisterHandler(ctx context.Context, h kafka.Han
 		Ctx: ctx,
 		H:   h,
 	}
-	lockIConsumerGroupMockRegisterHandler.Lock()
+	mock.lockRegisterHandler.Lock()
 	mock.calls.RegisterHandler = append(mock.calls.RegisterHandler, callInfo)
-	lockIConsumerGroupMockRegisterHandler.Unlock()
+	mock.lockRegisterHandler.Unlock()
 	return mock.RegisterHandlerFunc(ctx, h)
 }
 
@@ -460,9 +467,9 @@ func (mock *IConsumerGroupMock) RegisterHandlerCalls() []struct {
 		Ctx context.Context
 		H   kafka.Handler
 	}
-	lockIConsumerGroupMockRegisterHandler.RLock()
+	mock.lockRegisterHandler.RLock()
 	calls = mock.calls.RegisterHandler
-	lockIConsumerGroupMockRegisterHandler.RUnlock()
+	mock.lockRegisterHandler.RUnlock()
 	return calls
 }
 
@@ -473,9 +480,9 @@ func (mock *IConsumerGroupMock) Start() error {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockStart.Lock()
+	mock.lockStart.Lock()
 	mock.calls.Start = append(mock.calls.Start, callInfo)
-	lockIConsumerGroupMockStart.Unlock()
+	mock.lockStart.Unlock()
 	return mock.StartFunc()
 }
 
@@ -486,9 +493,9 @@ func (mock *IConsumerGroupMock) StartCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockStart.RLock()
+	mock.lockStart.RLock()
 	calls = mock.calls.Start
-	lockIConsumerGroupMockStart.RUnlock()
+	mock.lockStart.RUnlock()
 	return calls
 }
 
@@ -499,9 +506,9 @@ func (mock *IConsumerGroupMock) State() string {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockState.Lock()
+	mock.lockState.Lock()
 	mock.calls.State = append(mock.calls.State, callInfo)
-	lockIConsumerGroupMockState.Unlock()
+	mock.lockState.Unlock()
 	return mock.StateFunc()
 }
 
@@ -512,23 +519,49 @@ func (mock *IConsumerGroupMock) StateCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockState.RLock()
+	mock.lockState.RLock()
 	calls = mock.calls.State
-	lockIConsumerGroupMockState.RUnlock()
+	mock.lockState.RUnlock()
+	return calls
+}
+
+// StateWait calls StateWaitFunc.
+func (mock *IConsumerGroupMock) StateWait() {
+	if mock.StateWaitFunc == nil {
+		panic("IConsumerGroupMock.StateWaitFunc: method is nil but IConsumerGroup.StateWait was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockStateWait.Lock()
+	mock.calls.StateWait = append(mock.calls.StateWait, callInfo)
+	mock.lockStateWait.Unlock()
+	mock.StateWaitFunc()
+}
+
+// StateWaitCalls gets all the calls that were made to StateWait.
+// Check the length with:
+//     len(mockedIConsumerGroup.StateWaitCalls())
+func (mock *IConsumerGroupMock) StateWaitCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockStateWait.RLock()
+	calls = mock.calls.StateWait
+	mock.lockStateWait.RUnlock()
 	return calls
 }
 
 // Stop calls StopFunc.
-func (mock *IConsumerGroupMock) Stop() {
+func (mock *IConsumerGroupMock) Stop() error {
 	if mock.StopFunc == nil {
 		panic("IConsumerGroupMock.StopFunc: method is nil but IConsumerGroup.Stop was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockStop.Lock()
+	mock.lockStop.Lock()
 	mock.calls.Stop = append(mock.calls.Stop, callInfo)
-	lockIConsumerGroupMockStop.Unlock()
-	mock.StopFunc()
+	mock.lockStop.Unlock()
+	return mock.StopFunc()
 }
 
 // StopCalls gets all the calls that were made to Stop.
@@ -538,23 +571,23 @@ func (mock *IConsumerGroupMock) StopCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockStop.RLock()
+	mock.lockStop.RLock()
 	calls = mock.calls.Stop
-	lockIConsumerGroupMockStop.RUnlock()
+	mock.lockStop.RUnlock()
 	return calls
 }
 
 // StopAndWait calls StopAndWaitFunc.
-func (mock *IConsumerGroupMock) StopAndWait() {
+func (mock *IConsumerGroupMock) StopAndWait() error {
 	if mock.StopAndWaitFunc == nil {
 		panic("IConsumerGroupMock.StopAndWaitFunc: method is nil but IConsumerGroup.StopAndWait was just called")
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockStopAndWait.Lock()
+	mock.lockStopAndWait.Lock()
 	mock.calls.StopAndWait = append(mock.calls.StopAndWait, callInfo)
-	lockIConsumerGroupMockStopAndWait.Unlock()
-	mock.StopAndWaitFunc()
+	mock.lockStopAndWait.Unlock()
+	return mock.StopAndWaitFunc()
 }
 
 // StopAndWaitCalls gets all the calls that were made to StopAndWait.
@@ -564,8 +597,8 @@ func (mock *IConsumerGroupMock) StopAndWaitCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockStopAndWait.RLock()
+	mock.lockStopAndWait.RLock()
 	calls = mock.calls.StopAndWait
-	lockIConsumerGroupMockStopAndWait.RUnlock()
+	mock.lockStopAndWait.RUnlock()
 	return calls
 }

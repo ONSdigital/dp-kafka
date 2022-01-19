@@ -79,7 +79,9 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "closing producer because context is done")
-			producer.Close(ctx)
+			if err := producer.Close(ctx); err != nil {
+				log.Error(ctx, "error closing producer: %w", err, log.Data{"topic": producer.topic})
+			}
 		case <-producer.channels.Closer:
 			return
 		}

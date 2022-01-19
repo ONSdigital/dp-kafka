@@ -8,41 +8,33 @@ import (
 	"sync"
 )
 
-var (
-	lockSaramaAsyncProducerMockAsyncClose sync.RWMutex
-	lockSaramaAsyncProducerMockClose      sync.RWMutex
-	lockSaramaAsyncProducerMockErrors     sync.RWMutex
-	lockSaramaAsyncProducerMockInput      sync.RWMutex
-	lockSaramaAsyncProducerMockSuccesses  sync.RWMutex
-)
-
 // SaramaAsyncProducerMock is a mock implementation of kafka.SaramaAsyncProducer.
 //
-//     func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
+// 	func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaAsyncProducer
-//         mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
-//             AsyncCloseFunc: func()  {
-// 	               panic("mock out the AsyncClose method")
-//             },
-//             CloseFunc: func() error {
-// 	               panic("mock out the Close method")
-//             },
-//             ErrorsFunc: func() <-chan *sarama.ProducerError {
-// 	               panic("mock out the Errors method")
-//             },
-//             InputFunc: func() chan<- *sarama.ProducerMessage {
-// 	               panic("mock out the Input method")
-//             },
-//             SuccessesFunc: func() <-chan *sarama.ProducerMessage {
-// 	               panic("mock out the Successes method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.SaramaAsyncProducer
+// 		mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
+// 			AsyncCloseFunc: func()  {
+// 				panic("mock out the AsyncClose method")
+// 			},
+// 			CloseFunc: func() error {
+// 				panic("mock out the Close method")
+// 			},
+// 			ErrorsFunc: func() <-chan *sarama.ProducerError {
+// 				panic("mock out the Errors method")
+// 			},
+// 			InputFunc: func() chan<- *sarama.ProducerMessage {
+// 				panic("mock out the Input method")
+// 			},
+// 			SuccessesFunc: func() <-chan *sarama.ProducerMessage {
+// 				panic("mock out the Successes method")
+// 			},
+// 		}
 //
-//         // use mockedSaramaAsyncProducer in code that requires kafka.SaramaAsyncProducer
-//         // and then make assertions.
+// 		// use mockedSaramaAsyncProducer in code that requires kafka.SaramaAsyncProducer
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type SaramaAsyncProducerMock struct {
 	// AsyncCloseFunc mocks the AsyncClose method.
 	AsyncCloseFunc func()
@@ -77,6 +69,11 @@ type SaramaAsyncProducerMock struct {
 		Successes []struct {
 		}
 	}
+	lockAsyncClose sync.RWMutex
+	lockClose      sync.RWMutex
+	lockErrors     sync.RWMutex
+	lockInput      sync.RWMutex
+	lockSuccesses  sync.RWMutex
 }
 
 // AsyncClose calls AsyncCloseFunc.
@@ -86,9 +83,9 @@ func (mock *SaramaAsyncProducerMock) AsyncClose() {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaAsyncProducerMockAsyncClose.Lock()
+	mock.lockAsyncClose.Lock()
 	mock.calls.AsyncClose = append(mock.calls.AsyncClose, callInfo)
-	lockSaramaAsyncProducerMockAsyncClose.Unlock()
+	mock.lockAsyncClose.Unlock()
 	mock.AsyncCloseFunc()
 }
 
@@ -99,9 +96,9 @@ func (mock *SaramaAsyncProducerMock) AsyncCloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaAsyncProducerMockAsyncClose.RLock()
+	mock.lockAsyncClose.RLock()
 	calls = mock.calls.AsyncClose
-	lockSaramaAsyncProducerMockAsyncClose.RUnlock()
+	mock.lockAsyncClose.RUnlock()
 	return calls
 }
 
@@ -112,9 +109,9 @@ func (mock *SaramaAsyncProducerMock) Close() error {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaAsyncProducerMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockSaramaAsyncProducerMockClose.Unlock()
+	mock.lockClose.Unlock()
 	return mock.CloseFunc()
 }
 
@@ -125,9 +122,9 @@ func (mock *SaramaAsyncProducerMock) CloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaAsyncProducerMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockSaramaAsyncProducerMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -138,9 +135,9 @@ func (mock *SaramaAsyncProducerMock) Errors() <-chan *sarama.ProducerError {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaAsyncProducerMockErrors.Lock()
+	mock.lockErrors.Lock()
 	mock.calls.Errors = append(mock.calls.Errors, callInfo)
-	lockSaramaAsyncProducerMockErrors.Unlock()
+	mock.lockErrors.Unlock()
 	return mock.ErrorsFunc()
 }
 
@@ -151,9 +148,9 @@ func (mock *SaramaAsyncProducerMock) ErrorsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaAsyncProducerMockErrors.RLock()
+	mock.lockErrors.RLock()
 	calls = mock.calls.Errors
-	lockSaramaAsyncProducerMockErrors.RUnlock()
+	mock.lockErrors.RUnlock()
 	return calls
 }
 
@@ -164,9 +161,9 @@ func (mock *SaramaAsyncProducerMock) Input() chan<- *sarama.ProducerMessage {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaAsyncProducerMockInput.Lock()
+	mock.lockInput.Lock()
 	mock.calls.Input = append(mock.calls.Input, callInfo)
-	lockSaramaAsyncProducerMockInput.Unlock()
+	mock.lockInput.Unlock()
 	return mock.InputFunc()
 }
 
@@ -177,9 +174,9 @@ func (mock *SaramaAsyncProducerMock) InputCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaAsyncProducerMockInput.RLock()
+	mock.lockInput.RLock()
 	calls = mock.calls.Input
-	lockSaramaAsyncProducerMockInput.RUnlock()
+	mock.lockInput.RUnlock()
 	return calls
 }
 
@@ -190,9 +187,9 @@ func (mock *SaramaAsyncProducerMock) Successes() <-chan *sarama.ProducerMessage 
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaAsyncProducerMockSuccesses.Lock()
+	mock.lockSuccesses.Lock()
 	mock.calls.Successes = append(mock.calls.Successes, callInfo)
-	lockSaramaAsyncProducerMockSuccesses.Unlock()
+	mock.lockSuccesses.Unlock()
 	return mock.SuccessesFunc()
 }
 
@@ -203,8 +200,8 @@ func (mock *SaramaAsyncProducerMock) SuccessesCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaAsyncProducerMockSuccesses.RLock()
+	mock.lockSuccesses.RLock()
 	calls = mock.calls.Successes
-	lockSaramaAsyncProducerMockSuccesses.RUnlock()
+	mock.lockSuccesses.RUnlock()
 	return calls
 }

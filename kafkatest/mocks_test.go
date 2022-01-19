@@ -25,7 +25,8 @@ func TestProducerMock(t *testing.T) {
 				<-producerMock.Channels().Initialised
 				initClosed = true
 			}()
-			producerMock.Initialise(ctx)
+			err := producerMock.Initialise(ctx)
+			So(err, ShouldBeNil)
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
 			So(initClosed, ShouldBeTrue)
@@ -41,7 +42,8 @@ func TestProducerMock(t *testing.T) {
 		So(producerMock.IsInitialised(), ShouldBeTrue)
 
 		Convey("Calling initialise again has no effect", func() {
-			producerMock.Initialise(ctx)
+			err := producerMock.Initialise(ctx)
+			So(err, ShouldBeNil)
 			So(producerMock.IsInitialised(), ShouldBeTrue)
 		})
 
@@ -72,7 +74,8 @@ func validateCloseProducer(producerMock *MessageProducer) {
 		<-producerMock.Channels().Closed
 		closedClosed = true
 	}()
-	producerMock.Close(ctx)
+	err := producerMock.Close(ctx)
+	So(err, ShouldBeNil)
 	wg.Wait()
 
 	So(closedOutput, ShouldBeTrue)
@@ -95,7 +98,8 @@ func TestConsumerMock(t *testing.T) {
 				<-consumerMock.Channels().Initialised
 				initClosed = true
 			}()
-			consumerMock.Initialise(ctx)
+			err := consumerMock.Initialise(ctx)
+			So(err, ShouldBeNil)
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 			wg.Wait()
 			So(initClosed, ShouldBeTrue)
@@ -111,7 +115,8 @@ func TestConsumerMock(t *testing.T) {
 		So(consumerMock.IsInitialised(), ShouldBeTrue)
 
 		Convey("Calling initialise again has no effect", func() {
-			consumerMock.Initialise(ctx)
+			err := consumerMock.Initialise(ctx)
+			So(err, ShouldBeNil)
 			So(consumerMock.IsInitialised(), ShouldBeTrue)
 		})
 
@@ -266,7 +271,8 @@ func validateCloseConsumer(consumerMock *MessageConsumer) {
 		<-consumerMock.Channels().Closed
 		closedClosed = true
 	}()
-	consumerMock.Close(ctx)
+	err := consumerMock.Close(ctx)
+	So(err, ShouldBeNil)
 	wg.Wait()
 
 	So(closedUpstream, ShouldBeTrue)

@@ -30,7 +30,7 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 	svc.cfg = cfg
 
 	// Create handler
-	handler := &handler.Handler{
+	h := &handler.Handler{
 		Cfg: cfg,
 	}
 
@@ -54,7 +54,9 @@ func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
 	if err != nil {
 		return fmt.Errorf("error creating kafka consumer: %w", err)
 	}
-	svc.consumer.RegisterHandler(ctx, handler.Handle)
+	if err := svc.consumer.RegisterHandler(ctx, h.Handle); err != nil {
+		return fmt.Errorf("error registering handler: %w", err)
+	}
 
 	return nil
 }
@@ -66,7 +68,9 @@ func (svc *Service) Start(ctx context.Context) (err error) {
 	svc.consumer.LogErrors(ctx)
 
 	// start consuming now (in a real app this should be triggered by a healthy state)
-	svc.consumer.Start()
+	if err := svc.consumer.Start(); err != nil {
+		return fmt.Errorf("consumer failed to start: %w", err)
+	}
 
 	// ticker to show the consumer state periodically
 	createTickerLoop(ctx, svc.consumer)
@@ -86,14 +90,18 @@ func (svc *Service) Close(ctx context.Context) error {
 		defer cancel()
 
 		log.Info(ctx, "[KAFKA-TEST] Stopping kafka consumerGroup")
-		svc.consumer.StopAndWait()
-		log.Info(ctx, "[KAFKA-TEST] Stopped consumerGroup")
+		if err := svc.consumer.StopAndWait(); err != nil {
+			shutdownErr = fmt.Errorf("[KAFKA-TEST] failed to stop and wait consumerGroup in service shutdown: %w", err)
+		} else {
+			log.Info(ctx, "[KAFKA-TEST] Successfully stopped consumerGroup")
+		}
 
 		log.Info(ctx, "[KAFKA-TEST] Closing kafka consumerGroup")
 		if err := svc.consumer.Close(ctx); err != nil {
-			shutdownErr = fmt.Errorf("failed to close consumer in service shutdown: %w", err)
+			shutdownErr = fmt.Errorf("[KAFKA-TEST] failed to close consumerGroup in service shutdown: %w", err)
+		} else {
+			log.Info(ctx, "[KAFKA-TEST] Successfully closed consumerGroup")
 		}
-		log.Info(ctx, "[KAFKA-TEST] Closed kafka consumerGroup")
 	}()
 
 	// wait for timeout or success (via cancel)
@@ -150,19 +158,27 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 					if cnt >= iterationsFromStartToStop {
 						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming", logData)
 						cnt = 0
-						cg.Stop()
+						if err := cg.Stop(); err != nil {
+							log.Warn(ctx, "consumer-group failed to stop", log.Data{"err": err})
+						}
 					} else {
 						log.Info(ctx, "[KAFKA-TEST] START consuming", logData)
-						cg.Start()
+						if err := cg.Start(); err != nil {
+							log.Warn(ctx, "consumer-group failed to start", log.Data{"err": err})
+						}
 					}
 				case kafka.Stopping.String(), kafka.Stopped.String():
 					if cnt >= iterationsFromStopToStart {
 						log.Info(ctx, "[KAFKA-TEST] ++ START consuming", logData)
 						cnt = 0
-						cg.Start()
+						if err := cg.Start(); err != nil {
+							log.Warn(ctx, "consumer-group failed to start", log.Data{"err": err})
+						}
 					} else {
 						log.Info(ctx, "[KAFKA-TEST] STOP consuming", logData)
-						cg.Stop()
+						if err := cg.Stop(); err != nil {
+							log.Warn(ctx, "consumer-group failed to stop", log.Data{"err": err})
+						}
 					}
 				default:
 				}

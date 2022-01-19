@@ -7,49 +7,39 @@ import (
 	"sync"
 )
 
-var (
-	lockMessageMockCommit           sync.RWMutex
-	lockMessageMockCommitAndRelease sync.RWMutex
-	lockMessageMockGetData          sync.RWMutex
-	lockMessageMockMark             sync.RWMutex
-	lockMessageMockOffset           sync.RWMutex
-	lockMessageMockRelease          sync.RWMutex
-	lockMessageMockUpstreamDone     sync.RWMutex
-)
-
 // MessageMock is a mock implementation of kafka.Message.
 //
-//     func TestSomethingThatUsesMessage(t *testing.T) {
+// 	func TestSomethingThatUsesMessage(t *testing.T) {
 //
-//         // make and configure a mocked kafka.Message
-//         mockedMessage := &MessageMock{
-//             CommitFunc: func()  {
-// 	               panic("mock out the Commit method")
-//             },
-//             CommitAndReleaseFunc: func()  {
-// 	               panic("mock out the CommitAndRelease method")
-//             },
-//             GetDataFunc: func() []byte {
-// 	               panic("mock out the GetData method")
-//             },
-//             MarkFunc: func()  {
-// 	               panic("mock out the Mark method")
-//             },
-//             OffsetFunc: func() int64 {
-// 	               panic("mock out the Offset method")
-//             },
-//             ReleaseFunc: func()  {
-// 	               panic("mock out the Release method")
-//             },
-//             UpstreamDoneFunc: func() chan struct{} {
-// 	               panic("mock out the UpstreamDone method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.Message
+// 		mockedMessage := &MessageMock{
+// 			CommitFunc: func()  {
+// 				panic("mock out the Commit method")
+// 			},
+// 			CommitAndReleaseFunc: func()  {
+// 				panic("mock out the CommitAndRelease method")
+// 			},
+// 			GetDataFunc: func() []byte {
+// 				panic("mock out the GetData method")
+// 			},
+// 			MarkFunc: func()  {
+// 				panic("mock out the Mark method")
+// 			},
+// 			OffsetFunc: func() int64 {
+// 				panic("mock out the Offset method")
+// 			},
+// 			ReleaseFunc: func()  {
+// 				panic("mock out the Release method")
+// 			},
+// 			UpstreamDoneFunc: func() chan struct{} {
+// 				panic("mock out the UpstreamDone method")
+// 			},
+// 		}
 //
-//         // use mockedMessage in code that requires kafka.Message
-//         // and then make assertions.
+// 		// use mockedMessage in code that requires kafka.Message
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type MessageMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func()
@@ -96,6 +86,13 @@ type MessageMock struct {
 		UpstreamDone []struct {
 		}
 	}
+	lockCommit           sync.RWMutex
+	lockCommitAndRelease sync.RWMutex
+	lockGetData          sync.RWMutex
+	lockMark             sync.RWMutex
+	lockOffset           sync.RWMutex
+	lockRelease          sync.RWMutex
+	lockUpstreamDone     sync.RWMutex
 }
 
 // Commit calls CommitFunc.
@@ -105,9 +102,9 @@ func (mock *MessageMock) Commit() {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockCommit.Lock()
+	mock.lockCommit.Lock()
 	mock.calls.Commit = append(mock.calls.Commit, callInfo)
-	lockMessageMockCommit.Unlock()
+	mock.lockCommit.Unlock()
 	mock.CommitFunc()
 }
 
@@ -118,9 +115,9 @@ func (mock *MessageMock) CommitCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockCommit.RLock()
+	mock.lockCommit.RLock()
 	calls = mock.calls.Commit
-	lockMessageMockCommit.RUnlock()
+	mock.lockCommit.RUnlock()
 	return calls
 }
 
@@ -131,9 +128,9 @@ func (mock *MessageMock) CommitAndRelease() {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockCommitAndRelease.Lock()
+	mock.lockCommitAndRelease.Lock()
 	mock.calls.CommitAndRelease = append(mock.calls.CommitAndRelease, callInfo)
-	lockMessageMockCommitAndRelease.Unlock()
+	mock.lockCommitAndRelease.Unlock()
 	mock.CommitAndReleaseFunc()
 }
 
@@ -144,9 +141,9 @@ func (mock *MessageMock) CommitAndReleaseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockCommitAndRelease.RLock()
+	mock.lockCommitAndRelease.RLock()
 	calls = mock.calls.CommitAndRelease
-	lockMessageMockCommitAndRelease.RUnlock()
+	mock.lockCommitAndRelease.RUnlock()
 	return calls
 }
 
@@ -157,9 +154,9 @@ func (mock *MessageMock) GetData() []byte {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockGetData.Lock()
+	mock.lockGetData.Lock()
 	mock.calls.GetData = append(mock.calls.GetData, callInfo)
-	lockMessageMockGetData.Unlock()
+	mock.lockGetData.Unlock()
 	return mock.GetDataFunc()
 }
 
@@ -170,9 +167,9 @@ func (mock *MessageMock) GetDataCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockGetData.RLock()
+	mock.lockGetData.RLock()
 	calls = mock.calls.GetData
-	lockMessageMockGetData.RUnlock()
+	mock.lockGetData.RUnlock()
 	return calls
 }
 
@@ -183,9 +180,9 @@ func (mock *MessageMock) Mark() {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockMark.Lock()
+	mock.lockMark.Lock()
 	mock.calls.Mark = append(mock.calls.Mark, callInfo)
-	lockMessageMockMark.Unlock()
+	mock.lockMark.Unlock()
 	mock.MarkFunc()
 }
 
@@ -196,9 +193,9 @@ func (mock *MessageMock) MarkCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockMark.RLock()
+	mock.lockMark.RLock()
 	calls = mock.calls.Mark
-	lockMessageMockMark.RUnlock()
+	mock.lockMark.RUnlock()
 	return calls
 }
 
@@ -209,9 +206,9 @@ func (mock *MessageMock) Offset() int64 {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockOffset.Lock()
+	mock.lockOffset.Lock()
 	mock.calls.Offset = append(mock.calls.Offset, callInfo)
-	lockMessageMockOffset.Unlock()
+	mock.lockOffset.Unlock()
 	return mock.OffsetFunc()
 }
 
@@ -222,9 +219,9 @@ func (mock *MessageMock) OffsetCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockOffset.RLock()
+	mock.lockOffset.RLock()
 	calls = mock.calls.Offset
-	lockMessageMockOffset.RUnlock()
+	mock.lockOffset.RUnlock()
 	return calls
 }
 
@@ -235,9 +232,9 @@ func (mock *MessageMock) Release() {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockRelease.Lock()
+	mock.lockRelease.Lock()
 	mock.calls.Release = append(mock.calls.Release, callInfo)
-	lockMessageMockRelease.Unlock()
+	mock.lockRelease.Unlock()
 	mock.ReleaseFunc()
 }
 
@@ -248,9 +245,9 @@ func (mock *MessageMock) ReleaseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockRelease.RLock()
+	mock.lockRelease.RLock()
 	calls = mock.calls.Release
-	lockMessageMockRelease.RUnlock()
+	mock.lockRelease.RUnlock()
 	return calls
 }
 
@@ -261,9 +258,9 @@ func (mock *MessageMock) UpstreamDone() chan struct{} {
 	}
 	callInfo := struct {
 	}{}
-	lockMessageMockUpstreamDone.Lock()
+	mock.lockUpstreamDone.Lock()
 	mock.calls.UpstreamDone = append(mock.calls.UpstreamDone, callInfo)
-	lockMessageMockUpstreamDone.Unlock()
+	mock.lockUpstreamDone.Unlock()
 	return mock.UpstreamDoneFunc()
 }
 
@@ -274,8 +271,8 @@ func (mock *MessageMock) UpstreamDoneCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockMessageMockUpstreamDone.RLock()
+	mock.lockUpstreamDone.RLock()
 	calls = mock.calls.UpstreamDone
-	lockMessageMockUpstreamDone.RUnlock()
+	mock.lockUpstreamDone.RUnlock()
 	return calls
 }

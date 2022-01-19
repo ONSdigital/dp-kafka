@@ -407,6 +407,16 @@ For example, the following code will only be executed once the `Consuming` state
     ...
 ```
 
+A function called `StateWait` has been implemented, which does the same. You can call it like so:
+
+```go
+    ...
+    // Wait for consuming state
+    consumer.StateWait(kafka.Consuming)
+    doStuffThatRequiresConsuming()
+    ...
+```
+
 ## Closing
 
 Producers can be closed by calling the `Close` method.

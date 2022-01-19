@@ -79,7 +79,10 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)
-	sh.state.SetIf([]State{Consuming}, Starting)
+	// hence, if there is a transition error, it will be logged with info severity, but not propagated.
+	if err := sh.state.SetIf([]State{Consuming}, Starting); err != nil {
+		log.Info(sh.ctx, "failed to transition state during Sarama session Cleanup", log.Data{"err": err})
+	}
 
 	return nil
 }

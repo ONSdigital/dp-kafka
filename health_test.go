@@ -158,7 +158,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'OK'", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, MsgHealthyProducer)
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -169,7 +170,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting([]string{testBroker0, testBroker1, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -180,7 +182,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting([]string{testBroker0, testBroker1, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -191,7 +194,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting([]string{testBroker0, "localhost:0000", "localhost:1111"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL' because at least 2 valid brokers are required", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
 					"broker(s) not reachable at: [localhost:0000 localhost:1111]",
@@ -205,7 +209,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting(testBrokers, "anotherTopic")
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
 					"topic anotherTopic not available in broker(s): [localhost:12300 localhost:12301 localhost:12302]",
@@ -223,7 +228,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			p, err := createProducerForTesting([]string{testBroker2, testBroker3, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -235,7 +241,8 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(p.IsInitialised(), ShouldBeFalse)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				p.Checker(context.Background(), checkState)
+				err := p.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "kafka producer is not initialised")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -256,7 +263,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting(testBrokers, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'OK'", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, MsgHealthyConsumerGroup)
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -267,7 +275,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting([]string{testBroker0, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -278,7 +287,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting([]string{testBroker0, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -289,7 +299,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting([]string{"localhost:0000", "localhost:1111"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
 					"broker(s) not reachable at: [localhost:0000 localhost:1111]",
@@ -303,7 +314,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting(testBrokers, "test2")
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldBeIn, []string{
 					"topic test2 not available in broker(s): [localhost:12300 localhost:12301 localhost:12302]",
@@ -321,7 +333,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			cg, err := createConsumerForTesting([]string{testBroker3, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusCritical)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000], topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
@@ -333,7 +346,8 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(cg.IsInitialised(), ShouldBeFalse)
 			Convey("Then Checker sets the health status to 'CRITICAL'", func() {
-				cg.Checker(context.Background(), checkState)
+				err := cg.Checker(context.Background(), checkState)
+				So(err, ShouldBeNil)
 				So(checkState.Status(), ShouldEqual, health.StatusWarning)
 				So(checkState.Message(), ShouldEqual, "kafka consumer-group is not initialised")
 				So(checkState.StatusCode(), ShouldEqual, 0)

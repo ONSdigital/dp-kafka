@@ -8,8 +8,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-type stringMap map[string]string
-
 func TestUnitMarshal(t *testing.T) {
 	Convey("Nested objects", t, func() {
 		schema := &Schema{
@@ -338,17 +336,17 @@ func TestUnitGetArraySchema(t *testing.T) {
 // Test getNestedSchema function
 func TestUnitGetNestedSchema(t *testing.T) {
 	Convey("Successfully retrieve nested schema", t, func() {
-		avroSchema, v, t := setUp(testNestedArraySchema, 4)
+		avroSchema, _, _ := setUp(testNestedArraySchema, 4)
 
-		newSchema, err := getNestedSchema(avroSchema, "footballers", v, t)
+		newSchema, err := getNestedSchema(avroSchema, "footballers")
 		So(err, ShouldBeNil)
 		So(newSchema, ShouldNotBeEmpty)
 	})
 
 	Convey("Error retrieving nested schema", t, func() {
-		avroSchema, v, t := setUp(testNestedArraySchema, 4)
+		avroSchema, _, _ := setUp(testNestedArraySchema, 4)
 
-		newSchema, err := getNestedSchema(avroSchema, "footballer", v, t)
+		newSchema, err := getNestedSchema(avroSchema, "footballer")
 		So(err, ShouldNotBeNil)
 		So(err, ShouldResemble, ErrMissingNestedScema)
 		So(newSchema, ShouldBeNil)

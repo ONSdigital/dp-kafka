@@ -11,7 +11,7 @@ import (
 var defaultProducerMinBrokersHealthy = 2
 
 // ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
-// Any value that is not provied will use the default Sarama config value.
+// Any value that is not provided will use the default Sarama config value.
 type ProducerConfig struct {
 	// Sarama config overrides
 	KafkaVersion      *string

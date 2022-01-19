@@ -124,7 +124,8 @@ func TestConsumerInitialised(t *testing.T) {
 			saramaConsumerGroupMock.CloseFunc = func() error {
 				return nil
 			}
-			consumer.Close(ctx)
+			err := consumer.Close(ctx)
+			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
 			validateChanClosed(c, consumer.Channels().Closer, true)
 			validateChanClosed(c, consumer.Channels().Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
@@ -164,7 +165,8 @@ func TestConsumerNotInitialised(t *testing.T) {
 		})
 
 		Convey("Closing the consumer closes the caller channels", func(c C) {
-			consumer.Close(ctx)
+			err := consumer.Close(ctx)
+			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
 			validateChanClosed(c, consumer.Channels().Closer, true)
 			validateChanClosed(c, consumer.Channels().Closed, true)
 		})
@@ -201,7 +203,7 @@ func TestStateWait(t *testing.T) {
 		}
 		cg.state.Set(Initialising)
 
-		var validateWait = func(newState State, shouldWait bool) {
+		var validateStateWait = func(newState State, shouldWait bool) {
 			wg := &sync.WaitGroup{}
 			mutex := &sync.Mutex{}
 
@@ -216,7 +218,7 @@ func TestStateWait(t *testing.T) {
 					mutex.Unlock()
 					wg.Done()
 				}()
-				cg.state.GetChan(newState).Wait()
+				cg.StateWait(newState)
 			}()
 
 			// sleep enough time to make sure the go-routine is either waiting or has finished execution
@@ -233,16 +235,16 @@ func TestStateWait(t *testing.T) {
 		}
 
 		Convey("Then Waiting for the current state returns straight away for the current state", func() {
-			validateWait(Initialising, false)
+			validateStateWait(Initialising, false)
 		})
 
 		Convey("Then Waiting for any other state, blocks execution until the state is reached", func() {
-			validateWait(Starting, true)
-			validateWait(Stopped, true)
-			validateWait(Starting, true)
-			validateWait(Consuming, true)
-			validateWait(Stopping, true)
-			validateWait(Closing, true)
+			validateStateWait(Starting, true)
+			validateStateWait(Stopped, true)
+			validateStateWait(Starting, true)
+			validateStateWait(Consuming, true)
+			validateStateWait(Stopping, true)
+			validateStateWait(Closing, true)
 		})
 	})
 }
@@ -460,7 +462,8 @@ func TestStop(t *testing.T) {
 
 		Convey("Calling Stop in 'Initialising' state results 'Stopped' initial state being set", func() {
 			cg.state = NewConsumerStateMachine()
-			cg.Stop()
+			err := cg.Stop()
+			So(err, ShouldBeNil)
 			So(cg.initialState, ShouldEqual, Stopped)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
@@ -468,25 +471,28 @@ func TestStop(t *testing.T) {
 		Convey("Calling Stop in 'Stopping' has no effect", func() {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Stopping)
-			cg.Stop()
+			err := cg.Stop()
+			So(err, ShouldBeNil)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
 		Convey("Calling Stop in 'Stopped' state has no effect", func() {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Stopped)
-			cg.Stop()
+			err := cg.Stop()
+			So(err, ShouldBeNil)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 
-		Convey("Calling Stop in 'Starting' results in a 'true' value being sent to the Consume channel", func() {
+		Convey("Calling Stop in 'Starting' results in a 'true' value being sent to the Consume channel", func(c C) {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Starting)
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				cg.Stop()
+				err := cg.Stop()
+				c.So(err, ShouldBeNil)
 			}()
 
 			val := <-channels.Consume
@@ -494,14 +500,15 @@ func TestStop(t *testing.T) {
 			So(val, ShouldBeFalse)
 		})
 
-		Convey("Calling Stop in 'Consuming' results in a 'true' value being sent to the Consume channel", func() {
+		Convey("Calling Stop in 'Consuming' results in a 'true' value being sent to the Consume channel", func(c C) {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Consuming)
 			wg := &sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				cg.Stop()
+				err := cg.Stop()
+				c.So(err, ShouldBeNil)
 			}()
 
 			val := <-channels.Consume
@@ -509,7 +516,7 @@ func TestStop(t *testing.T) {
 			So(val, ShouldBeFalse)
 		})
 
-		Convey("Calling StopAndWait in 'Consuming' results in a 'true' value being sent to the Consume channel and the call blocking until the sessionConsuming channel is closed", func() {
+		Convey("Calling StopAndWait in 'Consuming' results in a 'true' value being sent to the Consume channel and the call blocking until the sessionConsuming channel is closed", func(c C) {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Consuming)
 			cg.saramaCgHandler = &saramaHandler{
@@ -522,7 +529,8 @@ func TestStop(t *testing.T) {
 			go func() {
 				defer wg.Done()
 				waiting = true
-				cg.StopAndWait()
+				err := cg.StopAndWait()
+				c.So(err, ShouldBeNil)
 				waiting = false
 			}()
 
@@ -538,7 +546,8 @@ func TestStop(t *testing.T) {
 		Convey("Calling Stop in 'Closing' state has no effect", func() {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Closing)
-			cg.Stop()
+			err := cg.Stop()
+			So(err, ShouldBeNil)
 			So(len(channels.Consume), ShouldEqual, 0)
 		})
 	})

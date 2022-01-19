@@ -38,7 +38,7 @@ func TestAdd(t *testing.T) {
 		batch := NewBatch(batchSize)
 
 		Convey("When add is called with a valid message", func() {
-			batch.Add(ctx, newMessage([]byte{1, 2, 3, 4}, 0))
+			batch.Add(newMessage([]byte{1, 2, 3, 4}, 0))
 
 			Convey("The batch contains the expected message.", func() {
 				So(batch.Size(), ShouldEqual, 1)
@@ -55,8 +55,8 @@ func TestCommit(t *testing.T) {
 		batchSize := 2
 		batch := NewBatch(batchSize)
 
-		batch.Add(ctx, message1)
-		batch.Add(ctx, message2)
+		batch.Add(message1)
+		batch.Add(message2)
 
 		Convey("When commit is called", func() {
 			batch.Commit()
@@ -80,8 +80,8 @@ func TestClear(t *testing.T) {
 		batchSize := 2
 		batch := NewBatch(batchSize)
 
-		batch.Add(ctx, message1)
-		batch.Add(ctx, message2)
+		batch.Add(message1)
+		batch.Add(message2)
 
 		Convey("When Clear is called", func() {
 			batch.Clear()
@@ -93,7 +93,7 @@ func TestClear(t *testing.T) {
 			})
 
 			Convey("The batch can be reused", func() {
-				batch.Add(ctx, message3)
+				batch.Add(message3)
 
 				So(batch.IsEmpty(), ShouldBeFalse)
 				So(batch.IsFull(), ShouldBeFalse)
@@ -113,11 +113,11 @@ func TestSize(t *testing.T) {
 		So(batch.Size(), ShouldEqual, 0)
 
 		Convey("When add is called with a valid message", func() {
-			batch.Add(ctx, message)
+			batch.Add(message)
 
 			Convey("The batch size should increase.", func() {
 				So(batch.Size(), ShouldEqual, 1)
-				batch.Add(ctx, message)
+				batch.Add(message)
 				So(batch.Size(), ShouldEqual, 2)
 			})
 		})
@@ -135,9 +135,9 @@ func TestIsFull(t *testing.T) {
 
 		Convey("When the number of messages added equals the batch size", func() {
 
-			batch.Add(ctx, message)
+			batch.Add(message)
 			So(batch.IsFull(), ShouldBeFalse)
-			batch.Add(ctx, message)
+			batch.Add(message)
 
 			Convey("The batch should be full.", func() {
 				So(batch.IsFull(), ShouldBeTrue)

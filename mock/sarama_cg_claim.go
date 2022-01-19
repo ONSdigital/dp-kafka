@@ -8,41 +8,33 @@ import (
 	"sync"
 )
 
-var (
-	lockSaramaConsumerGroupClaimMockHighWaterMarkOffset sync.RWMutex
-	lockSaramaConsumerGroupClaimMockInitialOffset       sync.RWMutex
-	lockSaramaConsumerGroupClaimMockMessages            sync.RWMutex
-	lockSaramaConsumerGroupClaimMockPartition           sync.RWMutex
-	lockSaramaConsumerGroupClaimMockTopic               sync.RWMutex
-)
-
 // SaramaConsumerGroupClaimMock is a mock implementation of kafka.SaramaConsumerGroupClaim.
 //
-//     func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
+// 	func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroupClaim
-//         mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
-//             HighWaterMarkOffsetFunc: func() int64 {
-// 	               panic("mock out the HighWaterMarkOffset method")
-//             },
-//             InitialOffsetFunc: func() int64 {
-// 	               panic("mock out the InitialOffset method")
-//             },
-//             MessagesFunc: func() <-chan *sarama.ConsumerMessage {
-// 	               panic("mock out the Messages method")
-//             },
-//             PartitionFunc: func() int32 {
-// 	               panic("mock out the Partition method")
-//             },
-//             TopicFunc: func() string {
-// 	               panic("mock out the Topic method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.SaramaConsumerGroupClaim
+// 		mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
+// 			HighWaterMarkOffsetFunc: func() int64 {
+// 				panic("mock out the HighWaterMarkOffset method")
+// 			},
+// 			InitialOffsetFunc: func() int64 {
+// 				panic("mock out the InitialOffset method")
+// 			},
+// 			MessagesFunc: func() <-chan *sarama.ConsumerMessage {
+// 				panic("mock out the Messages method")
+// 			},
+// 			PartitionFunc: func() int32 {
+// 				panic("mock out the Partition method")
+// 			},
+// 			TopicFunc: func() string {
+// 				panic("mock out the Topic method")
+// 			},
+// 		}
 //
-//         // use mockedSaramaConsumerGroupClaim in code that requires kafka.SaramaConsumerGroupClaim
-//         // and then make assertions.
+// 		// use mockedSaramaConsumerGroupClaim in code that requires kafka.SaramaConsumerGroupClaim
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type SaramaConsumerGroupClaimMock struct {
 	// HighWaterMarkOffsetFunc mocks the HighWaterMarkOffset method.
 	HighWaterMarkOffsetFunc func() int64
@@ -77,6 +69,11 @@ type SaramaConsumerGroupClaimMock struct {
 		Topic []struct {
 		}
 	}
+	lockHighWaterMarkOffset sync.RWMutex
+	lockInitialOffset       sync.RWMutex
+	lockMessages            sync.RWMutex
+	lockPartition           sync.RWMutex
+	lockTopic               sync.RWMutex
 }
 
 // HighWaterMarkOffset calls HighWaterMarkOffsetFunc.
@@ -86,9 +83,9 @@ func (mock *SaramaConsumerGroupClaimMock) HighWaterMarkOffset() int64 {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupClaimMockHighWaterMarkOffset.Lock()
+	mock.lockHighWaterMarkOffset.Lock()
 	mock.calls.HighWaterMarkOffset = append(mock.calls.HighWaterMarkOffset, callInfo)
-	lockSaramaConsumerGroupClaimMockHighWaterMarkOffset.Unlock()
+	mock.lockHighWaterMarkOffset.Unlock()
 	return mock.HighWaterMarkOffsetFunc()
 }
 
@@ -99,9 +96,9 @@ func (mock *SaramaConsumerGroupClaimMock) HighWaterMarkOffsetCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupClaimMockHighWaterMarkOffset.RLock()
+	mock.lockHighWaterMarkOffset.RLock()
 	calls = mock.calls.HighWaterMarkOffset
-	lockSaramaConsumerGroupClaimMockHighWaterMarkOffset.RUnlock()
+	mock.lockHighWaterMarkOffset.RUnlock()
 	return calls
 }
 
@@ -112,9 +109,9 @@ func (mock *SaramaConsumerGroupClaimMock) InitialOffset() int64 {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupClaimMockInitialOffset.Lock()
+	mock.lockInitialOffset.Lock()
 	mock.calls.InitialOffset = append(mock.calls.InitialOffset, callInfo)
-	lockSaramaConsumerGroupClaimMockInitialOffset.Unlock()
+	mock.lockInitialOffset.Unlock()
 	return mock.InitialOffsetFunc()
 }
 
@@ -125,9 +122,9 @@ func (mock *SaramaConsumerGroupClaimMock) InitialOffsetCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupClaimMockInitialOffset.RLock()
+	mock.lockInitialOffset.RLock()
 	calls = mock.calls.InitialOffset
-	lockSaramaConsumerGroupClaimMockInitialOffset.RUnlock()
+	mock.lockInitialOffset.RUnlock()
 	return calls
 }
 
@@ -138,9 +135,9 @@ func (mock *SaramaConsumerGroupClaimMock) Messages() <-chan *sarama.ConsumerMess
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupClaimMockMessages.Lock()
+	mock.lockMessages.Lock()
 	mock.calls.Messages = append(mock.calls.Messages, callInfo)
-	lockSaramaConsumerGroupClaimMockMessages.Unlock()
+	mock.lockMessages.Unlock()
 	return mock.MessagesFunc()
 }
 
@@ -151,9 +148,9 @@ func (mock *SaramaConsumerGroupClaimMock) MessagesCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupClaimMockMessages.RLock()
+	mock.lockMessages.RLock()
 	calls = mock.calls.Messages
-	lockSaramaConsumerGroupClaimMockMessages.RUnlock()
+	mock.lockMessages.RUnlock()
 	return calls
 }
 
@@ -164,9 +161,9 @@ func (mock *SaramaConsumerGroupClaimMock) Partition() int32 {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupClaimMockPartition.Lock()
+	mock.lockPartition.Lock()
 	mock.calls.Partition = append(mock.calls.Partition, callInfo)
-	lockSaramaConsumerGroupClaimMockPartition.Unlock()
+	mock.lockPartition.Unlock()
 	return mock.PartitionFunc()
 }
 
@@ -177,9 +174,9 @@ func (mock *SaramaConsumerGroupClaimMock) PartitionCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupClaimMockPartition.RLock()
+	mock.lockPartition.RLock()
 	calls = mock.calls.Partition
-	lockSaramaConsumerGroupClaimMockPartition.RUnlock()
+	mock.lockPartition.RUnlock()
 	return calls
 }
 
@@ -190,9 +187,9 @@ func (mock *SaramaConsumerGroupClaimMock) Topic() string {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupClaimMockTopic.Lock()
+	mock.lockTopic.Lock()
 	mock.calls.Topic = append(mock.calls.Topic, callInfo)
-	lockSaramaConsumerGroupClaimMockTopic.Unlock()
+	mock.lockTopic.Unlock()
 	return mock.TopicFunc()
 }
 
@@ -203,8 +200,8 @@ func (mock *SaramaConsumerGroupClaimMock) TopicCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupClaimMockTopic.RLock()
+	mock.lockTopic.RLock()
 	calls = mock.calls.Topic
-	lockSaramaConsumerGroupClaimMockTopic.RUnlock()
+	mock.lockTopic.RUnlock()
 	return calls
 }

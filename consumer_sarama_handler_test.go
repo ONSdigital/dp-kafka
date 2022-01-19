@@ -226,7 +226,8 @@ func TestConsume(t *testing.T) {
 			CommitFunc:      func() {},
 			MarkMessageFunc: func(msg *sarama.ConsumerMessage, metadata string) {},
 		}
-		cgHandler.Setup(cgSession)
+		err := cgHandler.Setup(cgSession)
+		So(err, ShouldBeNil)
 
 		saramaMessagesChan := make(chan *sarama.ConsumerMessage, saramaChannelBufferSize)
 		cgClaim := &mock.SaramaConsumerGroupClaimMock{

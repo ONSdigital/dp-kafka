@@ -8,7 +8,7 @@ import (
 )
 
 // AdminConfig exposes the optional configurable parameters for an admin client to overwrite default Sarama config values.
-// Any value that is not provied will use the default Sarama config value.
+// Any value that is not provided will use the default Sarama config value.
 type AdminConfig struct {
 	KafkaVersion   *string
 	KeepAlive      *time.Duration

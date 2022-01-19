@@ -155,8 +155,8 @@ func TestProducerConfigValidation(t *testing.T) {
 		})
 
 		Convey("With MinRetryPeriod greater than MaxRetryPeriod, then Validate fails with the expected error", func() {
-			var minRetryPeriod time.Duration = 1001 * time.Millisecond
-			var maxRetryPeriod time.Duration = time.Second
+			minRetryPeriod := 1001 * time.Millisecond
+			maxRetryPeriod := time.Second
 			cfg.MinRetryPeriod = &minRetryPeriod
 			cfg.MaxRetryPeriod = &maxRetryPeriod
 			err := cfg.Validate()

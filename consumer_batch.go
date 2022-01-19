@@ -1,7 +1,6 @@
 package kafka
 
 import (
-	"context"
 	"sync"
 )
 
@@ -21,7 +20,7 @@ func NewBatch(batchSize int) *Batch {
 }
 
 // Add a message to the batch.
-func (batch *Batch) Add(ctx context.Context, message Message) {
+func (batch *Batch) Add(message Message) {
 	batch.mutex.Lock()
 	defer batch.mutex.Unlock()
 

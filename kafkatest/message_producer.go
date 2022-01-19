@@ -54,6 +54,7 @@ func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitial
 }
 
 func (internal *pInternal) initialiseFunc(ctx context.Context) error {
+	_ = ctx
 	if internal.isInitialised {
 		return nil
 	}
@@ -71,6 +72,7 @@ func (internal *pInternal) channelsFunc() *kafka.ProducerChannels {
 }
 
 func (internal *pInternal) closeFunc(ctx context.Context) (err error) {
+	_ = ctx
 	close(internal.pChannels.Closer)
 	close(internal.pChannels.Closed)
 	close(internal.pChannels.Errors)

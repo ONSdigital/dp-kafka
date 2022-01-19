@@ -18,6 +18,7 @@ import (
 type IConsumerGroup interface {
 	Channels() *ConsumerGroupChannels
 	State() string
+	StateWait()
 	RegisterHandler(ctx context.Context, h Handler) error
 	RegisterBatchHandler(ctx context.Context, batchHandler BatchHandler) error
 	Checker(ctx context.Context, state *healthcheck.CheckState) error
@@ -25,8 +26,8 @@ type IConsumerGroup interface {
 	Initialise(ctx context.Context) error
 	OnHealthUpdate(status string)
 	Start() error
-	Stop()
-	StopAndWait()
+	Stop() error
+	StopAndWait() error
 	LogErrors(ctx context.Context)
 	Close(ctx context.Context) error
 }
@@ -54,6 +55,7 @@ type ConsumerGroup struct {
 	minRetryPeriod    time.Duration
 	maxRetryPeriod    time.Duration
 	minBrokersHealthy int
+	ctx               context.Context // Contet provided to the ConsumerGroup at creation time
 }
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
@@ -101,6 +103,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		minRetryPeriod:    *cgConfig.MinRetryPeriod,
 		maxRetryPeriod:    *cgConfig.MaxRetryPeriod,
 		minBrokersHealthy: *cgConfig.MinBrokersHealthy,
+		ctx:               ctx,
 	}
 
 	// Close consumer group on context.Done
@@ -108,7 +111,9 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "closing consumer group because context is done")
-			cg.Close(ctx)
+			if err := cg.Close(ctx); err != nil {
+				log.Error(ctx, "error closing consumer group: %w", err, log.Data{"topic": cg.topic, "group": cg.group})
+			}
 		case <-cg.channels.Closer:
 			return
 		}
@@ -138,6 +143,11 @@ func (cg *ConsumerGroup) State() string {
 		return ""
 	}
 	return cg.state.String()
+}
+
+// StateWait blocks the calling thread until the provided state is reached
+func (cg *ConsumerGroup) StateWait(state State) {
+	cg.state.GetChan(state).Wait()
 }
 
 func (cg *ConsumerGroup) RegisterHandler(ctx context.Context, h Handler) error {
@@ -220,11 +230,17 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 func (cg *ConsumerGroup) OnHealthUpdate(status string) {
 	switch status {
 	case healthcheck.StatusOK:
-		cg.Start()
+		if err := cg.Start(); err != nil {
+			log.Error(cg.ctx, "error starting consumer-group on a healthy state report", err, log.Data{"topic": cg.topic, "group": cg.group})
+		}
 	case healthcheck.StatusWarning:
-		cg.Stop()
+		if err := cg.Stop(); err != nil {
+			log.Error(cg.ctx, "error stopping consumer-group on a warning state report", err, log.Data{"topic": cg.topic, "group": cg.group})
+		}
 	case healthcheck.StatusCritical:
-		cg.Stop()
+		if err := cg.Stop(); err != nil {
+			log.Error(cg.ctx, "error stopping consumer-group on a critical state report", err, log.Data{"topic": cg.topic, "group": cg.group})
+		}
 	}
 }
 
@@ -242,7 +258,9 @@ func (cg *ConsumerGroup) Start() error {
 		cg.initialState = Starting // when the consumer is initialised, it will start straight away
 		return nil
 	case Stopping, Stopped:
-		SafeSendBool(cg.channels.Consume, true)
+		if err := SafeSendBool(cg.channels.Consume, true); err != nil {
+			return fmt.Errorf("failed to send 'true' to consume channel: %w", err)
+		}
 		return nil
 	case Starting, Consuming:
 		return nil // already started, nothing to do
@@ -257,8 +275,9 @@ func (cg *ConsumerGroup) Start() error {
 // - Stopping/Stopped: the consumer will start start consuming
 // - Closing: an error will be returned
 // This method does not wait until the consumerGroup reaches the stopped state, it only triggers the stopping action.
-func (cg *ConsumerGroup) Stop() {
-	cg.stop(false)
+// Any error while trying to trigger the stop will be returned
+func (cg *ConsumerGroup) Stop() error {
+	return cg.stop(false)
 }
 
 // StopAndWait has different effects depending on the state:
@@ -267,28 +286,31 @@ func (cg *ConsumerGroup) Stop() {
 // - Stopping/Stopped: the consumer will start start consuming
 // - Closing: an error will be returned
 // This method waits until the consumerGroup reaches the stopped state if it was starting/consuming.
-func (cg *ConsumerGroup) StopAndWait() {
-	cg.stop(true)
+// Any error while trying to trigger the stop will be returned and the therad will not be blocked.
+func (cg *ConsumerGroup) StopAndWait() error {
+	return cg.stop(true)
 }
 
-func (cg *ConsumerGroup) stop(sync bool) {
+func (cg *ConsumerGroup) stop(sync bool) error {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
 	switch cg.state.Get() {
 	case Initialising:
 		cg.initialState = Stopped // when the consumer is initialised, it will do nothing - no need to wait
-		return
+		return nil
 	case Stopping, Stopped:
-		return // already stopped, nothing to do
+		return nil // already stopped, nothing to do
 	case Starting, Consuming:
-		SafeSendBool(cg.channels.Consume, false)
+		if err := SafeSendBool(cg.channels.Consume, false); err != nil {
+			return fmt.Errorf("failed to send 'false' to consume channel: %w", err)
+		}
 		if sync {
 			<-cg.saramaCgHandler.sessionConsuming // wait until the active kafka session finishes
 		}
-		return
+		return nil
 	default: // Closing state
-		return // the consumer is being closed, so it is already 'stopped'
+		return nil // the consumer is being closed, so it is already 'stopped'
 	}
 }
 
@@ -362,8 +384,14 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	}
 
 	// Close all brokers connections (used by healthcheck)
+	brokerErrs := []error{}
 	for _, broker := range cg.brokers {
-		broker.Close()
+		if err := broker.Close(); err != nil {
+			brokerErrs = append(brokerErrs, err)
+		}
+	}
+	if len(brokerErrs) > 0 {
+		return fmt.Errorf("error(s) closing broker connections: %v", brokerErrs)
 	}
 
 	log.Info(ctx, "successfully closed kafka consumer group", logData)
@@ -557,7 +585,9 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 				if !ok {
 					return
 				}
-				SafeSendErr(cg.channels.Errors, err)
+				if errSend := SafeSendErr(cg.channels.Errors, err); err != nil {
+					log.Error(ctx, "consumer-group error sending error to the error channel: %w", errSend, log.Data{"original_error": err}, log.Data{"topic": cg.topic, "group": cg.group})
+				}
 			}
 		}
 	}()

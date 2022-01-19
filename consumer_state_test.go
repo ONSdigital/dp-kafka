@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -28,14 +29,16 @@ func TestSetIf(t *testing.T) {
 		validateChanClosed(c, sm.channels.Stopped.channel, true)
 
 		Convey("Then calling SetIf with an initial state condition that does not contain Stopped state results in the state not being changed and the channels remaining the same", func(c C) {
-			sm.SetIf([]State{Consuming}, Starting)
+			err := sm.SetIf([]State{Consuming}, Starting)
+			So(err, ShouldResemble, errors.New("state transition from Stopped to Starting is not allowed"))
 			So(sm.state, ShouldEqual, Stopped)
 			validateChanClosed(c, sm.channels.Stopped.channel, true)
 			validateChanClosed(c, sm.channels.Starting.channel, false)
 		})
 
 		Convey("Then calling SetIf with an initial state condition that does contain Stopped state results in the state being changed and the channels being closed and created accordingly", func(c C) {
-			sm.SetIf([]State{Consuming, Stopped}, Starting)
+			err := sm.SetIf([]State{Consuming, Stopped}, Starting)
+			So(err, ShouldBeNil)
 			So(sm.state, ShouldEqual, Starting)
 			validateChanClosed(c, sm.channels.Stopped.channel, false)
 			validateChanClosed(c, sm.channels.Starting.channel, true)

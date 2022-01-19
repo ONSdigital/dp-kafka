@@ -11,14 +11,13 @@ import (
 
 // channel names
 const (
-	Errors       = "Errors"
-	Initialised  = "Initialised"
-	Consume      = "Consume"
-	Closer       = "Closer"
-	Closed       = "Closed"
-	Upstream     = "Upstream"
-	UpstreamDone = "UpstreamDone"
-	Output       = "Output"
+	Errors      = "Errors"
+	Initialised = "Initialised"
+	Consume     = "Consume"
+	Closer      = "Closer"
+	Closed      = "Closed"
+	Upstream    = "Upstream"
+	Output      = "Output"
 )
 
 // ConsumerGroupChannels represents the channels used by ConsumerGroup.

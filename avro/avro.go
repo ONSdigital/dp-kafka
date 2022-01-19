@@ -145,7 +145,7 @@ func generateDecodedRecord(schema string, message []byte) (*avro.GenericRecord, 
 	return decodedRecord, nil
 }
 
-func getNestedSchema(avroSchema avro.Schema, fieldTag string, v reflect.Value, typ reflect.Type) (avro.Schema, error) {
+func getNestedSchema(avroSchema avro.Schema, fieldTag string) (avro.Schema, error) {
 	// Unmarshal parent avro schema into map
 	var schemaMap map[string]interface{}
 	if err := json.Unmarshal([]byte(avroSchema.String()), &schemaMap); err != nil {
@@ -216,7 +216,7 @@ func getRecord(avroSchema avro.Schema, v reflect.Value, typ reflect.Type) (*avro
 			value := v.FieldByName(fieldName).Interface().(int64)
 			record.Set(fieldTag, value)
 		case reflect.Map:
-			if err := marshalMap(record, v, i, fieldTag, avroSchema); err != nil {
+			if err := marshalMap(record, v, i, fieldTag); err != nil {
 				return nil, err
 			}
 		case reflect.Slice:
@@ -224,7 +224,7 @@ func getRecord(avroSchema avro.Schema, v reflect.Value, typ reflect.Type) (*avro
 				return nil, err
 			}
 		case reflect.Struct:
-			nestedSchema, err := getNestedSchema(avroSchema, fieldTag, v, typ)
+			nestedSchema, err := getNestedSchema(avroSchema, fieldTag)
 			if err != nil {
 				return nil, err
 			}
@@ -460,7 +460,7 @@ func setNestedStructs(nestedMap map[string]interface{}, v reflect.Value, typ ref
 	}
 }
 
-func marshalMap(record *avro.GenericRecord, v reflect.Value, i int, fieldTag string, avroSchema avro.Schema) error {
+func marshalMap(record *avro.GenericRecord, v reflect.Value, i int, fieldTag string) error {
 	// This switch statement will need to be extended to support other native types,
 	// Currently supports strings
 	switch v.Field(i).Type().Elem().Kind() {

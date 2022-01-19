@@ -9,33 +9,27 @@ import (
 	"sync"
 )
 
-var (
-	lockSaramaConsumerGroupMockClose   sync.RWMutex
-	lockSaramaConsumerGroupMockConsume sync.RWMutex
-	lockSaramaConsumerGroupMockErrors  sync.RWMutex
-)
-
 // SaramaConsumerGroupMock is a mock implementation of kafka.SaramaConsumerGroup.
 //
-//     func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
+// 	func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked kafka.SaramaConsumerGroup
-//         mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
-//             CloseFunc: func() error {
-// 	               panic("mock out the Close method")
-//             },
-//             ConsumeFunc: func(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
-// 	               panic("mock out the Consume method")
-//             },
-//             ErrorsFunc: func() <-chan error {
-// 	               panic("mock out the Errors method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.SaramaConsumerGroup
+// 		mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
+// 			CloseFunc: func() error {
+// 				panic("mock out the Close method")
+// 			},
+// 			ConsumeFunc: func(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
+// 				panic("mock out the Consume method")
+// 			},
+// 			ErrorsFunc: func() <-chan error {
+// 				panic("mock out the Errors method")
+// 			},
+// 		}
 //
-//         // use mockedSaramaConsumerGroup in code that requires kafka.SaramaConsumerGroup
-//         // and then make assertions.
+// 		// use mockedSaramaConsumerGroup in code that requires kafka.SaramaConsumerGroup
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type SaramaConsumerGroupMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
@@ -64,6 +58,9 @@ type SaramaConsumerGroupMock struct {
 		Errors []struct {
 		}
 	}
+	lockClose   sync.RWMutex
+	lockConsume sync.RWMutex
+	lockErrors  sync.RWMutex
 }
 
 // Close calls CloseFunc.
@@ -73,9 +70,9 @@ func (mock *SaramaConsumerGroupMock) Close() error {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockSaramaConsumerGroupMockClose.Unlock()
+	mock.lockClose.Unlock()
 	return mock.CloseFunc()
 }
 
@@ -86,9 +83,9 @@ func (mock *SaramaConsumerGroupMock) CloseCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockSaramaConsumerGroupMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -106,9 +103,9 @@ func (mock *SaramaConsumerGroupMock) Consume(ctx context.Context, topics []strin
 		Topics:  topics,
 		Handler: handler,
 	}
-	lockSaramaConsumerGroupMockConsume.Lock()
+	mock.lockConsume.Lock()
 	mock.calls.Consume = append(mock.calls.Consume, callInfo)
-	lockSaramaConsumerGroupMockConsume.Unlock()
+	mock.lockConsume.Unlock()
 	return mock.ConsumeFunc(ctx, topics, handler)
 }
 
@@ -125,9 +122,9 @@ func (mock *SaramaConsumerGroupMock) ConsumeCalls() []struct {
 		Topics  []string
 		Handler sarama.ConsumerGroupHandler
 	}
-	lockSaramaConsumerGroupMockConsume.RLock()
+	mock.lockConsume.RLock()
 	calls = mock.calls.Consume
-	lockSaramaConsumerGroupMockConsume.RUnlock()
+	mock.lockConsume.RUnlock()
 	return calls
 }
 
@@ -138,9 +135,9 @@ func (mock *SaramaConsumerGroupMock) Errors() <-chan error {
 	}
 	callInfo := struct {
 	}{}
-	lockSaramaConsumerGroupMockErrors.Lock()
+	mock.lockErrors.Lock()
 	mock.calls.Errors = append(mock.calls.Errors, callInfo)
-	lockSaramaConsumerGroupMockErrors.Unlock()
+	mock.lockErrors.Unlock()
 	return mock.ErrorsFunc()
 }
 
@@ -151,8 +148,8 @@ func (mock *SaramaConsumerGroupMock) ErrorsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockSaramaConsumerGroupMockErrors.RLock()
+	mock.lockErrors.RLock()
 	calls = mock.calls.Errors
-	lockSaramaConsumerGroupMockErrors.RUnlock()
+	mock.lockErrors.RUnlock()
 	return calls
 }

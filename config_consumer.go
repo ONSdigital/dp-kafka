@@ -26,7 +26,7 @@ var (
 
 // ConsumerGroupConfig exposes the configurable parameters for a consumer group
 // to overwrite default config values and any other defult config values set by dp-kafka.
-// Any value that is not provied will use the default Sarama config value, or the default dp-kafka value.
+// Any value that is not provided will use the default Sarama config value, or the default dp-kafka value.
 // The only 3 compulsory values are:
 // - Topic
 // - GroupName
@@ -59,7 +59,7 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	// Get default Sarama config and apply overrides
 	cfg := sarama.NewConfig()
 	cfg.Consumer.MaxWaitTime = 50 * time.Millisecond
-	cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
+	cfg.Consumer.Offsets.Initial = OffsetOldest
 	cfg.Consumer.Return.Errors = true
 	cfg.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
 	cfg.Consumer.Group.Session.Timeout = defaultMessageConsumeTimeout
@@ -82,7 +82,7 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 		cfg.Consumer.Retry.BackoffFunc = *c.RetryBackoffFunc
 	}
 	if c.Offset != nil {
-		if *c.Offset != sarama.OffsetNewest && *c.Offset != sarama.OffsetOldest {
+		if *c.Offset != OffsetNewest && *c.Offset != OffsetOldest {
 			return nil, errors.New("offset value incorrect")
 		}
 		cfg.Consumer.Offsets.Initial = *c.Offset

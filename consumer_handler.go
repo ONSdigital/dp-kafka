@@ -103,7 +103,7 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 				return
 			}
 
-			batch.Add(ctx, msg)
+			batch.Add(msg)
 			if batch.IsFull() {
 				cg.handleBatch(ctx, batch)
 			}
