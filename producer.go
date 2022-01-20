@@ -230,12 +230,14 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 			brokerErrs = append(brokerErrs, err)
 		}
 	}
+
+	SafeClose(p.channels.Closed)
+
 	if len(brokerErrs) > 0 {
 		return fmt.Errorf("error(s) closing broker connections: %v", brokerErrs)
 	}
 
 	log.Info(ctx, "successfully closed kafka producer", logData)
-	SafeClose(p.channels.Closed)
 	return nil
 }
 
