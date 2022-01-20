@@ -21,6 +21,7 @@ To use TLS, please do the following:
 First of all, we need to update the manifest of the app to contain the kafka topics which the app uses. This is done as follows:
 
 1. Create feature branch for the upcoming changes to the manifest of the app in [`dp-configs`][dp-configs]
+
 2. In the [manifest of the app][dp-configs-manifests], add the revelant kafka topics at the end of the file as follows
 
   ```yml
@@ -37,7 +38,8 @@ First of all, we need to update the manifest of the app to contain the kafka top
    More details of kafka section can be found [here][kafka-section-detail]
 
    **An example of adding kafka topics to the manifest can be found [here][manifest-example]**
-3. `Review` and `merge` these changes to continue with the [next step](#create-client-certificate-for-the-app---run-key-admin-script)
+
+3. `Review` and `merge` these changes to continue with the [next step](#2-create-client-certificate-for-the-app---run-key-admin-script)
 
 #### 2. Create client certificate for the app - Run `key-admin` script
 
@@ -47,7 +49,7 @@ This can be achieved by running the `key-admin` script.
   
 **Notes:**
 
-1. The `key-admin` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see whether a client certificate needs to be created for the app (by checking whether any kafka topics are mentioned in the manifest). Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#add-kafka-topics-to-manifest).
+1. The `key-admin` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see whether a client certificate needs to be created for the app (by checking whether any kafka topics are mentioned in the manifest). Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#1-add-kafka-topics-to-manifest).
 2. Remember to do *Step 4* of the [Client Certificate README][client-cert-readme] to inject the relevant certificate details into the app's secrets (using the `--secrets` argument) unless the app is being [migrated to AWS MSK](MIGRATING.md) in which case this step is done later
 3. Please remember to come back to this README after completing this task to continue with the process.
   
@@ -64,7 +66,7 @@ Next, we need to create the kafka topics - used by the app - on AWS MSK. This ca
 
 **Notes:**
 
-1. The `topic-manager` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see if any changes to kafka topics (adding or deleting topics) need to be applied to AWS MSK by checking the kafka topics mentioned in the manifest. Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#add-kafka-topics-to-manifest).
+1. The `topic-manager` script checks the manifests of the apps in [`dp-configs`][dp-configs] to see if any changes to kafka topics (adding or deleting topics) need to be applied to AWS MSK by checking the kafka topics mentioned in the manifest. Therefore, please make sure that your local machine is on the **`master`** branch for [`dp-configs`][dp-configs] which contains all your changes from the [previous step](#1-add-kafka-topics-to-manifest).
 2. Please remember to come back to this README after completing this task to continue with the process.
   
 **Follow the steps explained in the [Kafka Setup Tools README][kafka-setup-tools-readme] to run `topic-manager`**
@@ -79,17 +81,16 @@ the app itself needs to be updated to use TLS. To achieve this, please do the fo
    ```markdown
    | Environment variable         | Default                                   | Description
    | ---------------------------- | ----------------------------------------- | -----------
-   | KAFKA_ADDR                   | localhost:39092                           | The kafka broker addresses (can be comma separated)
-   | KAFKA_VERSION                | "1.0.2"                                   | The kafka version that this service expects to connect to
-   | KAFKA_SEC_PROTO              | _unset_                                   | if set to `TLS`, kafka connections will use TLS [[1]](#notes_1)
-   | KAFKA_SEC_CA_CERTS           | _unset_                                   | CA cert chain for the server cert [[1]](#notes_1)
-   | KAFKA_SEC_CLIENT_KEY         | _unset_                                   | PEM for the client key [[1]](#notes_1)
-   | KAFKA_SEC_CLIENT_CERT        | _unset_                                   | PEM for the client certificate [[1]](#notes_1)
-   | KAFKA_SEC_SKIP_VERIFY        | false                                     | ignores server certificate issues if `true` [[1]](#notes_1)
+   | KAFKA_ADDR                   | localhost:39092                           | A list of kafka brokers (TLS-ready)
+   | KAFKA_VERSION                | "1.0.2"                                   | The version of (TLS-ready) Kafka being used
+   | KAFKA_SEC_PROTO              | _unset_                                   | if set to `TLS`, kafka connections will use TLS ([ref-1])
+   | KAFKA_SEC_CA_CERTS           | _unset_                                   | CA cert chain for the server cert ([ref-1])
+   | KAFKA_SEC_CLIENT_KEY         | _unset_                                   | PEM for the client key ([ref-1])
+   | KAFKA_SEC_CLIENT_CERT        | _unset_                                   | PEM for the client certificate ([ref-1])
+   | KAFKA_SEC_SKIP_VERIFY        | false                                     | ignores server certificate issues if `true` ([ref-1])
    
-   **Notes:**
 
-       1. <a name="notes_1">For more info, see the [kafka TLS examples documentation](https://github.com/ONSdigital/dp-kafka/tree/main/examples#tls)</a>
+    [ref-1]:  https://github.com/ONSdigital/dp-kafka/tree/main/examples#tls 'kafka TLS examples documentation'
    ```
 
 2. Add the configurations to `config.go`
@@ -472,7 +473,7 @@ Some mocks are provided, so that you can test your code interactions with this l
    [client-cert-readme]: <https://github.com/ONSdigital/dp-setup/tree/develop/csr/private>
    [dp-configs]: <https://github.com/ONSdigital/dp-configs>
    [dp-configs-manifests]: <https://github.com/ONSdigital/dp-configs/tree/master/manifests>
-   [dp-setup]: <git@github.com:ONSdigital/dp-setup.git>
+   [dp-setup]: <https://github.com/ONSdigital/dp-setup>
    [kafka-section-detail]: <https://github.com/ONSdigital/dp-configs/tree/master/manifests#kafka-section-detail>
    [kafka-setup-tools-readme]: <https://github.com/ONSdigital/dp-setup/tree/develop/scripts/kafka>
    [manifest-example]: <https://github.com/ONSdigital/dp-configs/blob/master/manifests/dp-import-api.yml>

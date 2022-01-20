@@ -166,7 +166,13 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
-	p.createLoopInitialised(ctx)
+	if err := p.createLoopInitialised(ctx); err != nil {
+		if errSarama := saramaProducer.Close(); errSarama != nil {
+			log.Warn(ctx, fmt.Sprintf("failed to close sarama producer: %s", errSarama.Error()), log.Data{"topic": p.topic})
+		}
+		p.producer = nil
+		return fmt.Errorf("failed to create initialised loop: %w", err)
+	}
 	SafeClose(p.channels.Initialised)
 	log.Info(ctx, "sarama producer has been initialised", log.Data{"topic": p.topic})
 	return nil
@@ -218,8 +224,14 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	}
 
 	// Close all brokers connections (used by healthcheck)
+	brokerErrs := []error{}
 	for _, broker := range p.brokers {
-		broker.Close()
+		if err := broker.Close(); err != nil {
+			brokerErrs = append(brokerErrs, err)
+		}
+	}
+	if len(brokerErrs) > 0 {
+		return fmt.Errorf("error(s) closing broker connections: %v", brokerErrs)
 	}
 
 	log.Info(ctx, "successfully closed kafka producer", logData)
@@ -247,10 +259,12 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 			select {
 			case message, ok := <-p.channels.Output:
 				if !ok {
-					return
+					return // output chan closed
 				}
 				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
-				SafeSendErr(p.channels.Errors, errors.New("producer is not initialised"))
+				if err := SafeSendErr(p.channels.Errors, errors.New("producer is not initialised")); err != nil {
+					return // errors chan closed
+				}
 			case <-p.channels.Initialised:
 				return
 			case <-p.channels.Closer:
@@ -288,17 +302,23 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 			select {
 			case err, ok := <-p.producer.Errors():
 				if !ok {
-					return
+					return // sarama errors chan closed
 				}
-				SafeSendErr(p.channels.Errors, err)
+				if err := SafeSendErr(p.channels.Errors, err); err != nil {
+					return // errors chan closed
+				}
+
 			case message, ok := <-p.channels.Output:
 				if !ok {
-					return
+					return // output chan closed
 				}
-				SafeSendProducerMessage(
+				err := SafeSendProducerMessage(
 					p.producer.Input(),
 					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)},
 				)
+				if err != nil {
+					return // sarama producer input channel closed
+				}
 			case <-p.channels.Closer:
 				return
 			}
