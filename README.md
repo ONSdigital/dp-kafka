@@ -361,7 +361,7 @@ You can consume up to as may messages in parallel as partitions are assigned to 
 
 ## Message consumption - Sarama Kafka sessions
 
-![KafkaConcurrency](img/kafka-concurrency.png)
+![KafkaConcurrency](img/dp-kafka-concurrency.png)
 
 Sarama creates as many go-routines as partitions are assigned to the consumer, for the topic being consumed.
 
@@ -408,7 +408,7 @@ For example, the following code will only be executed once the `Consuming` state
     ...
 ```
 
-A function called `StateWait` has been implemented, which does the same. You can call it like so:
+A function called `StateWait` has been implemented for simplicity, which does the same. You can call it like so:
 
 ```go
     ...
