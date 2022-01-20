@@ -45,7 +45,7 @@ type ConsumerGroup struct {
 	initialState      State // target state for a consumer that is still being initialised
 	state             *StateMachine
 	saramaConfig      *sarama.Config
-	mutex             *sync.Mutex // Mutex for consumer funcs that are not supposed to run concurrently
+	mutex             *sync.RWMutex // Mutex for consumer funcs that are not supposed to run concurrently
 	wgClose           *sync.WaitGroup
 	handler           Handler
 	batchHandler      BatchHandler
@@ -94,7 +94,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		state:             stateMachine,
 		initialState:      Stopped,
 		saramaConfig:      cfg,
-		mutex:             &sync.Mutex{},
+		mutex:             &sync.RWMutex{},
 		wgClose:           &sync.WaitGroup{},
 		saramaCgInit:      cgInit,
 		numWorkers:        *cgConfig.NumWorkers,
@@ -186,6 +186,12 @@ func (cg *ConsumerGroup) Checker(ctx context.Context, state *healthcheck.CheckSt
 
 // IsInitialised returns true only if Sarama ConsumerGroup has been correctly initialised.
 func (cg *ConsumerGroup) IsInitialised() bool {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+	return cg.isInitialised()
+}
+
+func (cg *ConsumerGroup) isInitialised() bool {
 	return cg.saramaCg != nil
 }
 
@@ -199,7 +205,7 @@ func (cg *ConsumerGroup) Initialise(ctx context.Context) error {
 	defer cg.mutex.Unlock()
 
 	// Do nothing if consumer group already initialised
-	if cg.IsInitialised() {
+	if cg.isInitialised() {
 		return nil
 	}
 
@@ -374,7 +380,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	SafeCloseMessage(cg.channels.Upstream)
 
 	// Close Sarama consumer only if it was initialised.
-	if cg.IsInitialised() {
+	if cg.isInitialised() {
 		if err = cg.saramaCg.Close(); err != nil {
 			return NewError(
 				fmt.Errorf("error closing sarama consumer-group: %w", err),

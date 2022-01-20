@@ -35,7 +35,7 @@ type Producer struct {
 	topic             string
 	channels          *ProducerChannels
 	config            *sarama.Config
-	mutex             *sync.Mutex
+	mutex             *sync.RWMutex
 	wgClose           *sync.WaitGroup
 	minRetryPeriod    time.Duration
 	maxRetryPeriod    time.Duration
@@ -67,7 +67,7 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 		brokers:           []SaramaBroker{},
 		topic:             pConfig.Topic,
 		config:            config,
-		mutex:             &sync.Mutex{},
+		mutex:             &sync.RWMutex{},
 		wgClose:           &sync.WaitGroup{},
 		minRetryPeriod:    *pConfig.MinRetryPeriod,
 		maxRetryPeriod:    *pConfig.MaxRetryPeriod,
@@ -141,6 +141,12 @@ func (p *Producer) LogErrors(ctx context.Context) {
 
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
 func (p *Producer) IsInitialised() bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return p.isInitialised()
+}
+
+func (p *Producer) isInitialised() bool {
 	return p.producer != nil
 }
 
@@ -154,7 +160,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 	defer p.mutex.Unlock()
 
 	// Do nothing if producer already initialised
-	if p.IsInitialised() {
+	if p.isInitialised() {
 		return nil
 	}
 
@@ -197,6 +203,9 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 		return errors.New("nil context was passed to producer close")
 	}
 
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
 	// closing the Closer channel will end the go-routines(if any)
 	SafeClose(p.channels.Closer)
 
@@ -214,7 +223,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	SafeCloseBytes(p.channels.Output)
 
 	// Close producer only if it was initialised
-	if p.IsInitialised() {
+	if p.isInitialised() {
 		if err = p.producer.Close(); err != nil {
 			return NewError(
 				fmt.Errorf("error closing sarama producer: %w", err),
@@ -292,7 +301,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 // If the closer channel is closed, it ends the loop and closes Closed channel.
 func (p *Producer) createLoopInitialised(ctx context.Context) error {
 	// If sarama producer is not available, return error.
-	if !p.IsInitialised() {
+	if !p.isInitialised() {
 		return errors.New("failed to initialise client")
 	}
 

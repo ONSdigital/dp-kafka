@@ -252,7 +252,7 @@ func TestStateWait(t *testing.T) {
 func TestRegisterHandler(t *testing.T) {
 	Convey("Given a consumer group without any handler", t, func() {
 		cg := &ConsumerGroup{
-			mutex:      &sync.Mutex{},
+			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
 			channels:   CreateConsumerGroupChannels(1),
 			numWorkers: 1,
@@ -283,7 +283,7 @@ func TestRegisterHandler(t *testing.T) {
 
 	Convey("Given a consumer group with a handler already registered", t, func() {
 		cg := &ConsumerGroup{
-			mutex:   &sync.Mutex{},
+			mutex:   &sync.RWMutex{},
 			handler: func(ctx context.Context, workerID int, msg Message) error { return nil },
 		}
 
@@ -296,7 +296,7 @@ func TestRegisterHandler(t *testing.T) {
 
 	Convey("Given a consumer group with a batch handler already registered", t, func() {
 		cg := &ConsumerGroup{
-			mutex:        &sync.Mutex{},
+			mutex:        &sync.RWMutex{},
 			batchHandler: func(ctx context.Context, batch []Message) error { return nil },
 		}
 
@@ -311,7 +311,7 @@ func TestRegisterHandler(t *testing.T) {
 func TestRegisterBatchHandler(t *testing.T) {
 	Convey("Given a consumer group without any handler", t, func() {
 		cg := &ConsumerGroup{
-			mutex:         &sync.Mutex{},
+			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
 			channels:      CreateConsumerGroupChannels(1),
 			batchSize:     2,
@@ -345,7 +345,7 @@ func TestRegisterBatchHandler(t *testing.T) {
 
 	Convey("Given a consumer group with a handler already registered", t, func() {
 		cg := &ConsumerGroup{
-			mutex:   &sync.Mutex{},
+			mutex:   &sync.RWMutex{},
 			handler: func(ctx context.Context, workerID int, msg Message) error { return nil },
 		}
 
@@ -358,7 +358,7 @@ func TestRegisterBatchHandler(t *testing.T) {
 
 	Convey("Given a consumer group with a batch handler already registered", t, func() {
 		cg := &ConsumerGroup{
-			mutex:        &sync.Mutex{},
+			mutex:        &sync.RWMutex{},
 			batchHandler: func(ctx context.Context, batch []Message) error { return nil },
 		}
 
@@ -377,7 +377,7 @@ func TestStart(t *testing.T) {
 		}
 		cg := &ConsumerGroup{
 			channels: channels,
-			mutex:    &sync.Mutex{},
+			mutex:    &sync.RWMutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
 
@@ -456,7 +456,7 @@ func TestStop(t *testing.T) {
 		}
 		cg := &ConsumerGroup{
 			channels: channels,
-			mutex:    &sync.Mutex{},
+			mutex:    &sync.RWMutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
 
@@ -556,7 +556,7 @@ func TestStop(t *testing.T) {
 func TestOnHealthUpdate(t *testing.T) {
 	Convey("Given a consumer-group", t, func() {
 		cg := &ConsumerGroup{
-			mutex:   &sync.Mutex{},
+			mutex:   &sync.RWMutex{},
 			wgClose: &sync.WaitGroup{},
 			state:   NewConsumerStateMachine(),
 		}
@@ -586,7 +586,7 @@ func TestClose(t *testing.T) {
 			group:    testGroup,
 			topic:    testTopic,
 			state:    NewConsumerStateMachine(),
-			mutex:    &sync.Mutex{},
+			mutex:    &sync.RWMutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
 
@@ -661,7 +661,7 @@ func TestConsumerStopped(t *testing.T) {
 		cg := &ConsumerGroup{
 			state:    NewConsumerStateMachine(),
 			channels: channels,
-			mutex:    &sync.Mutex{},
+			mutex:    &sync.RWMutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
 		cg.state.Set(Stopped)
@@ -700,7 +700,7 @@ func TestConsumerStarting(t *testing.T) {
 			state:    NewConsumerStateMachine(),
 			channels: channels,
 			saramaCg: saramaConsumerGroupHappy(chConsumeCalled),
-			mutex:    &sync.Mutex{},
+			mutex:    &sync.RWMutex{},
 			wgClose:  &sync.WaitGroup{},
 		}
 		cg.state.Set(Starting)
@@ -752,7 +752,7 @@ func TestConsumerStarting(t *testing.T) {
 			state:          NewConsumerStateMachine(),
 			channels:       channels,
 			saramaCg:       saramaConsumerGroupConsumeFails(chConsumeCalled),
-			mutex:          &sync.Mutex{},
+			mutex:          &sync.RWMutex{},
 			wgClose:        &sync.WaitGroup{},
 			minRetryPeriod: defaultMinRetryPeriod,
 			maxRetryPeriod: defaultMaxRetryPeriod,
@@ -808,7 +808,7 @@ func TestConsumeLoop(t *testing.T) {
 			channels:     channels,
 			saramaCg:     saramaMock,
 			initialState: Stopped,
-			mutex:        &sync.Mutex{},
+			mutex:        &sync.RWMutex{},
 			wgClose:      &sync.WaitGroup{},
 		}
 
@@ -864,7 +864,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 		cg := &ConsumerGroup{
 			state:          NewConsumerStateMachine(),
 			channels:       channels,
-			mutex:          &sync.Mutex{},
+			mutex:          &sync.RWMutex{},
 			wgClose:        &sync.WaitGroup{},
 			minRetryPeriod: defaultMinRetryPeriod,
 			maxRetryPeriod: defaultMaxRetryPeriod,
@@ -890,7 +890,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 			channels:     channels,
 			saramaCg:     saramaMock,
 			initialState: Stopped,
-			mutex:        &sync.Mutex{},
+			mutex:        &sync.RWMutex{},
 			wgClose:      &sync.WaitGroup{},
 		}
 
