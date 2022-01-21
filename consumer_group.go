@@ -321,7 +321,7 @@ func (cg *ConsumerGroup) stop(sync bool) error {
 			return fmt.Errorf("failed to send 'false' to consume channel: %w", err)
 		}
 		if sync {
-			<-cg.saramaCgHandler.sessionConsuming // wait until the active kafka session finishes
+			<-cg.saramaCgHandler.sessionFinished() // wait until the active kafka session finishes
 		}
 		return nil
 	default: // Closing state
@@ -601,7 +601,7 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 					return
 				}
 				if errSend := SafeSendErr(cg.channels.Errors, err); err != nil {
-					log.Error(ctx, "consumer-group error sending error to the error channel: %w", errSend, log.Data{"original_error": err}, log.Data{"topic": cg.topic, "group": cg.group})
+					log.Error(ctx, "consumer-group error sending error to the error channel", errSend, log.Data{"original_error": err, "topic": cg.topic, "group": cg.group})
 				}
 			}
 		}

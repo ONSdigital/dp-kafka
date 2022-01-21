@@ -131,11 +131,11 @@ func createTickerLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 			select {
 			case <-time.After(ticker):
 				log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
-					"state": cg.State(),
+					"state": cg.State().String(),
 				})
 			case <-cg.Channels().Closed:
 				log.Info(ctx, "[KAFKA-TEST] tick - CLOSED - ", log.Data{
-					"state": cg.State(),
+					"state": cg.State().String(),
 				})
 			}
 		}
@@ -153,7 +153,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 			select {
 			case <-time.After(startStop):
 				logData := log.Data{
-					"state": cg.State(),
+					"state": cg.State().String(),
 				}
 				cnt++
 				switch cg.State() {
@@ -187,7 +187,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 				}
 			case <-cg.Channels().Closed:
 				log.Info(ctx, "[KAFKA-TEST] consume loop - CLOSED - ", log.Data{
-					"state": cg.State(),
+					"state": cg.State().String(),
 				})
 			}
 		}

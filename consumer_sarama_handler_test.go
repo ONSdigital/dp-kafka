@@ -40,7 +40,7 @@ func TestSetup(t *testing.T) {
 		Convey("In 'Starting' state and with 'Initialised' channel still open", func() {
 			cgHandler.state.Set(Starting)
 			err := cgHandler.Setup(cgSession)
-			defer close(cgHandler.sessionConsuming) // close sessionConsuming channel to force the control go-routine to end
+			defer cgHandler.leaveSession() // force the control go-routine to end
 
 			Convey("Then a nil error is returned", func() {
 				So(err, ShouldBeNil)
@@ -55,7 +55,7 @@ func TestSetup(t *testing.T) {
 			cgHandler.state.Set(Consuming)
 			close(channels.Initialised)
 			err := cgHandler.Setup(cgSession)
-			defer close(cgHandler.sessionConsuming) // close sessionConsuming channel to force the control go-routine to end
+			defer cgHandler.leaveSession() // force the control go-routine to end
 
 			Convey("Then a nil error is returned", func() {
 				So(err, ShouldBeNil)
@@ -92,7 +92,7 @@ func TestControlRoutine(t *testing.T) {
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
 		close(channels.Initialised)
-		cgHandler.sessionConsuming = make(chan struct{})
+		cgHandler.enterSession()
 
 		// start control group in a go-routine
 		wg := sync.WaitGroup{}
@@ -107,7 +107,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Closing' and 'sessionConsuming' channel is closed", func(c C) {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Closing)
 			})
 		})
@@ -117,7 +117,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Closing' and 'sessionConsuming' channel is closed", func(c C) {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Closing)
 			})
 		})
@@ -127,7 +127,7 @@ func TestControlRoutine(t *testing.T) {
 			wg.Wait()
 
 			Convey("Then the state is set to 'Stopping' and 'sessionConsuming' channel is closed", func(c C) {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Stopping)
 			})
 		})
@@ -136,17 +136,17 @@ func TestControlRoutine(t *testing.T) {
 			channels.Consume <- true
 
 			Convey("Then the state is not changed 'Consuming' and the 'sessionConsuming' channel is not closed", func(c C) {
-				validateChanClosed(c, cgHandler.sessionConsuming, false)
+				validateChanClosed(c, cgHandler.settingUp.channel, false)
 				c.So(cgHandler.state.Get(), ShouldEqual, Consuming)
 			})
 		})
 
 		Convey("When the controlRoutine ends due to the 'sessionConsuming' channel being closed", func(c C) {
-			close(cgHandler.sessionConsuming)
+			cgHandler.leaveSession()
 			wg.Wait()
 
 			Convey("Then the state is not changed and 'sessionConsuming' channel remains closed", func(c C) {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 				c.So(cgHandler.state.Get(), ShouldEqual, Consuming)
 			})
 		})
@@ -170,7 +170,7 @@ func TestCleanup(t *testing.T) {
 		}
 
 		Convey("When Cleanup is called while in 'Consuming' state", func() {
-			cgHandler.sessionConsuming = make(chan struct{})
+			cgHandler.enterSession()
 			cgHandler.state.Set(Consuming)
 			err := cgHandler.Cleanup(cgSession)
 
@@ -179,7 +179,7 @@ func TestCleanup(t *testing.T) {
 			})
 
 			Convey("Then sessionConsuming channel is closed", func() {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 			})
 
 			Convey("Then the state is set to 'Starting'", func() {
@@ -188,7 +188,7 @@ func TestCleanup(t *testing.T) {
 		})
 
 		Convey("When Cleanup is called while in 'Stopping' state", func() {
-			cgHandler.sessionConsuming = make(chan struct{})
+			cgHandler.enterSession()
 			cgHandler.state.Set(Stopping)
 			err := cgHandler.Cleanup(cgSession)
 
@@ -197,7 +197,7 @@ func TestCleanup(t *testing.T) {
 			})
 
 			Convey("Then sessionConsuming channel is closed", func() {
-				validateChanClosed(c, cgHandler.sessionConsuming, true)
+				validateChanClosed(c, cgHandler.settingUp.channel, true)
 			})
 
 			Convey("Then the state is not changed", func() {

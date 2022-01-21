@@ -11,17 +11,18 @@ import (
 // saramaHandler is a consumer-group handler used by Sarama as a callback receiver
 // to setup/cleanup sessions and consume messages
 type saramaHandler struct {
-	ctx              context.Context
-	channels         *ConsumerGroupChannels // Channels are shared with ConsumerGroup
-	state            *StateMachine          // State is shared with ConsumerGroup
-	sessionConsuming chan struct{}          // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends
+	ctx       context.Context
+	channels  *ConsumerGroupChannels // Channels are shared with ConsumerGroup
+	state     *StateMachine          // State is shared with ConsumerGroup
+	settingUp *StateChan             // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends
 }
 
 func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *saramaHandler {
 	return &saramaHandler{
-		ctx:      ctx,
-		channels: channels,
-		state:    state,
+		ctx:       ctx,
+		channels:  channels,
+		state:     state,
+		settingUp: NewStateChan(),
 	}
 }
 
@@ -34,7 +35,7 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 	}
 	log.Info(session.Context(), "kafka consumer group is consuming: sarama consumer group session setup ok: a new go-routine will be created for each partition assigned to this consumer", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
-	sh.sessionConsuming = make(chan struct{})
+	sh.enterSession()
 	go sh.controlRoutine()
 	return nil
 }
@@ -46,24 +47,25 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 // - Received 'false' from consume channel: set state to 'Stoppig' and stop consuming
 // - shConsuming channel closed: abort control routine and stop consuming
 func (sh *saramaHandler) controlRoutine() {
-	defer SafeClose(sh.sessionConsuming)
-
 	for {
 		select {
 		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
 			sh.state.Set(Closing)
+			sh.leaveSession()
 			return
 		case consume, ok := <-sh.channels.Consume:
 			if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
 				sh.state.Set(Closing)
+				sh.leaveSession()
 				return
 			}
 			if !consume { // Consume channel notifies that we should stop consuming new messages
 				sh.state.Set(Stopping)
+				sh.leaveSession()
 				return
 			}
-		case <-sh.sessionConsuming:
-			return // if chConsuming is closed, this go-routine must exit
+		case <-sh.sessionFinished():
+			return
 		}
 	}
 }
@@ -75,7 +77,7 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 	log.Info(session.Context(), "kafka consumer group has finished consuming: sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
-	SafeClose(sh.sessionConsuming)
+	sh.leaveSession()
 
 	// if state is still consuming, set it back to starting, as we are currently not consuming until the next session is alive
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)
@@ -100,7 +102,7 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
-		case <-sh.sessionConsuming: // when chConsuming is closed, we need to stop consuming
+		case <-sh.sessionFinished(): // stop consuming
 			return nil
 		case m, ok := <-claim.Messages():
 			if !ok {
@@ -127,7 +129,26 @@ func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
 		<-msg.UpstreamDone() // Wait until the message is released
 		return nil           // Message has been released
-	case <-sh.sessionConsuming:
-		return nil // chConsuming is closed before the app reads Upstream channel, we need to stop consuming new messages now
+	case <-sh.sessionFinished():
+		return nil // session finished before the app reads Upstream channel, we need to stop consuming new messages now
 	}
+}
+
+// enterSession leaves the settingUp state channel in a concurrency safe manner
+// signaling that we have entered in a kafka consuming session
+func (sh *saramaHandler) enterSession() {
+	sh.settingUp.leave()
+}
+
+// leaveSession enters the settingUp state channel in a concurrency safe manner
+// signaling that we leave a kafka consuming session (no new messages will be consumed until we enter into the next session)
+func (sh *saramaHandler) leaveSession() {
+	sh.settingUp.enter()
+}
+
+// sessionFinished returns the session channel,
+// which will be closed when the current session finishes,
+// or it is already closed if we are not in a session
+func (sh *saramaHandler) sessionFinished() chan struct{} {
+	return sh.settingUp.Get()
 }

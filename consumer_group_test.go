@@ -523,8 +523,9 @@ func TestStop(t *testing.T) {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Consuming)
 			cg.saramaCgHandler = &saramaHandler{
-				sessionConsuming: make(chan struct{}),
+				settingUp: NewStateChan(),
 			}
+			cg.saramaCgHandler.enterSession()
 
 			waiting := true
 			wg := &sync.WaitGroup{}
@@ -541,7 +542,7 @@ func TestStop(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 			So(waiting, ShouldBeTrue)
 
-			close(cg.saramaCgHandler.sessionConsuming)
+			cg.saramaCgHandler.leaveSession()
 			wg.Wait()
 			So(val, ShouldBeFalse)
 		})
