@@ -5,15 +5,20 @@ package mock
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 	"sync"
 )
 
-// SaramaConsumerGroupSessionMock is a mock implementation of kafka.SaramaConsumerGroupSession.
+// Ensure, that SaramaConsumerGroupSessionMock does implement interfaces.SaramaConsumerGroupSession.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.SaramaConsumerGroupSession = &SaramaConsumerGroupSessionMock{}
+
+// SaramaConsumerGroupSessionMock is a mock implementation of interfaces.SaramaConsumerGroupSession.
 //
 // 	func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.SaramaConsumerGroupSession
+// 		// make and configure a mocked interfaces.SaramaConsumerGroupSession
 // 		mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
 // 			ClaimsFunc: func() map[string][]int32 {
 // 				panic("mock out the Claims method")
@@ -41,7 +46,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedSaramaConsumerGroupSession in code that requires kafka.SaramaConsumerGroupSession
+// 		// use mockedSaramaConsumerGroupSession in code that requires interfaces.SaramaConsumerGroupSession
 // 		// and then make assertions.
 //
 // 	}

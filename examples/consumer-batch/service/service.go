@@ -157,7 +157,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 				}
 				cnt++
 				switch cg.State() {
-				case kafka.Starting.String(), kafka.Consuming.String():
+				case kafka.Starting, kafka.Consuming:
 					if cnt >= iterationsFromStartToStop {
 						log.Info(ctx, "[KAFKA-TEST] ++ STOP consuming", logData)
 						cnt = 0
@@ -170,7 +170,7 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 							log.Warn(ctx, "consumer-group failed to start", log.Data{"err": err})
 						}
 					}
-				case kafka.Stopping.String(), kafka.Stopped.String():
+				case kafka.Stopping, kafka.Stopped:
 					if cnt >= iterationsFromStopToStart {
 						log.Info(ctx, "[KAFKA-TEST] ++ START consuming", logData)
 						cnt = 0

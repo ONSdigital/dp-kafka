@@ -4,15 +4,20 @@
 package mock
 
 import (
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 	"sync"
 )
 
-// SaramaAsyncProducerMock is a mock implementation of kafka.SaramaAsyncProducer.
+// Ensure, that SaramaAsyncProducerMock does implement interfaces.SaramaAsyncProducer.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.SaramaAsyncProducer = &SaramaAsyncProducerMock{}
+
+// SaramaAsyncProducerMock is a mock implementation of interfaces.SaramaAsyncProducer.
 //
 // 	func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.SaramaAsyncProducer
+// 		// make and configure a mocked interfaces.SaramaAsyncProducer
 // 		mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
 // 			AsyncCloseFunc: func()  {
 // 				panic("mock out the AsyncClose method")
@@ -31,7 +36,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedSaramaAsyncProducer in code that requires kafka.SaramaAsyncProducer
+// 		// use mockedSaramaAsyncProducer in code that requires interfaces.SaramaAsyncProducer
 // 		// and then make assertions.
 //
 // 	}

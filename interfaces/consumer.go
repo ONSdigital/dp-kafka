@@ -1,10 +1,10 @@
-package kafka
+package interfaces
 
 import "github.com/Shopify/sarama"
 
-//go:generate moq -out ./mock/sarama_cg.go -pkg mock . SaramaConsumerGroup
-//go:generate moq -out ./mock/sarama_cg_session.go -pkg mock . SaramaConsumerGroupSession
-//go:generate moq -out ./mock/sarama_cg_claim.go -pkg mock . SaramaConsumerGroupClaim
+//go:generate moq -out ../mock/sarama_cg.go -pkg mock . SaramaConsumerGroup
+//go:generate moq -out ../mock/sarama_cg_session.go -pkg mock . SaramaConsumerGroupSession
+//go:generate moq -out ../mock/sarama_cg_claim.go -pkg mock . SaramaConsumerGroupClaim
 
 // SaramaConsumerGroup is a wrapper around sarama.ConsumerGroup
 type SaramaConsumerGroup = sarama.ConsumerGroup
@@ -16,6 +16,6 @@ type SaramaConsumerGroupSession = sarama.ConsumerGroupSession
 type SaramaConsumerGroupClaim = sarama.ConsumerGroupClaim
 
 // Types for sarama initialisers
-type consumerGroupInitialiser = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error)
+type ConsumerGroupInitialiser = func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error)
 
-var saramaNewConsumerGroup = sarama.NewConsumerGroup
+var SaramaNewConsumerGroup = sarama.NewConsumerGroup

@@ -50,10 +50,10 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 // 			StartFunc: func() error {
 // 				panic("mock out the Start method")
 // 			},
-// 			StateFunc: func() string {
+// 			StateFunc: func() kafka.State {
 // 				panic("mock out the State method")
 // 			},
-// 			StateWaitFunc: func()  {
+// 			StateWaitFunc: func(state kafka.State)  {
 // 				panic("mock out the StateWait method")
 // 			},
 // 			StopFunc: func() error {
@@ -100,10 +100,10 @@ type IConsumerGroupMock struct {
 	StartFunc func() error
 
 	// StateFunc mocks the State method.
-	StateFunc func() string
+	StateFunc func() kafka.State
 
 	// StateWaitFunc mocks the StateWait method.
-	StateWaitFunc func()
+	StateWaitFunc func(state kafka.State)
 
 	// StopFunc mocks the Stop method.
 	StopFunc func() error
@@ -168,6 +168,8 @@ type IConsumerGroupMock struct {
 		}
 		// StateWait holds details about calls to the StateWait method.
 		StateWait []struct {
+			// State is the state argument value.
+			State kafka.State
 		}
 		// Stop holds details about calls to the Stop method.
 		Stop []struct {
@@ -500,7 +502,7 @@ func (mock *IConsumerGroupMock) StartCalls() []struct {
 }
 
 // State calls StateFunc.
-func (mock *IConsumerGroupMock) State() string {
+func (mock *IConsumerGroupMock) State() kafka.State {
 	if mock.StateFunc == nil {
 		panic("IConsumerGroupMock.StateFunc: method is nil but IConsumerGroup.State was just called")
 	}
@@ -526,24 +528,29 @@ func (mock *IConsumerGroupMock) StateCalls() []struct {
 }
 
 // StateWait calls StateWaitFunc.
-func (mock *IConsumerGroupMock) StateWait() {
+func (mock *IConsumerGroupMock) StateWait(state kafka.State) {
 	if mock.StateWaitFunc == nil {
 		panic("IConsumerGroupMock.StateWaitFunc: method is nil but IConsumerGroup.StateWait was just called")
 	}
 	callInfo := struct {
-	}{}
+		State kafka.State
+	}{
+		State: state,
+	}
 	mock.lockStateWait.Lock()
 	mock.calls.StateWait = append(mock.calls.StateWait, callInfo)
 	mock.lockStateWait.Unlock()
-	mock.StateWaitFunc()
+	mock.StateWaitFunc(state)
 }
 
 // StateWaitCalls gets all the calls that were made to StateWait.
 // Check the length with:
 //     len(mockedIConsumerGroup.StateWaitCalls())
 func (mock *IConsumerGroupMock) StateWaitCalls() []struct {
+	State kafka.State
 } {
 	var calls []struct {
+		State kafka.State
 	}
 	mock.lockStateWait.RLock()
 	calls = mock.calls.StateWait

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-kafka/v3/avro"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -102,7 +103,7 @@ func TestProducerCreation(t *testing.T) {
 				Topic:       testTopic,
 				BrokerAddrs: testBrokers,
 			},
-			func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
+			func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 				return nil, errors.New("uninitialised")
 			},
 		)
@@ -121,7 +122,7 @@ func TestProducer(t *testing.T) {
 		chSaramaErr, chSaramaIn := createSaramaChannels()
 		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
 		pInitCalls := 0
-		pInit := func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
+		pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}

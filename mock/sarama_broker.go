@@ -4,15 +4,20 @@
 package mock
 
 import (
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 	"sync"
 )
 
-// SaramaBrokerMock is a mock implementation of kafka.SaramaBroker.
+// Ensure, that SaramaBrokerMock does implement interfaces.SaramaBroker.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.SaramaBroker = &SaramaBrokerMock{}
+
+// SaramaBrokerMock is a mock implementation of interfaces.SaramaBroker.
 //
 // 	func TestSomethingThatUsesSaramaBroker(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.SaramaBroker
+// 		// make and configure a mocked interfaces.SaramaBroker
 // 		mockedSaramaBroker := &SaramaBrokerMock{
 // 			AddrFunc: func() string {
 // 				panic("mock out the Addr method")
@@ -31,7 +36,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedSaramaBroker in code that requires kafka.SaramaBroker
+// 		// use mockedSaramaBroker in code that requires interfaces.SaramaBroker
 // 		// and then make assertions.
 //
 // 	}

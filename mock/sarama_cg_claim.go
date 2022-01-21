@@ -4,15 +4,20 @@
 package mock
 
 import (
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 	"sync"
 )
 
-// SaramaConsumerGroupClaimMock is a mock implementation of kafka.SaramaConsumerGroupClaim.
+// Ensure, that SaramaConsumerGroupClaimMock does implement interfaces.SaramaConsumerGroupClaim.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.SaramaConsumerGroupClaim = &SaramaConsumerGroupClaimMock{}
+
+// SaramaConsumerGroupClaimMock is a mock implementation of interfaces.SaramaConsumerGroupClaim.
 //
 // 	func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.SaramaConsumerGroupClaim
+// 		// make and configure a mocked interfaces.SaramaConsumerGroupClaim
 // 		mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
 // 			HighWaterMarkOffsetFunc: func() int64 {
 // 				panic("mock out the HighWaterMarkOffset method")
@@ -31,7 +36,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedSaramaConsumerGroupClaim in code that requires kafka.SaramaConsumerGroupClaim
+// 		// use mockedSaramaConsumerGroupClaim in code that requires interfaces.SaramaConsumerGroupClaim
 // 		// and then make assertions.
 //
 // 	}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3/avro"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
@@ -29,9 +30,9 @@ type IProducer interface {
 // Producer is a producer of Kafka messages
 type Producer struct {
 	producer          sarama.AsyncProducer
-	producerInit      producerInitialiser
+	producerInit      interfaces.ProducerInitialiser
 	brokerAddrs       []string
-	brokers           []SaramaBroker
+	brokers           []interfaces.SaramaBroker
 	topic             string
 	channels          *ProducerChannels
 	config            *sarama.Config
@@ -45,10 +46,10 @@ type Producer struct {
 // New returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(ctx context.Context, pConfig *ProducerConfig) (producer *Producer, err error) {
-	return newProducer(ctx, pConfig, saramaNewAsyncProducer)
+	return newProducer(ctx, pConfig, interfaces.SaramaNewAsyncProducer)
 }
 
-func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerInitialiser) (*Producer, error) {
+func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit interfaces.ProducerInitialiser) (*Producer, error) {
 	if ctx == nil {
 		return nil, errors.New("nil context was passed to producer constructor")
 	}
@@ -64,7 +65,7 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 		producerInit:      pInit,
 		brokerAddrs:       pConfig.BrokerAddrs,
 		channels:          CreateProducerChannels(),
-		brokers:           []SaramaBroker{},
+		brokers:           []interfaces.SaramaBroker{},
 		topic:             pConfig.Topic,
 		config:            config,
 		mutex:             &sync.RWMutex{},

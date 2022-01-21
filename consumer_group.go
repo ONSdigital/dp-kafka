@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
@@ -17,8 +18,8 @@ import (
 // IConsumerGroup is an interface representing a Kafka Consumer Group, as implemented in dp-kafka/consumer
 type IConsumerGroup interface {
 	Channels() *ConsumerGroupChannels
-	State() string
-	StateWait()
+	State() State
+	StateWait(state State)
 	RegisterHandler(ctx context.Context, h Handler) error
 	RegisterBatchHandler(ctx context.Context, batchHandler BatchHandler) error
 	Checker(ctx context.Context, state *healthcheck.CheckState) error
@@ -35,11 +36,11 @@ type IConsumerGroup interface {
 // ConsumerGroup is a Kafka consumer group instance.
 type ConsumerGroup struct {
 	brokerAddrs       []string
-	brokers           []SaramaBroker
+	brokers           []interfaces.SaramaBroker
 	channels          *ConsumerGroupChannels
 	saramaCg          sarama.ConsumerGroup
 	saramaCgHandler   *saramaHandler
-	saramaCgInit      consumerGroupInitialiser
+	saramaCgInit      interfaces.ConsumerGroupInitialiser
 	topic             string
 	group             string
 	initialState      State // target state for a consumer that is still being initialised
@@ -60,10 +61,10 @@ type ConsumerGroup struct {
 
 // NewConsumerGroup creates a new consumer group with the provided parameters
 func NewConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error) {
-	return newConsumerGroup(ctx, cgConfig, saramaNewConsumerGroup)
+	return newConsumerGroup(ctx, cgConfig, interfaces.SaramaNewConsumerGroup)
 }
 
-func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit consumerGroupInitialiser) (*ConsumerGroup, error) {
+func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit interfaces.ConsumerGroupInitialiser) (*ConsumerGroup, error) {
 	if ctx == nil {
 		return nil, errors.New("nil context was passed to consumer-group constructor")
 	}
@@ -87,7 +88,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 	// ConsumerGroup created with provided brokerAddrs, topic, group and sync
 	cg := &ConsumerGroup{
 		brokerAddrs:       cgConfig.BrokerAddrs,
-		brokers:           []SaramaBroker{},
+		brokers:           []interfaces.SaramaBroker{},
 		channels:          channels,
 		topic:             cgConfig.Topic,
 		group:             cgConfig.GroupName,
@@ -141,14 +142,14 @@ func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
 }
 
 // State returns the state of the consumer group
-func (cg *ConsumerGroup) State() string {
+func (cg *ConsumerGroup) State() State {
 	cg.mutex.RLock()
 	defer cg.mutex.RUnlock()
 
 	if cg.state == nil {
-		return ""
+		return Initialising
 	}
-	return cg.state.String()
+	return cg.state.Get()
 }
 
 // StateWait blocks the calling thread until the provided state is reached

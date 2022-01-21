@@ -4,14 +4,19 @@
 package mock
 
 import (
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"sync"
 )
 
-// MessageMock is a mock implementation of kafka.Message.
+// Ensure, that MessageMock does implement interfaces.Message.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.Message = &MessageMock{}
+
+// MessageMock is a mock implementation of interfaces.Message.
 //
 // 	func TestSomethingThatUsesMessage(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.Message
+// 		// make and configure a mocked interfaces.Message
 // 		mockedMessage := &MessageMock{
 // 			CommitFunc: func()  {
 // 				panic("mock out the Commit method")
@@ -36,7 +41,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedMessage in code that requires kafka.Message
+// 		// use mockedMessage in code that requires interfaces.Message
 // 		// and then make assertions.
 //
 // 	}

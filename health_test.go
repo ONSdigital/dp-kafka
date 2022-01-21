@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
@@ -84,7 +85,7 @@ func closeMockBrokers(brokers map[string]*sarama.MockBroker) {
 func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, error) {
 	chSaramaErr, chSaramaIn := createSaramaChannels()
 	asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
-	pInit := func(addrs []string, conf *sarama.Config) (SaramaAsyncProducer, error) {
+	pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 		return asyncProducerMock, nil
 	}
 	pConfig := &ProducerConfig{

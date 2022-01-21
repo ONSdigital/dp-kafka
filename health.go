@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )
@@ -18,7 +19,7 @@ const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
 // Healthcheck validates all the provided brokers for the provided topic.
 // It returns a HealthInfoMap containing all the information.
-func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {
+func Healthcheck(ctx context.Context, brokers []interfaces.SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {
 	brokersHealthInfo := HealthInfoMap{topic: topic}
 	for _, broker := range brokers {
 		brokersHealthInfo.Set(broker, validateBroker(ctx, broker, topic, cfg))
@@ -26,7 +27,7 @@ func Healthcheck(ctx context.Context, brokers []SaramaBroker, topic string, cfg 
 	return brokersHealthInfo
 }
 
-func ensureBrokerOpen(ctx context.Context, broker SaramaBroker, cfg *sarama.Config) (err error) {
+func ensureBrokerOpen(ctx context.Context, broker interfaces.SaramaBroker, cfg *sarama.Config) (err error) {
 	var isConnected bool
 	if isConnected, err = broker.Connected(); err != nil {
 		log.Warn(ctx, "broker reports connected error - ignoring", log.FormatErrors([]error{err}), log.Data{"address": broker.Addr()})
@@ -41,7 +42,7 @@ func ensureBrokerOpen(ctx context.Context, broker SaramaBroker, cfg *sarama.Conf
 // validateBroker checks that the provider broker is reachable and the topic is in its metadata.
 // If a broker is not reachable, it will retry to contact it.
 // It returns the information in a HealthInfo struct
-func validateBroker(ctx context.Context, broker SaramaBroker, topic string, cfg *sarama.Config) HealthInfo {
+func validateBroker(ctx context.Context, broker interfaces.SaramaBroker, topic string, cfg *sarama.Config) HealthInfo {
 	healthInfo := HealthInfo{}
 
 	var resp *sarama.MetadataResponse

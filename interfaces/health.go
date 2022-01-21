@@ -1,8 +1,8 @@
-package kafka
+package interfaces
 
 import "github.com/Shopify/sarama"
 
-//go:generate moq -out ./mock/sarama_broker.go -pkg mock . SaramaBroker
+//go:generate moq -out ../mock/sarama_broker.go -pkg mock . SaramaBroker
 
 type SaramaBroker interface {
 	Addr() string

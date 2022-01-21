@@ -181,8 +181,8 @@ func TestState(t *testing.T) {
 		}
 		cg.state.Set(Starting)
 
-		Convey("then State() returns the string represenation of the current state", func() {
-			So(cg.State(), ShouldEqual, Starting.String())
+		Convey("then State() returns the current state", func() {
+			So(cg.State(), ShouldEqual, Starting)
 		})
 	})
 
@@ -191,8 +191,8 @@ func TestState(t *testing.T) {
 			mutex: &sync.RWMutex{},
 		}
 
-		Convey("then State() returns an empty string", func() {
-			So(cg.State(), ShouldEqual, "")
+		Convey("then State() returns Initialising state", func() {
+			So(cg.State(), ShouldEqual, Initialising)
 		})
 	})
 }

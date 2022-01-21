@@ -5,15 +5,20 @@ package mock
 
 import (
 	"context"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 	"sync"
 )
 
-// SaramaConsumerGroupMock is a mock implementation of kafka.SaramaConsumerGroup.
+// Ensure, that SaramaConsumerGroupMock does implement interfaces.SaramaConsumerGroup.
+// If this is not the case, regenerate this file with moq.
+var _ interfaces.SaramaConsumerGroup = &SaramaConsumerGroupMock{}
+
+// SaramaConsumerGroupMock is a mock implementation of interfaces.SaramaConsumerGroup.
 //
 // 	func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.SaramaConsumerGroup
+// 		// make and configure a mocked interfaces.SaramaConsumerGroup
 // 		mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
 // 			CloseFunc: func() error {
 // 				panic("mock out the Close method")
@@ -26,7 +31,7 @@ import (
 // 			},
 // 		}
 //
-// 		// use mockedSaramaConsumerGroup in code that requires kafka.SaramaConsumerGroup
+// 		// use mockedSaramaConsumerGroup in code that requires interfaces.SaramaConsumerGroup
 // 		// and then make assertions.
 //
 // 	}

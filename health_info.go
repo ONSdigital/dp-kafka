@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 )
 
 // HealthInfo contains the health information for one broker
@@ -17,13 +18,13 @@ type HealthInfo struct {
 // with a common topic expected to be available in all of them
 type HealthInfoMap struct {
 	topic   string
-	infoMap map[SaramaBroker]HealthInfo
+	infoMap map[interfaces.SaramaBroker]HealthInfo
 }
 
 // Set creates or overrides a HealthInfo value for the provided broker
-func (h *HealthInfoMap) Set(broker SaramaBroker, healthInfo HealthInfo) {
+func (h *HealthInfoMap) Set(broker interfaces.SaramaBroker, healthInfo HealthInfo) {
 	if h.infoMap == nil {
-		h.infoMap = map[SaramaBroker]HealthInfo{}
+		h.infoMap = map[interfaces.SaramaBroker]HealthInfo{}
 	}
 	h.infoMap[broker] = healthInfo
 }
