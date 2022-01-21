@@ -102,6 +102,9 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit producerIni
 
 // Channels returns the Producer channels for this producer
 func (p *Producer) Channels() *ProducerChannels {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
 	return p.channels
 }
 
@@ -143,6 +146,7 @@ func (p *Producer) LogErrors(ctx context.Context) {
 func (p *Producer) IsInitialised() bool {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
+
 	return p.isInitialised()
 }
 
@@ -190,6 +194,10 @@ func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
 	if err := SafeSendBytes(p.channels.Output, bytes); err != nil {
 		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
 	}

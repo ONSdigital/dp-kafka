@@ -176,6 +176,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 func TestState(t *testing.T) {
 	Convey("Given a consumer group with a state machine", t, func() {
 		cg := &ConsumerGroup{
+			mutex: &sync.RWMutex{},
 			state: NewConsumerStateMachine(),
 		}
 		cg.state.Set(Starting)
@@ -186,7 +187,9 @@ func TestState(t *testing.T) {
 	})
 
 	Convey("Given a consumer group without a state machine", t, func() {
-		cg := &ConsumerGroup{}
+		cg := &ConsumerGroup{
+			mutex: &sync.RWMutex{},
+		}
 
 		Convey("then State() returns an empty string", func() {
 			So(cg.State(), ShouldEqual, "")

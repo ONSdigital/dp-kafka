@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -272,6 +273,7 @@ func TestSend(t *testing.T) {
 
 	Convey("Given a producer with an Output channel", t, func() {
 		p := Producer{
+			mutex: &sync.RWMutex{},
 			channels: &ProducerChannels{
 				Output: make(chan []byte),
 			},

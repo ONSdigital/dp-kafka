@@ -134,11 +134,17 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 
 // Channels returns the ConsumerGroup channels for this consumer group
 func (cg *ConsumerGroup) Channels() *ConsumerGroupChannels {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+
 	return cg.channels
 }
 
 // State returns the state of the consumer group
 func (cg *ConsumerGroup) State() string {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+
 	if cg.state == nil {
 		return ""
 	}
@@ -153,6 +159,7 @@ func (cg *ConsumerGroup) StateWait(state State) {
 func (cg *ConsumerGroup) RegisterHandler(ctx context.Context, h Handler) error {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
+
 	if cg.handler != nil || cg.batchHandler != nil {
 		return errors.New("failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
 	}
@@ -164,6 +171,7 @@ func (cg *ConsumerGroup) RegisterHandler(ctx context.Context, h Handler) error {
 func (cg *ConsumerGroup) RegisterBatchHandler(ctx context.Context, batchHandler BatchHandler) error {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
+
 	if cg.handler != nil || cg.batchHandler != nil {
 		return errors.New("failed to register handler because a handler or batch handler had already been registered, only 1 allowed")
 	}
