@@ -364,7 +364,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 
 	// if Close has already been called, we don't have to do anything
 	if cg.state.Get() == Closing {
-		return
+		return nil
 	}
 
 	// Always close the Closed channel to signal that the closing operation has completed
