@@ -150,5 +150,5 @@ func (sh *saramaHandler) leaveSession() {
 // which will be closed when the current session finishes,
 // or it is already closed if we are not in a session
 func (sh *saramaHandler) sessionFinished() chan struct{} {
-	return sh.settingUp.Get()
+	return sh.settingUp.Channel()
 }

@@ -71,10 +71,15 @@ func (sc *StateChan) leave() {
 }
 
 // Get returns the channel wrapped by this StateChan struct in a concurrency-safe manner
-func (sc *StateChan) Get() chan struct{} {
+func (sc *StateChan) Channel() chan struct{} {
 	sc.mutex.RLock()
 	defer sc.mutex.RUnlock()
 	return sc.channel
+}
+
+// RWMutex returns the read-write mutex, so that callers can use it to prevent possible race conditions, if needed
+func (sc *StateChan) RWMutex() *sync.RWMutex {
+	return sc.mutex
 }
 
 // Wait blocks the calling thread until the state is reached (channel is closed)

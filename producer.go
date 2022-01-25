@@ -43,7 +43,7 @@ type Producer struct {
 	minBrokersHealthy int
 }
 
-// New returns a new producer instance using the provided config and channels.
+// NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(ctx context.Context, pConfig *ProducerConfig) (producer *Producer, err error) {
 	return newProducer(ctx, pConfig, interfaces.SaramaNewAsyncProducer)
@@ -177,7 +177,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
-	if err := p.createLoopInitialised(ctx); err != nil {
+	if err := p.createLoopInitialised(); err != nil {
 		if errSarama := saramaProducer.Close(); errSarama != nil {
 			log.Warn(ctx, fmt.Sprintf("failed to close sarama producer: %s", errSarama.Error()), log.Data{"topic": p.topic})
 		}
@@ -308,7 +308,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 // It redirects sarama errors to caller errors channel.
 // If forwards messages from the output channel to the sarama producer input.
 // If the closer channel is closed, it ends the loop and closes Closed channel.
-func (p *Producer) createLoopInitialised(ctx context.Context) error {
+func (p *Producer) createLoopInitialised() error {
 	// If sarama producer is not available, return error.
 	if !p.isInitialised() {
 		return errors.New("failed to initialise client")
