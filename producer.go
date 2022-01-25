@@ -218,7 +218,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	// closing the Closer channel will end the go-routines(if any)
 	SafeClose(p.channels.Closer)
 
-	didTimeout := WaitWithTimeout(p.wgClose)
+	didTimeout := WaitWithTimeout(p.wgClose, 2*time.Second)
 	if didTimeout {
 		return NewError(
 			fmt.Errorf("timed out while waiting for all loops to finish: %w", ctx.Err()),
@@ -242,18 +242,15 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	}
 
 	// Close all brokers connections (used by healthcheck)
-	brokerErrs := []error{}
+	brokerErrs := []string{}
 	for _, broker := range p.brokers {
 		if err := broker.Close(); err != nil {
-			brokerErrs = append(brokerErrs, err)
+			brokerErrs = append(brokerErrs, err.Error())
 		}
 	}
+	log.Info(ctx, "done closing any remaining broker connection", log.Data{"close_errors": brokerErrs})
 
 	SafeClose(p.channels.Closed)
-
-	if len(brokerErrs) > 0 {
-		return fmt.Errorf("error(s) closing broker connections: %v", brokerErrs)
-	}
 
 	log.Info(ctx, "successfully closed kafka producer", logData)
 	return nil
@@ -291,7 +288,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-time.After(GetRetryTime(initAttempt, p.minRetryPeriod, p.maxRetryPeriod)):
 				if err := p.Initialise(ctx); err != nil {
-					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
+					log.Warn(ctx, "error initialising producer, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
 					continue
 				}

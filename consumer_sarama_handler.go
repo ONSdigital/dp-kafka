@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -47,13 +48,17 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 // - Received 'false' from consume channel: set state to 'Stoppig' and stop consuming
 // - shConsuming channel closed: abort control routine and stop consuming
 func (sh *saramaHandler) controlRoutine() {
+	sessionMutex := sh.sessionRWMutex()
 	for {
+		sessionMutex.RLock()
 		select {
 		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
+			sessionMutex.RUnlock()
 			sh.state.Set(Closing)
 			sh.leaveSession()
 			return
 		case consume, ok := <-sh.channels.Consume:
+			sessionMutex.RUnlock()
 			if !ok { // Consume channel is closed, so we should not be consuming and the consumer group is closing
 				sh.state.Set(Closing)
 				sh.leaveSession()
@@ -65,6 +70,7 @@ func (sh *saramaHandler) controlRoutine() {
 				return
 			}
 		case <-sh.sessionFinished():
+			sessionMutex.RUnlock()
 			return
 		}
 	}
@@ -83,7 +89,9 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 	// Note: if the state is something else, we don't want to change it (e.g. the consumer might be stopping or closing)
 	// hence, if there is a transition error, it will be logged with info severity, but not propagated.
 	if err := sh.state.SetIf([]State{Consuming}, Starting); err != nil {
-		log.Info(sh.ctx, "failed to transition state during Sarama session Cleanup", log.Data{"err": err})
+		log.Info(sh.ctx, "Sarama session Cleanup done, with no state transition", log.Data{"err": err.Error(), "state": sh.state.Get().String()})
+	} else {
+		log.Info(sh.ctx, "Sarama session Cleanup done, with state transition", log.Data{"state": sh.state.Get().String()})
 	}
 
 	return nil
@@ -100,11 +108,15 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 // Each go-routine will send a message to the shared Upstream channel,
 // and then wait for the message specific upstreamDone channel to be closed.
 func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+	sessionMutex := sh.sessionRWMutex()
 	for {
+		sessionMutex.RLock()
 		select {
 		case <-sh.sessionFinished(): // stop consuming
+			sessionMutex.RUnlock() // Unlock session mutex, as we are no longer waiting for the sessionFinished event
 			return nil
 		case m, ok := <-claim.Messages():
+			sessionMutex.RUnlock() // Unlock session mutex, as we are no longer waiting for the sessionFinished event
 			if !ok {
 				return nil // claim ConsumerMessage channel is closed, stop consuming
 			}
@@ -125,12 +137,17 @@ func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
 		}
 	}()
 
+	sessionMutex := sh.sessionRWMutex()
+	sessionMutex.RLock()
+
 	select {
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
-		<-msg.UpstreamDone() // Wait until the message is released
-		return nil           // Message has been released
+		sessionMutex.RUnlock() // Unlock session mutex, as we are no longer waiting for the sessionFinished event
+		<-msg.UpstreamDone()   // Wait until the message is released
+		return nil             // Message has been released
 	case <-sh.sessionFinished():
-		return nil // session finished before the app reads Upstream channel, we need to stop consuming new messages now
+		sessionMutex.RUnlock() // Unlock session mutex, as we are no longer waiting for the sessionFinished event
+		return nil             // session finished before the app reads Upstream channel, we need to stop consuming new messages now
 	}
 }
 
@@ -148,7 +165,25 @@ func (sh *saramaHandler) leaveSession() {
 
 // sessionFinished returns the session channel,
 // which will be closed when the current session finishes,
-// or it is already closed if we are not in a session
+// or it is already closed if we are not in a session.
+// Note: if you intend to wait on this channel, please acquire a read lock on sessionRWMutex()
 func (sh *saramaHandler) sessionFinished() chan struct{} {
 	return sh.settingUp.Channel()
+}
+
+// sessionRWMutex returns the 'session settingUp' mutex.
+// You need to acquire a read lock from this mutex if you intend to wait
+// on the channel returned by sessionFinished()
+func (sh *saramaHandler) sessionRWMutex() *sync.RWMutex {
+	return sh.settingUp.RWMutex()
+}
+
+// waitSessionFinish blocks execution until the current session has finished, in a concurrency safe manner.
+// If there is no session established, this call will not block.
+func (sh *saramaHandler) waitSessionFinish() {
+	sessionMutex := sh.sessionRWMutex()
+	sessionMutex.RLock()
+	defer sessionMutex.RUnlock()
+
+	<-sh.sessionFinished()
 }

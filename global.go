@@ -64,7 +64,7 @@ func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Durat
 
 // WaitWithTimeout blocks until all go-routines tracked by a WaitGroup are done or a timeout expires.
 // It returns true if the timeout expired, or false if the waitgroup finished before the timeout.
-func WaitWithTimeout(wg *sync.WaitGroup) bool {
+func WaitWithTimeout(wg *sync.WaitGroup, tout time.Duration) bool {
 	chWaiting := make(chan struct{})
 	go func() {
 		defer SafeClose(chWaiting)
@@ -74,7 +74,7 @@ func WaitWithTimeout(wg *sync.WaitGroup) bool {
 	select {
 	case <-chWaiting:
 		return false
-	case <-time.After(500 * time.Millisecond):
+	case <-time.After(tout):
 		return true
 	}
 }

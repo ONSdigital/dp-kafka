@@ -190,7 +190,7 @@ func TestProducer(t *testing.T) {
 
 		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
 			err := producer.Close(ctx)
-			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
+			So(err, ShouldBeNil)
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
@@ -248,7 +248,7 @@ func TestProducerNotInitialised(t *testing.T) {
 
 		Convey("Closing the producer closes the caller channels", func(c C) {
 			err := producer.Close(ctx)
-			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
+			So(err, ShouldBeNil)
 			validateChanClosed(c, producer.Channels().Closer, true)
 			validateChanClosed(c, producer.Channels().Closed, true)
 		})

@@ -125,7 +125,7 @@ func TestConsumerInitialised(t *testing.T) {
 				return nil
 			}
 			err := consumer.Close(ctx)
-			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
+			So(err, ShouldBeNil)
 			validateChanClosed(c, consumer.Channels().Closer, true)
 			validateChanClosed(c, consumer.Channels().Closed, true)
 			So(len(saramaConsumerGroupMock.CloseCalls()), ShouldEqual, 1)
@@ -166,7 +166,7 @@ func TestConsumerNotInitialised(t *testing.T) {
 
 		Convey("Closing the consumer closes the caller channels", func(c C) {
 			err := consumer.Close(ctx)
-			So(err, ShouldResemble, errors.New("error(s) closing broker connections: [kafka: broker not connected kafka: broker not connected kafka: broker not connected]"))
+			So(err, ShouldBeNil)
 			validateChanClosed(c, consumer.Channels().Closer, true)
 			validateChanClosed(c, consumer.Channels().Closed, true)
 		})

@@ -70,7 +70,8 @@ func (sc *StateChan) leave() {
 	sc.channel = make(chan struct{})
 }
 
-// Get returns the channel wrapped by this StateChan struct in a concurrency-safe manner
+// Get returns the channel wrapped by this StateChan struct in a concurrency-safe manner.
+// Note: if you intend to wait on this channel, please acquire a read lock on RWMutex()
 func (sc *StateChan) Channel() chan struct{} {
 	sc.mutex.RLock()
 	defer sc.mutex.RUnlock()

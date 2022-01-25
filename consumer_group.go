@@ -321,7 +321,7 @@ func (cg *ConsumerGroup) stop(sync bool) error {
 			return fmt.Errorf("failed to send 'false' to consume channel: %w", err)
 		}
 		if sync {
-			<-cg.saramaCgHandler.sessionFinished() // wait until the active kafka session finishes
+			cg.saramaCgHandler.waitSessionFinish() // wait until the active kafka session finishes
 		}
 		return nil
 	default: // Closing state
@@ -376,7 +376,7 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	SafeCloseBool(cg.channels.Consume)
 	SafeClose(cg.channels.Closer)
-	didTimeout := WaitWithTimeout(cg.wgClose)
+	didTimeout := WaitWithTimeout(cg.wgClose, 2*time.Second)
 	if didTimeout {
 		return NewError(
 			fmt.Errorf("timed out while waiting for all loops to finish and remaining messages to be processed: %w", ctx.Err()),
@@ -398,16 +398,14 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		}
 	}
 
-	// Close all brokers connections (used by healthcheck)
-	brokerErrs := []error{}
+	// Close any remaining broker connection (used by healthcheck)
+	brokerErrs := []string{}
 	for _, broker := range cg.brokers {
 		if err := broker.Close(); err != nil {
-			brokerErrs = append(brokerErrs, err)
+			brokerErrs = append(brokerErrs, err.Error())
 		}
 	}
-	if len(brokerErrs) > 0 {
-		return fmt.Errorf("error(s) closing broker connections: %v", brokerErrs)
-	}
+	log.Info(ctx, "done closing any remaining broker connection", log.Data{"close_errors": brokerErrs})
 
 	log.Info(ctx, "successfully closed kafka consumer group", logData)
 	return nil
