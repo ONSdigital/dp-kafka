@@ -418,6 +418,31 @@ A function called `StateWait` has been implemented for simplicity, which does th
     ...
 ```
 
+#### Waiting for a state in a select statement
+
+If you require to wait until a state is reached or some other condition happens, you may use a select statement with the corresponding state channel.
+
+If you need to do this, you will need to acquire the read lock on the state channel to prevent any race condition, releasing it as soon as your code is no longer waiting on the channel.
+
+For example:
+
+```go
+    m := consumer.Channels().State.Consuming.RWMutex()
+    m.RLock()
+
+    select {
+    case <-time.After(someTime):
+        m.RUnlock()
+        ...
+    case <-consumer.Channels().State.Consuming.Channel()
+        m.RUnlock()
+        ...
+    }
+    ...
+```
+
+WARNING: Make sure you release the lock as soon as possible. Blocking it will prevent the kafka consumer state machine from transitioning to the state again in the future!
+
 ## Closing
 
 Producers can be closed by calling the `Close` method.
