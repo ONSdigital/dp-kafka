@@ -344,7 +344,7 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 				logData := UnwrapLogData(err)
 				logData["topic"] = cg.topic
 				logData["group_name"] = cg.group
-				log.Warn(ctx, "received kafka consumer-group error", &log.EventErrors{{
+				log.Warn(ctx, "received kafka consumer-group error", log.ERROR, &log.EventErrors{{
 					Message:    err.Error(),
 					StackTrace: stackTrace(err),
 					Data:       logData,
