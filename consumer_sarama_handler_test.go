@@ -25,7 +25,7 @@ var saramaChannelBufferSize = 256
 func TestSetup(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
 		bufferSize := 1
-		channels := CreateConsumerGroupChannels(bufferSize)
+		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
 		cgState.Set(Starting)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
@@ -87,7 +87,7 @@ func TestControlRoutine(t *testing.T) {
 
 	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession mock in Consuming state and a newly created sessionConsuming channel", t, func() {
 		bufferSize := 1
-		channels := CreateConsumerGroupChannels(bufferSize)
+		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
@@ -157,7 +157,7 @@ func TestCleanup(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
 
 		bufferSize := 1
-		channels := CreateConsumerGroupChannels(bufferSize)
+		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
@@ -213,7 +213,7 @@ func TestConsume(t *testing.T) {
 		"go-routines as partitions in the claim", t, func(c C) {
 
 		bufferSize := 1
-		channels := CreateConsumerGroupChannels(bufferSize)
+		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
 		cgState.Set(Consuming)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)
@@ -390,7 +390,7 @@ func TestConsume(t *testing.T) {
 func TestConsumeMessage(t *testing.T) {
 	Convey("Given a saramaCgHandler with Upstream channel closed", t, func(c C) {
 		bufferSize := 1
-		channels := CreateConsumerGroupChannels(bufferSize)
+		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
 		cgState.Set(Starting)
 		cgHandler := newSaramaHandler(ctx, channels, cgState)

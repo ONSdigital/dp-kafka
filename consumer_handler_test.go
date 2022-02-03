@@ -35,7 +35,7 @@ func TestHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
-			channels:   CreateConsumerGroupChannels(1),
+			channels:   CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
 				defer wg.Done()
@@ -71,7 +71,7 @@ func TestHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
-			channels:   CreateConsumerGroupChannels(1),
+			channels:   CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
 				defer wg.Done()
@@ -107,7 +107,7 @@ func TestHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
-			channels:   CreateConsumerGroupChannels(1),
+			channels:   CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
 				defer wg.Done()
@@ -143,7 +143,7 @@ func TestHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
-			channels:   CreateConsumerGroupChannels(1),
+			channels:   CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			numWorkers: 1,
 			handler: func(ctx context.Context, workerID int, msg Message) error {
 				defer wg.Done()
@@ -186,7 +186,7 @@ func TestBatchHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
-			channels:      CreateConsumerGroupChannels(3),
+			channels:      CreateConsumerGroupChannels(3, ErrorChanBufferSize),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
 			batchHandler: func(ctx context.Context, batch []Message) error {
@@ -249,7 +249,7 @@ func TestBatchHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
-			channels:      CreateConsumerGroupChannels(3),
+			channels:      CreateConsumerGroupChannels(3, ErrorChanBufferSize),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
 			batchHandler: func(ctx context.Context, batch []Message) error {
@@ -294,7 +294,7 @@ func TestBatchHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
-			channels:      CreateConsumerGroupChannels(3),
+			channels:      CreateConsumerGroupChannels(3, ErrorChanBufferSize),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
 			batchHandler: func(ctx context.Context, batch []Message) error {
@@ -339,7 +339,7 @@ func TestBatchHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
-			channels:      CreateConsumerGroupChannels(3),
+			channels:      CreateConsumerGroupChannels(3, ErrorChanBufferSize),
 			batchSize:     3,
 			batchWaitTime: 10 * time.Millisecond,
 			batchHandler: func(ctx context.Context, batch []Message) error {
