@@ -135,7 +135,7 @@ func (p *Producer) LogErrors(ctx context.Context) {
 				}
 				logData := UnwrapLogData(err)
 				logData["topic"] = p.topic
-				log.Info(ctx, "received kafka producer error", &log.EventErrors{{
+				log.Warn(ctx, "received kafka producer error", &log.EventErrors{{
 					Message:    err.Error(),
 					StackTrace: stackTrace(err),
 					Data:       logData,
