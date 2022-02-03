@@ -18,6 +18,8 @@ require (
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 )
 
+require github.com/pkg/errors v0.9.1
+
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect

@@ -2,7 +2,9 @@ package kafka
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/ONSdigital/log.go/v2/log"
 )
@@ -79,4 +81,32 @@ func UnwrapLogData(err error) log.Data {
 	}
 
 	return logData
+}
+
+// stackTrace recursively unwraps the error looking for the deepest
+// level at which the error was wrapped with a stack trace from
+// github.com/pkg/errors (or conforms to the StackTracer interface)
+// and returns the slice of stack frames. These are of type
+// log.go/EventStackTrace so can be used directly with log.Go's
+// available API to preserve the correct error logging format
+func stackTrace(err error) []log.EventStackTrace {
+	var serr stacktracer
+	var resp []log.EventStackTrace
+
+	for errors.Unwrap(err) != nil && errors.As(err, &serr) {
+		st := serr.StackTrace()
+		resp = make([]log.EventStackTrace, 0)
+		for _, f := range st {
+			line, _ := strconv.Atoi(fmt.Sprintf("%d", f))
+			resp = append(resp, log.EventStackTrace{
+				File:     fmt.Sprintf("%+s", f),
+				Function: fmt.Sprintf("%n", f),
+				Line:     line,
+			})
+		}
+
+		err = errors.Unwrap(err)
+	}
+
+	return resp
 }

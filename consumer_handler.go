@@ -40,7 +40,12 @@ func (cg *ConsumerGroup) handleMessage(ctx context.Context, workerID int, msg Me
 	if err != nil {
 		logData := UnwrapLogData(err) // this will unwrap any logData present in the error
 		logData["commit_message"] = commit
-		log.Error(ctx, "failed to handle message", err, logData)
+		log.Info(ctx, "failed to handle message", log.ERROR, &log.EventErrors{{
+			Message:    err.Error(),
+			StackTrace: stackTrace(err),
+			Data:       logData,
+		}})
+
 	}
 	if commit {
 		msg.Commit()
@@ -57,7 +62,11 @@ func (cg *ConsumerGroup) handleBatch(ctx context.Context, batch *Batch) {
 	if err != nil {
 		logData := UnwrapLogData(err) // this will unwrap any logData present in the error
 		logData["commit_batch"] = commit
-		log.Error(ctx, "failed to handle message batch", err, logData)
+		log.Info(ctx, "failed to handle message batch", log.ERROR, &log.EventErrors{{
+			Message:    err.Error(),
+			StackTrace: stackTrace(err),
+			Data:       logData,
+		}})
 	}
 	if commit {
 		batch.Commit() // mark all messages and commit session

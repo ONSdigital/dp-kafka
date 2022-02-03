@@ -135,7 +135,12 @@ func (p *Producer) LogErrors(ctx context.Context) {
 				}
 				logData := UnwrapLogData(err)
 				logData["topic"] = p.topic
-				log.Error(ctx, "received kafka producer error", err, logData)
+				log.Info(ctx, "received kafka producer error", log.ERROR, &log.EventErrors{{
+					Message:    err.Error(),
+					StackTrace: stackTrace(err),
+					Data:       logData,
+				}})
+
 			case <-p.channels.Closer:
 				return
 			}
