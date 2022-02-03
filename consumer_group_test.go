@@ -257,7 +257,7 @@ func TestRegisterHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:      &sync.RWMutex{},
 			wgClose:    &sync.WaitGroup{},
-			channels:   CreateConsumerGroupChannels(1),
+			channels:   CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			numWorkers: 1,
 		}
 
@@ -316,7 +316,7 @@ func TestRegisterBatchHandler(t *testing.T) {
 		cg := &ConsumerGroup{
 			mutex:         &sync.RWMutex{},
 			wgClose:       &sync.WaitGroup{},
-			channels:      CreateConsumerGroupChannels(1),
+			channels:      CreateConsumerGroupChannels(1, ErrorChanBufferSize),
 			batchSize:     2,
 			batchWaitTime: 100 * time.Millisecond,
 		}
@@ -557,6 +557,74 @@ func TestStop(t *testing.T) {
 	})
 }
 
+func TestLogErrors(t *testing.T) {
+	var (
+		waitForCheck            = 10 * time.Millisecond
+		testErrorChanBufferSize = 2
+	)
+
+	Convey("Given a consumer group with channels", t, func() {
+		channels := CreateConsumerGroupChannels(1, testErrorChanBufferSize)
+		cg := &ConsumerGroup{
+			channels: channels,
+			mutex:    &sync.RWMutex{},
+			wgClose:  &sync.WaitGroup{},
+		}
+		mutex := &sync.Mutex{}
+
+		Convey("When LogErrors is called", func() {
+			cg.LogErrors(ctx)
+			isLogging := true
+
+			// go-routine that sets isLogging to false when the logging go-routine finishes
+			go func() {
+				cg.wgClose.Wait()
+				mutex.Lock()
+				isLogging = false
+				mutex.Unlock()
+			}()
+
+			Convey("Then the go-routine consumes all errors from the error channel", func() {
+				time.Sleep(waitForCheck)
+				mutex.Lock()
+				So(isLogging, ShouldBeTrue)
+				mutex.Unlock()
+
+				errs := []error{
+					errors.New("err1"),
+					errors.New("err2"),
+					errors.New("err3"),
+					errors.New("err4"),
+					errors.New("err5"),
+				}
+				for _, err := range errs {
+					errSend := SafeSendErr(cg.channels.Errors, err)
+					So(errSend, ShouldBeNil)
+				}
+
+				time.Sleep(waitForCheck)
+				So(len(cg.channels.Errors), ShouldEqual, 0)
+
+				Convey("And closing the Closer channel results in the logging go-routine to end its execution", func() {
+					close(channels.Closer)
+					time.Sleep(waitForCheck)
+					mutex.Lock()
+					So(isLogging, ShouldBeFalse)
+					mutex.Unlock()
+				})
+
+				Convey("And closing the Errors channel results in the logging go-routine to end its execution", func() {
+					close(channels.Errors)
+					time.Sleep(waitForCheck)
+					mutex.Lock()
+					So(isLogging, ShouldBeFalse)
+					mutex.Unlock()
+				})
+			})
+		})
+	})
+}
+
 func TestOnHealthUpdate(t *testing.T) {
 	Convey("Given a consumer-group", t, func() {
 		cg := &ConsumerGroup{
@@ -584,7 +652,7 @@ func TestOnHealthUpdate(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	Convey("Given an kafka consumergroup", t, func() {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		cg := &ConsumerGroup{
 			channels: channels,
 			group:    testGroup,
@@ -661,7 +729,7 @@ func TestClose(t *testing.T) {
 
 func TestConsumerStopped(t *testing.T) {
 	Convey("Given a Kafka consumergroup in stopped state", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		cg := &ConsumerGroup{
 			state:    NewConsumerStateMachine(),
 			channels: channels,
@@ -698,7 +766,7 @@ func TestConsumerStopped(t *testing.T) {
 
 func TestConsumerStarting(t *testing.T) {
 	Convey("Given a Kafka consumergroup in starting state and a successful SaramaConsumerGroup mock", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		chConsumeCalled := make(chan struct{})
 		cg := &ConsumerGroup{
 			state:    NewConsumerStateMachine(),
@@ -750,7 +818,7 @@ func TestConsumerStarting(t *testing.T) {
 	})
 
 	Convey("Given a Kafka consumergroup in starting state and a SaramaConsumerGroup mock that fails to consume", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		chConsumeCalled := make(chan struct{})
 		cg := &ConsumerGroup{
 			state:          NewConsumerStateMachine(),
@@ -803,7 +871,7 @@ func TestConsumerStarting(t *testing.T) {
 
 func TestConsumeLoop(t *testing.T) {
 	Convey("Given an uninitialised consumer group where we call createConsumerLoop", t, func(c C) {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		chConsumeCalled := make(chan struct{})
 		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cg := &ConsumerGroup{
@@ -864,7 +932,7 @@ func TestConsumeLoop(t *testing.T) {
 
 func TestCreateLoopUninitialised(t *testing.T) {
 	Convey("Given a consumer group in Initialising state", t, func() {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		cg := &ConsumerGroup{
 			state:          NewConsumerStateMachine(),
 			channels:       channels,
@@ -885,7 +953,7 @@ func TestCreateLoopUninitialised(t *testing.T) {
 	})
 
 	Convey("Given a consumer group that already has an initialised Sarama client", t, func() {
-		channels := CreateConsumerGroupChannels(1)
+		channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 		chConsumeCalled := make(chan struct{})
 		saramaMock := saramaConsumerGroupHappy(chConsumeCalled)
 		cg := &ConsumerGroup{

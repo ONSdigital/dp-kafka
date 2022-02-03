@@ -109,7 +109,7 @@ func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
 func createConsumerForTesting(brokerAddrs []string, topic string) (*ConsumerGroup, error) {
-	channels := CreateConsumerGroupChannels(1)
+	channels := CreateConsumerGroupChannels(1, ErrorChanBufferSize)
 	saramaConsumerGroupMock := &mock.SaramaConsumerGroupMock{
 		ErrorsFunc: func() <-chan error {
 			return make(chan error)

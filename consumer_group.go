@@ -13,6 +13,8 @@ import (
 	"github.com/Shopify/sarama"
 )
 
+const ErrorChanBufferSize = 20
+
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
 
 // IConsumerGroup is an interface representing a Kafka Consumer Group, as implemented in dp-kafka/consumer
@@ -81,7 +83,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		upstreamBufferSize = *cgConfig.BatchSize
 	}
 
-	channels := CreateConsumerGroupChannels(upstreamBufferSize)
+	channels := CreateConsumerGroupChannels(upstreamBufferSize, ErrorChanBufferSize)
 	stateMachine := NewConsumerStateMachine()
 	channels.State = stateMachine.channels
 

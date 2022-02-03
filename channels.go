@@ -104,18 +104,24 @@ type ProducerChannels struct {
 // You can provide the buffer size to determine the number of messages that will be buffered
 // in the upstream channel (to receive messages)
 // The State channels are not initialised until the state machine is created.
-func CreateConsumerGroupChannels(bufferSize int) *ConsumerGroupChannels {
-	var chUpstream chan Message
-	if bufferSize > 0 {
-		// Upstream channel buffered
-		chUpstream = make(chan Message, bufferSize)
+func CreateConsumerGroupChannels(upstreamBufferSize, errorsBufferSize int) *ConsumerGroupChannels {
+	var upstream chan Message
+	if upstreamBufferSize > 0 {
+		upstream = make(chan Message, upstreamBufferSize)
 	} else {
-		// Upstream channel un-buffered
-		chUpstream = make(chan Message)
+		upstream = make(chan Message)
 	}
+
+	var err chan error
+	if errorsBufferSize > 0 {
+		err = make(chan error, errorsBufferSize)
+	} else {
+		err = make(chan error)
+	}
+
 	return &ConsumerGroupChannels{
-		Upstream:    chUpstream,
-		Errors:      make(chan error),
+		Upstream:    upstream,
+		Errors:      err,
 		Initialised: make(chan struct{}),
 		Consume:     make(chan bool),
 		Closer:      make(chan struct{}),
