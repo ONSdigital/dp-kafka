@@ -45,7 +45,11 @@ func (e *Error) Unwrap() error {
 	return e.err
 }
 
-// UnwrapLogData recursively unwraps logData from an error
+// UnwrapLogData recursively unwraps logData from an error. This allows an
+// error to be wrapped with log.Data at each level of the call stack, and
+// then extracted and combined here as a single log.Data entry. This allows
+// us to log errors only once but maintain the context provided by log.Data
+// at each level.
 func UnwrapLogData(err error) log.Data {
 	var data []log.Data
 
@@ -93,16 +97,18 @@ func stackTrace(err error) []log.EventStackTrace {
 	var serr stacktracer
 	var resp []log.EventStackTrace
 
-	for errors.Unwrap(err) != nil && errors.As(err, &serr) {
-		st := serr.StackTrace()
-		resp = make([]log.EventStackTrace, 0)
-		for _, f := range st {
-			line, _ := strconv.Atoi(fmt.Sprintf("%d", f))
-			resp = append(resp, log.EventStackTrace{
-				File:     fmt.Sprintf("%+s", f),
-				Function: fmt.Sprintf("%n", f),
-				Line:     line,
-			})
+	for errors.Unwrap(err) != nil {
+		if errors.As(err, &serr) {
+			st := serr.StackTrace()
+			resp = make([]log.EventStackTrace, 0)
+			for _, f := range st {
+				line, _ := strconv.Atoi(fmt.Sprintf("%d", f))
+				resp = append(resp, log.EventStackTrace{
+					File:     fmt.Sprintf("%+s", f),
+					Function: fmt.Sprintf("%n", f),
+					Line:     line,
+				})
+			}
 		}
 
 		err = errors.Unwrap(err)
