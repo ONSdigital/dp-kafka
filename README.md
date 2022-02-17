@@ -430,12 +430,14 @@ For example:
     m := consumer.Channels().State.Consuming.RWMutex()
     m.RLock()
 
+    delay := time.NewTimer(someTime)
     select {
-    case <-time.After(someTime):
+    case <-delay.C:
         m.RUnlock()
         ...
     case <-consumer.Channels().State.Consuming.Channel()
         m.RUnlock()
+        // release the 'delay' timer as what is done in the code base
         ...
     }
     ...

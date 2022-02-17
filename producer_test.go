@@ -57,12 +57,23 @@ func createMockNewAsyncProducerComplete(
 func GetFromSaramaChans(
 	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) (
 	input *sarama.ProducerMessage, err *sarama.ProducerError, timeout bool) {
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case input := <-saramaInputChan:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		return input, nil, false
 	case err := <-saramaErrsChan:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		return nil, err, false
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		return nil, nil, true
 	}
 }

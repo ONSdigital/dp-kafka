@@ -71,10 +71,16 @@ func WaitWithTimeout(wg *sync.WaitGroup, tout time.Duration) bool {
 		wg.Wait()
 	}()
 
+	delay := time.NewTimer(tout)
 	select {
 	case <-chWaiting:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		return false
-	case <-time.After(tout):
+	case <-delay.C:
 		return true
 	}
 }

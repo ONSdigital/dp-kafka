@@ -278,8 +278,14 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		defer p.wgClose.Done()
 		initAttempt := 1
 		for {
+			delay := time.NewTimer(GetRetryTime(initAttempt, p.minRetryPeriod, p.maxRetryPeriod))
 			select {
 			case message, ok := <-p.channels.Output:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				if !ok {
 					return // output chan closed
 				}
@@ -288,10 +294,20 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 					return // errors chan closed
 				}
 			case <-p.channels.Initialised:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			case <-p.channels.Closer:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
-			case <-time.After(GetRetryTime(initAttempt, p.minRetryPeriod, p.maxRetryPeriod)):
+			case <-delay.C:
 				if err := p.Initialise(ctx); err != nil {
 					log.Warn(ctx, "error initialising producer, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
@@ -299,6 +315,11 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				}
 				return
 			case <-ctx.Done():
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Error(ctx, "abandoning uninitialised producer - context expired", ctx.Err(), log.Data{"attempt": initAttempt})
 				return
 			}
