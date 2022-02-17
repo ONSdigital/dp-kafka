@@ -354,12 +354,18 @@ func validateChanClosed(c C, ch chan struct{}, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
@@ -372,12 +378,18 @@ func validateChanBoolClosed(c C, ch chan bool, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
@@ -390,12 +402,18 @@ func validateChanMessageClosed(c C, ch chan Message, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
@@ -408,12 +426,18 @@ func validateChanBytesClosed(c C, ch chan []byte, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
@@ -426,12 +450,18 @@ func validateChanErrClosed(c C, ch chan error, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)
@@ -444,13 +474,19 @@ func validateChanReceivesBool(ch chan bool, expectedVal bool) {
 		rxVal   bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case val, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			break
 		}
 		rxVal = val
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	So(timeout, ShouldBeFalse)
@@ -463,13 +499,19 @@ func validateChanReceivesBytes(ch chan []byte, expectedVal []byte) {
 		rxVal   []byte
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case val, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			break
 		}
 		rxVal = val
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	So(timeout, ShouldBeFalse)
@@ -482,13 +524,19 @@ func validateChanReceivesProducerMessage(ch chan *sarama.ProducerMessage, expect
 		rxVal   *sarama.ProducerMessage
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case e, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			break
 		}
 		rxVal = e
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	So(timeout, ShouldBeFalse)
@@ -501,13 +549,19 @@ func validateChanReceivesErr(ch chan error, expectedErr error) {
 		rxVal   error
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case e, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			break
 		}
 		rxVal = e
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	So(timeout, ShouldBeFalse)
