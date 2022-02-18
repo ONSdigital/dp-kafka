@@ -430,12 +430,23 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 		defer cg.wgClose.Done()
 		initAttempt := 1
 		for {
+			delay := time.NewTimer(GetRetryTime(initAttempt, cg.minRetryPeriod, cg.maxRetryPeriod))
 			select {
 			case <-cg.channels.Initialised:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			case <-cg.channels.Closer:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
-			case <-time.After(GetRetryTime(initAttempt, cg.minRetryPeriod, cg.maxRetryPeriod)):
+			case <-delay.C:
 				if err := cg.Initialise(ctx); err != nil {
 					log.Warn(ctx, "error initialising consumer group, will retry", log.Data{"attempt": initAttempt, "err": err.Error()})
 					initAttempt++
@@ -444,6 +455,11 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 				return
 			case <-ctx.Done():
 				log.Error(ctx, "abandoning initialisation of consumer group - context expired", ctx.Err(), log.Data{"attempt": initAttempt})
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			}
 		}
@@ -529,12 +545,23 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 					// state changed during cg.saramaCg.Consume
 					return
 				}
+				delay := time.NewTimer(GetRetryTime(consumeAttempt, cg.minRetryPeriod, cg.maxRetryPeriod))
 				select {
 				// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
 				case <-cg.channels.Closer:
+					// Ensure timer is stopped and its resources are freed
+					if !delay.Stop() {
+						// if the timer has been stopped then read from the channel
+						<-delay.C
+					}
 					cg.state.Set(Closing)
 					return
 				case consume, ok := <-cg.channels.Consume:
+					// Ensure timer is stopped and its resources are freed
+					if !delay.Stop() {
+						// if the timer has been stopped then read from the channel
+						<-delay.C
+					}
 					if !ok {
 						cg.state.Set(Closing)
 						return
@@ -544,9 +571,14 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						return
 					}
 					// once the retrial time has expired, we try to consume again (continue the loop)
-				case <-time.After(GetRetryTime(consumeAttempt, cg.minRetryPeriod, cg.maxRetryPeriod)):
+				case <-delay.C:
 					consumeAttempt++
 				case <-ctx.Done():
+					// Ensure timer is stopped and its resources are freed
+					if !delay.Stop() {
+						// if the timer has been stopped then read from the channel
+						<-delay.C
+					}
 				}
 			} else {
 				// on successful consumption, reset the attempt counter

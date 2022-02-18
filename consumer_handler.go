@@ -105,8 +105,14 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 	batch := NewBatch(cg.batchSize)
 
 	for {
+		delay := time.NewTimer(cg.batchWaitTime)
 		select {
 		case msg, ok := <-cg.Channels().Upstream:
+			// Ensure timer is stopped and its resources are freed
+			if !delay.Stop() {
+				// if the timer has been stopped then read from the channel
+				<-delay.C
+			}
 			if !ok {
 				log.Info(ctx, "upstream channel closed - closing event batch handler loop")
 				return
@@ -119,7 +125,7 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 
 			msg.Release() // always release the message
 
-		case <-time.After(cg.batchWaitTime):
+		case <-delay.C:
 			if batch.IsEmpty() {
 				continue
 			}
@@ -127,6 +133,11 @@ func (cg *ConsumerGroup) consumeBatch(ctx context.Context) {
 			cg.handleBatch(ctx, batch)
 
 		case <-cg.channels.Closer:
+			// Ensure timer is stopped and its resources are freed
+			if !delay.Stop() {
+				// if the timer has been stopped then read from the channel
+				<-delay.C
+			}
 			log.Info(ctx, "closer channel closed - closing event batch handler loop")
 			return
 		}

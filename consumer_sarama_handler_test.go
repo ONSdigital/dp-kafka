@@ -420,15 +420,21 @@ func TestConsumeMessage(t *testing.T) {
 func consume(c C, ch chan Message) int {
 	numConsum := 0
 	for {
+		delay := time.NewTimer(testChanTimeout)
 		select {
 		case msg, ok := <-ch:
+			// Ensure timer is stopped and its resources are freed
+			if !delay.Stop() {
+				// if the timer has been stopped then read from the channel
+				<-delay.C
+			}
 			if !ok {
 				return numConsum
 			}
 			msg.CommitAndRelease()
 			validateChanClosed(c, msg.UpstreamDone(), true)
 			numConsum++
-		case <-time.After(testChanTimeout):
+		case <-delay.C:
 			return numConsum
 		}
 	}

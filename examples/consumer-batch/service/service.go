@@ -128,12 +128,18 @@ func (svc *Service) Close(ctx context.Context) error {
 func createTickerLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 	go func() {
 		for {
+			delay := time.NewTimer(ticker)
 			select {
-			case <-time.After(ticker):
+			case <-delay.C:
 				log.Info(ctx, "[KAFKA-TEST] tick ", log.Data{
 					"state": cg.State().String(),
 				})
 			case <-cg.Channels().Closed:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "[KAFKA-TEST] tick - CLOSED - ", log.Data{
 					"state": cg.State().String(),
 				})
@@ -150,8 +156,9 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 	// consume start-stop loop
 	go func() {
 		for {
+			delay := time.NewTimer(startStop)
 			select {
-			case <-time.After(startStop):
+			case <-delay.C:
 				logData := log.Data{
 					"state": cg.State().String(),
 				}
@@ -186,6 +193,11 @@ func createStartStopLoop(ctx context.Context, cg *kafka.ConsumerGroup) {
 				default:
 				}
 			case <-cg.Channels().Closed:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "[KAFKA-TEST] consume loop - CLOSED - ", log.Data{
 					"state": cg.State().String(),
 				})
