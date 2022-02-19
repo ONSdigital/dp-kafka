@@ -383,12 +383,9 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	SafeCloseBool(cg.channels.Consume)
 	SafeClose(cg.channels.Closer)
-	didTimeout := WaitWithTimeout(cg.wgClose, 2*time.Second)
+	didTimeout := WaitWithTimeout(cg.wgClose, 10*time.Second)
 	if didTimeout {
-		return NewError(
-			fmt.Errorf("timed out while waiting for all loops to finish and remaining messages to be processed: %w", ctx.Err()),
-			logData,
-		)
+		log.Warn(ctx, ("timed out while waiting for all loops to finish and remaining messages to be processed"))
 	}
 
 	// Close message-passing channels
@@ -494,6 +491,8 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 				return
 			}
 			// if consume is false, we re-iterate the select, as the state is already stopped
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -579,6 +578,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 						// if the timer has been stopped then read from the channel
 						<-delay.C
 					}
+					return
 				}
 			} else {
 				// on successful consumption, reset the attempt counter

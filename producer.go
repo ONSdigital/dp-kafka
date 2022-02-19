@@ -223,7 +223,7 @@ func (p *Producer) Close(ctx context.Context) (err error) {
 	// closing the Closer channel will end the go-routines(if any)
 	SafeClose(p.channels.Closer)
 
-	didTimeout := WaitWithTimeout(p.wgClose, 2*time.Second)
+	didTimeout := WaitWithTimeout(p.wgClose, 10*time.Second)
 	if didTimeout {
 		return NewError(
 			fmt.Errorf("timed out while waiting for all loops to finish: %w", ctx.Err()),
