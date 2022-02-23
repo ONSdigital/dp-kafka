@@ -383,10 +383,6 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	SafeCloseBool(cg.channels.Consume)
 	SafeClose(cg.channels.Closer)
-	didTimeout := WaitWithTimeout(cg.wgClose, 10*time.Second)
-	if didTimeout {
-		log.Warn(ctx, ("timed out while waiting for all loops to finish and remaining messages to be processed"))
-	}
 
 	// Close message-passing channels
 	SafeCloseErr(cg.channels.Errors)
