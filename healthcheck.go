@@ -9,20 +9,22 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// ServiceName is the name of this service: Kafka.
-const ServiceName = "Kafka"
+const (
+	// ServiceName is the name of this service: Kafka.
+	ServiceName = "Kafka"
 
-// MsgHealthyProducer Check message returned when Kafka producer is healthy.
-const MsgHealthyProducer = "kafka producer is healthy"
+	// MsgHealthyProducer Check message returned when Kafka producer is healthy.
+	MsgHealthyProducer = "kafka producer is healthy"
 
-// MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
-const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
+	// MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
+	MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
-// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a producer
-const ProducerMinBrokersHealthy = 2
+	// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a producer
+	ProducerMinBrokersHealthy = 2
 
-// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a consumer
-const ConsumerMinBrokersHealthy = 1
+	// ProducerMinBrokersHealthy is the minimum number of healthy brokers required for a healthcheck to not be considered critical for a consumer
+	ConsumerMinBrokersHealthy = 1
+)
 
 // Checker checks health of Kafka producer and updates the provided CheckState accordingly
 func (p *Producer) Checker(ctx context.Context, state *health.CheckState) error {

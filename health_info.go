@@ -49,7 +49,7 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 
 // ErrorMsg returns an tailored message according to the information kept in HealthInfoMap
 func (h *HealthInfoMap) ErrorMsg() string {
-	errorMsg := ""
+	var errorMsg string
 
 	unreachableAddrs := []string{}
 	for broker, healthInfo := range *h {
