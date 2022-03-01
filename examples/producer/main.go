@@ -150,16 +150,27 @@ func runProducer(ctx context.Context, cancel context.CancelFunc, cfg *Config) (*
 		defer cancel()
 		defer close(eventLoopDone)
 		for {
+			delay := time.NewTimer(ticker)
 			select {
 
-			case <-time.After(ticker):
+			case <-delay.C:
 				log.Info(ctx, "[KAFKA-TEST] tick")
 
 			case <-eventLoopContext.Done():
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "[KAFKA-TEST] Event loop context done", log.Data{"eventLoopContextErr": eventLoopContext.Err()})
 				return
 
 			case stdinLine := <-stdinChannel:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
 				pChannels.Output <- []byte(stdinLine)
 				log.Info(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})

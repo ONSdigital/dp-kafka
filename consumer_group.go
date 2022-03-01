@@ -226,13 +226,24 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 		defer cg.wgClose.Done()
 		initAttempt := 1
 		for {
+			delay := time.NewTimer(getRetryTime(initAttempt, InitRetryPeriod))
 			select {
 			case <-cg.channels.Ready:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			case <-cg.channels.Closer:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "closing uninitialised kafka consumer group", log.Data{"topic": cg.topic})
 				return
-			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
+			case <-delay.C:
 				if err := cg.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising consumer group", err, log.Data{"attempt": initAttempt})
 					initAttempt++
@@ -240,6 +251,11 @@ func (cg *ConsumerGroup) createLoopUninitialised(ctx context.Context) {
 				}
 				return
 			case <-ctx.Done():
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Error(ctx, "abandoning initialisation of consumer group - context expired", ctx.Err(), log.Data{"attempt": initAttempt})
 				return
 			}
@@ -269,15 +285,26 @@ func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
 				// the consumer session will need to be recreated to get the new claims
 				if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
 					log.Error(ctx, "error consuming", err, log.Data{"attempt": consumeAttempt})
+					delay := time.NewTimer(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod))
 					select {
 					// check if closer channel is closed, signaling that the consumer should stop (don't retry to Consume)
 					case <-cg.channels.Closer:
+						// Ensure timer is stopped and its resources are freed
+						if !delay.Stop() {
+							// if the timer has been stopped then read from the channel
+							<-delay.C
+						}
 						log.Info(ctx, "closed kafka consumer consume loop via closer channel", logData)
 						return
 					// once the retrial time has expired, we try to consume again (continue the loop)
-					case <-time.After(getRetryTime(consumeAttempt, ConsumeErrRetryPeriod)):
+					case <-delay.C:
 						consumeAttempt++
 					case <-ctx.Done():
+						// Ensure timer is stopped and its resources are freed
+						if !delay.Stop() {
+							// if the timer has been stopped then read from the channel
+							<-delay.C
+						}
 					}
 				} else {
 					// on successful consumption, reset the attempt counter
