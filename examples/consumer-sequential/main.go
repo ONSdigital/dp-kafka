@@ -121,12 +121,18 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 	consumeCount := 0
 	go func() {
 		for {
+			delay := time.NewTimer(ticker)
 			select {
 
-			case <-time.After(ticker):
+			case <-delay.C:
 				log.Info(ctx, "[KAFKA-TEST] tick")
 
 			case consumedMessage, ok := <-cgChannels.Upstream:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				if !ok {
 					break
 				}
@@ -147,6 +153,11 @@ func runConsumerGroup(ctx context.Context, cfg *Config) (*kafka.ConsumerGroup, e
 				log.Info(ctx, "[KAFKA-TEST] committed and released message", log.Data{"messageOffset": consumedMessage.Offset()})
 
 			case <-ctx.Done():
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			}
 		}

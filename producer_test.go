@@ -55,12 +55,23 @@ func createMockNewAsyncProducerComplete(
 func GetFromSaramaChans(
 	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) (
 	input *sarama.ProducerMessage, err *sarama.ProducerError, timeout bool) {
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case input := <-saramaInputChan:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		return input, nil, false
 	case err := <-saramaErrsChan:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		return nil, err, false
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		return nil, nil, true
 	}
 }
@@ -172,13 +183,19 @@ func validateChannelReceivesError(ch chan error, expectedErr error) {
 		rxErr   error
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case e, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			break
 		}
 		rxErr = e
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	So(timeout, ShouldBeFalse)
@@ -191,12 +208,18 @@ func validateChannelClosed(c C, ch chan struct{}, expectedClosed bool) {
 		closed  bool
 		timeout bool
 	)
+	delay := time.NewTimer(TIMEOUT)
 	select {
 	case _, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
 		if !ok {
 			closed = true
 		}
-	case <-time.After(TIMEOUT):
+	case <-delay.C:
 		timeout = true
 	}
 	c.So(timeout, ShouldNotEqual, expectedClosed)

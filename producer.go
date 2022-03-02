@@ -191,16 +191,32 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		defer p.wgClose.Done()
 		initAttempt := 1
 		for {
+			delay := time.NewTimer(getRetryTime(initAttempt, InitRetryPeriod))
 			select {
 			case message := <-p.channels.Output:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{ErrUninitialisedProducer}))
 				p.channels.Errors <- ErrUninitialisedProducer
 			case <-p.channels.Ready:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				return
 			case <-p.channels.Closer:
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Info(ctx, "closing uninitialised kafka producer", log.Data{"topic": p.topic})
 				return
-			case <-time.After(getRetryTime(initAttempt, InitRetryPeriod)):
+			case <-delay.C:
 				if err := p.Initialise(ctx); err != nil {
 					log.Error(ctx, "error initialising producer", err, log.Data{"attempt": initAttempt})
 					initAttempt++
@@ -208,6 +224,11 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				}
 				return
 			case <-ctx.Done():
+				// Ensure timer is stopped and its resources are freed
+				if !delay.Stop() {
+					// if the timer has been stopped then read from the channel
+					<-delay.C
+				}
 				log.Error(ctx, "abandoning uninitialised producer - context expired", ctx.Err(), log.Data{"attempt": initAttempt})
 				return
 			}
