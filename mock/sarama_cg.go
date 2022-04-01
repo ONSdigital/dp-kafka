@@ -45,6 +45,18 @@ type SaramaConsumerGroupMock struct {
 	// ErrorsFunc mocks the Errors method.
 	ErrorsFunc func() <-chan error
 
+	// PauseFunc mocks the Pause method.
+	PauseFunc func(topicPartitions map[string][]int32)
+
+	// PauseAllFunc mocks the PauseAll method.
+	PauseAllFunc func()
+
+	// ResumeFunc mocks the Resume method.
+	ResumeFunc func(topicPartitions map[string][]int32)
+
+	// ResumeAllFunc mocks the ResumeAll method.
+	ResumeAllFunc func()
+
 	// calls tracks calls to the methods.
 	calls struct {
 		// Close holds details about calls to the Close method.
@@ -66,6 +78,18 @@ type SaramaConsumerGroupMock struct {
 	lockClose   sync.RWMutex
 	lockConsume sync.RWMutex
 	lockErrors  sync.RWMutex
+}
+
+func (mock *SaramaConsumerGroupMock) Pause(topicPartitions map[string][]int32) {
+}
+
+func (mock *SaramaConsumerGroupMock) PauseAll() {
+}
+
+func (mock *SaramaConsumerGroupMock) Resume(topicPartitions map[string][]int32) {
+}
+
+func (mock *SaramaConsumerGroupMock) ResumeAll() {
 }
 
 // Close calls CloseFunc.
