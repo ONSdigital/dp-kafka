@@ -1,0 +1,1 @@
+sonatype-2021-4899 # No upgrade available. Insufficient Session Expiration see https://ossindex.sonatype.org/vulnerability/sonatype-2021-4899?component-type=golang&component-name=github.com/gorilla/sessions
