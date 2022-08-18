@@ -11,8 +11,8 @@ import (
 )
 
 type testError struct {
-	err        error
-	logData    map[string]interface{}
+	err     error
+	logData map[string]interface{}
 }
 
 func (e testError) Error() string {
@@ -31,7 +31,6 @@ func (e testError) LogData() map[string]interface{} {
 }
 
 func TestUnwrapLogDataHappy(t *testing.T) {
-
 	Convey("Given an error chain with wrapped logData", t, func() {
 		err1 := &testError{
 			err: errors.New("original error"),
@@ -143,37 +142,37 @@ func TestUnwrapLogDataHappy(t *testing.T) {
 	})
 }
 
-func TestStackTraceHappy(t *testing.T){
+func TestStackTraceHappy(t *testing.T) {
 	Convey("Given an error with embedded stack trace from pkg/errors", t, func() {
 		err := testCallStackFunc1()
 		Convey("When stackTrace(err) is called", func() {
 			st := stackTrace(err)
 			So(len(st), ShouldEqual, 19)
-			
+
 			So(st[0].File, ShouldContainSubstring, "dp-kafka/error_test.go")
-			So(st[0].Line, ShouldEqual, 177)
+			So(st[0].Line, ShouldEqual, 176)
 			So(st[0].Function, ShouldEqual, "testCallStackFunc3")
 
 			So(st[1].File, ShouldContainSubstring, "dp-kafka/error_test.go")
-			So(st[1].Line, ShouldEqual, 173)
+			So(st[1].Line, ShouldEqual, 172)
 			So(st[1].Function, ShouldEqual, "testCallStackFunc2")
 
 			So(st[2].File, ShouldContainSubstring, "dp-kafka/error_test.go")
-			So(st[2].Line, ShouldEqual, 169)
+			So(st[2].Line, ShouldEqual, 168)
 			So(st[2].Function, ShouldEqual, "testCallStackFunc1")
 		})
 	})
 }
 
-func testCallStackFunc1() error{
+func testCallStackFunc1() error {
 	return testCallStackFunc2()
 }
 
-func testCallStackFunc2() error{
+func testCallStackFunc2() error {
 	return testCallStackFunc3()
 }
 
-func testCallStackFunc3() error{
+func testCallStackFunc3() error {
 	cause := errors.New("I am the cause")
 	return errors.Wrap(cause, "I am the context")
 }

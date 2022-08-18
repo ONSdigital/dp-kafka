@@ -463,8 +463,7 @@ func setNestedStructs(nestedMap map[string]interface{}, v reflect.Value, typ ref
 func marshalMap(record *avro.GenericRecord, v reflect.Value, i int, fieldTag string) error {
 	// This switch statement will need to be extended to support other native types,
 	// Currently supports strings
-	switch v.Field(i).Type().Elem().Kind() {
-	case reflect.String:
+	if v.Field(i).Type().Elem().Kind() == reflect.String {
 		stringMap := marshalStringMap(v, i)
 		record.Set(fieldTag, stringMap)
 	}

@@ -21,10 +21,8 @@ func createProducerChannels() (output chan []byte, errs chan error, init, closer
 }
 
 func TestProducerChannelsValidate(t *testing.T) {
-
 	Convey("Given a set of producer channels", t, func() {
 		output, errs, init, closer, closed := createProducerChannels()
-
 		Convey("ProducerChannels with all required channels has a successful validation", func() {
 			pCh := ProducerChannels{
 				Output:      output,
@@ -117,7 +115,6 @@ func TestProducerChannelsValidate(t *testing.T) {
 				log.Data{"missing_channels": []string{Errors, Initialised, Closer, Closed}},
 			))
 		})
-
 	})
 }
 
@@ -133,10 +130,8 @@ func createConsumerChannels() (upstream chan Message, consume chan bool, init, c
 }
 
 func TestConsumerGroupChannelsValidate(t *testing.T) {
-
 	Convey("Given a set of consumer group channels", t, func() {
 		upstream, consume, init, closer, closed, errs := createConsumerChannels()
-
 		Convey("ConsumerGroupChannels with all required channels has a successful validation", func() {
 			cCh := ConsumerGroupChannels{
 				Upstream:    upstream,

@@ -195,9 +195,7 @@ func TestIsFull(t *testing.T) {
 		batch := NewBatch(batchSize)
 
 		So(batch.IsFull(), ShouldBeFalse)
-
 		Convey("When the number of messages added equals the batch size", func() {
-
 			batch.Add(message)
 			So(batch.IsFull(), ShouldBeFalse)
 			batch.Add(message)

@@ -64,13 +64,13 @@ func validateBroker(ctx context.Context, broker interfaces.SaramaBroker, topic s
 
 		if resp, err = broker.GetMetadata(&request); err != nil {
 			if retriesLeft > 0 {
-				errs := []error{err}
+				closeErrs := []error{err}
 				// want next retry to trigger broker.Open, so Close first
 				if err = broker.Close(); err != nil {
-					closeErrs := append(errs, err)
+					closeErrs = append(closeErrs, err)
 					log.Warn(ctx, "failed to obtain metadata from broker - close also failed", logData, log.FormatErrors(closeErrs))
 				} else {
-					log.Warn(ctx, "failed to obtain metadata from broker, closed broker for retry", logData, log.FormatErrors(errs))
+					log.Warn(ctx, "failed to obtain metadata from broker, closed broker for retry", logData, log.FormatErrors(closeErrs))
 				}
 			}
 			// when retriesLeft == 0, will exit loop and err will be returned

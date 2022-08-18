@@ -89,7 +89,6 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	}
 	if err := addAnyTLS(c.SecurityConfig, cfg); err != nil {
 		return nil, fmt.Errorf("error adding tls: %w", err)
-
 	}
 
 	// Override any other optional value

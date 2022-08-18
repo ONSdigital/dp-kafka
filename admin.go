@@ -45,12 +45,11 @@ func (t Acls) Apply(adm sarama.ClusterAdmin) error {
 }
 
 func (t TopicAuthList) Apply(adm sarama.ClusterAdmin) error {
-	for _, topicAcl := range t.Acls {
-		acls := topicAcl.GetAcls(t.Domain)
+	for _, topicACL := range t.Acls {
+		acls := topicACL.GetAcls(t.Domain)
 		if err := acls.Apply(adm); err != nil {
 			return fmt.Errorf("error applying cluster-admin ACLs: %w", err)
 		}
-
 	}
 	return nil
 }

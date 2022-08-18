@@ -84,7 +84,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestControlRoutine(t *testing.T) {
-
 	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession mock in Consuming state and a newly created sessionConsuming channel", t, func() {
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
@@ -155,7 +154,6 @@ func TestControlRoutine(t *testing.T) {
 
 func TestCleanup(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, and a sarama ConsumerGroupSession mock", t, func(c C) {
-
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
@@ -211,7 +209,6 @@ func TestConsume(t *testing.T) {
 	Convey("Given a saramaCgHandler with channels, a sarama ConsumerGroupSession, "+
 		"one message being produced per partition, and as many parallel consumption "+
 		"go-routines as partitions in the claim", t, func(c C) {
-
 		bufferSize := 1
 		channels := CreateConsumerGroupChannels(bufferSize, ErrorChanBufferSize)
 		cgState := NewConsumerStateMachine()
@@ -328,7 +325,6 @@ func TestConsume(t *testing.T) {
 
 			Convey("Closing the closer channel results in only the remaining messages in the Upstream channel being consumed "+
 				"before all the ConsumeClaim goroutines finish their execution", func(c C) {
-
 				// close closer channel - no new messages will be consumed, even if saramaMessagesChan contains more messages.
 				close(channels.Closer)
 
@@ -348,7 +344,6 @@ func TestConsume(t *testing.T) {
 
 			Convey("Sending 'false' to the Consume channel results in only the remaining messages in the Upstream channel being consumed "+
 				"before all the ConsumeClaim goroutines finish their execution", func(c C) {
-
 				// send false to Consume channel - no new messages will be consumed, even if saramaMessagesChan contains more messages.
 				channels.Consume <- false
 
@@ -367,7 +362,6 @@ func TestConsume(t *testing.T) {
 
 			Convey("Closing the Consume channel results in only the remaining messages in the Upstream channel being consumed "+
 				"before all the ConsumeClaim goroutines finish their execution", func(c C) {
-
 				// send false to Consume channel - no new messages will be consumed, even if saramaMessagesChan contains more messages.
 				close(channels.Consume)
 

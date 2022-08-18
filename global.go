@@ -1,8 +1,9 @@
 package kafka
 
 import (
+	"crypto/rand"
 	"math"
-	"math/rand"
+	"math/big"
 	"sync"
 	"time"
 
@@ -49,9 +50,9 @@ func GetRetryTime(attempt int, retryTime, maxRetryTime time.Duration) time.Durat
 	modAttempt := (attempt - 1) % modulus
 	n := math.Pow(2, float64(modAttempt))
 	retryPause := time.Duration(n) * retryTime
-
+	randNumber, _ := rand.Int(rand.Reader, big.NewInt(50))
 	// add or subtract a random factor of up to 25%
-	rnd := (rand.Int63n(50) - 25) * retryTime.Milliseconds() / 100
+	rnd := (randNumber.Int64() - 25) * retryTime.Milliseconds() / 100
 	retryPause += time.Duration(rnd) * time.Millisecond
 
 	// cap the value to maxRetryTime if it was exceeded

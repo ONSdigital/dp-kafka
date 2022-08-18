@@ -123,8 +123,8 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 		select {
 		case <-ctx.Done():
 			log.Info(ctx, "closing consumer group because context is done")
-			if err := cg.Close(ctx); err != nil {
-				log.Error(ctx, "error closing consumer group: %w", err, log.Data{"topic": cg.topic, "group": cg.group})
+			if closeErr := cg.Close(ctx); closeErr != nil {
+				log.Error(ctx, "error closing consumer group: %w", closeErr, log.Data{"topic": cg.topic, "group": cg.group})
 			}
 		case <-cg.channels.Closer:
 			return
@@ -317,7 +317,7 @@ func (cg *ConsumerGroup) StopAndWait() error {
 	return cg.stop(true)
 }
 
-func (cg *ConsumerGroup) stop(sync bool) error {
+func (cg *ConsumerGroup) stop(syncCheck bool) error {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()
 
@@ -331,7 +331,7 @@ func (cg *ConsumerGroup) stop(sync bool) error {
 		if err := SafeSendBool(cg.channels.Consume, false); err != nil {
 			return fmt.Errorf("failed to send 'false' to consume channel: %w", err)
 		}
-		if sync {
+		if syncCheck {
 			cg.saramaCgHandler.waitSessionFinish() // wait until the active kafka session finishes
 		}
 		return nil

@@ -32,7 +32,6 @@ func NewMessageProducer(isInitialisedAtCreationTime bool) *MessageProducer {
 // NewMessageProducerWithChannels creates a testing producer with the provided producerChannels.
 // isInitialisedAtCreationTime determines if the producer is initialised or not when it's created
 func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitialisedAtCreationTime bool) *MessageProducer {
-
 	internal := &pInternal{
 		isInitialised: false,
 		pChannels:     pChannels,

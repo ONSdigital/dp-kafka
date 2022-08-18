@@ -48,7 +48,6 @@ func (cg *ConsumerGroup) handleMessage(ctx context.Context, workerID int, msg Me
 			StackTrace: stackTrace(err),
 			Data:       logData,
 		}})
-
 	}
 	if commit {
 		msg.Commit()

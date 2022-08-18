@@ -12,10 +12,8 @@ import (
 
 func TestProducerConfig(t *testing.T) {
 	Convey("Given a valid kafka version", t, func() {
-
 		kafkaVersion, err := sarama.ParseKafkaVersion(testKafkaVersion)
 		So(err, ShouldBeNil)
-
 		Convey("getProducerConfig with a producerConfig with some values results in the expected values being overwritten in the default sarama config", func() {
 			pConfig := &ProducerConfig{
 				MaxMessageBytes: &testMaxMessageBytes,
