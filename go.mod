@@ -2,6 +2,12 @@ module github.com/ONSdigital/dp-kafka/v3
 
 go 1.17
 
+// to avoid 'sonatype-2021-4899' non-CVE Vulnerability
+exclude github.com/gorilla/sessions v1.2.1
+
+// to avoid 'sonatype-2020-0584' non-CVE vulnerability
+replace github.com/yuin/goldmark v1.1.32 => github.com/yuin/goldmark v1.4.12
+
 require (
 	github.com/ONSdigital/dp-healthcheck v1.2.3
 	github.com/ONSdigital/log.go/v2 v2.0.9
