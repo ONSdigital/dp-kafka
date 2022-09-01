@@ -8,10 +8,15 @@ import (
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
+	"github.com/google/uuid"
 	"github.com/rcrowley/go-metrics"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
+
+const (
+	TraceIDHeaderKey = "traceID"
+)
 
 // IProducer is an interface representing a Kafka Producer
 type IProducer interface {
@@ -33,6 +38,7 @@ type Producer struct {
 	config       *sarama.Config
 	mutex        *sync.Mutex
 	wgClose      *sync.WaitGroup
+	headers      []sarama.RecordHeader
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
@@ -86,6 +92,7 @@ func newProducer(ctx context.Context, brokerAddrs []string, topic string,
 	if err != nil {
 		producer.createLoopUninitialised(ctx)
 	}
+	producer.addTraceIDHeader()
 	return producer, nil
 }
 
@@ -95,6 +102,16 @@ func (p *Producer) Channels() *ProducerChannels {
 		return nil
 	}
 	return p.channels
+}
+
+func (p *Producer) AddHeader(key, value string) {
+	if key == "" {
+		return
+	}
+	p.headers = append(p.headers, sarama.RecordHeader{
+		Key:   []byte(key),
+		Value: []byte(value),
+	})
 }
 
 // IsInitialised returns true only if Sarama producer has been correctly initialised.
@@ -256,7 +273,7 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 			case err := <-p.producer.Errors():
 				p.channels.Errors <- err
 			case message := <-p.channels.Output:
-				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)}
+				p.producer.Input() <- &sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message), Headers: p.headers}
 			case <-p.channels.Closer:
 				log.Info(ctx, "closing initialised kafka producer", log.Data{"topic": p.topic})
 				return
@@ -264,4 +281,11 @@ func (p *Producer) createLoopInitialised(ctx context.Context) error {
 		}
 	}()
 	return nil
+}
+
+func (p *Producer) addTraceIDHeader() {
+	p.headers = append(p.headers, sarama.RecordHeader{
+		Key:   []byte(TraceIDHeaderKey),
+		Value: []byte(uuid.NewString()),
+	})
 }

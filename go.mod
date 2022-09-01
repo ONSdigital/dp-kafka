@@ -8,6 +8,7 @@ require (
 	github.com/Shopify/sarama v1.30.1
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
+	github.com/google/uuid v1.3.0
 	github.com/gopherjs/gopherjs v0.0.0-20210202160940-bed99a852dfe // indirect
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475

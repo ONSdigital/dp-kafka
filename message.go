@@ -12,6 +12,9 @@ type Message interface {
 	// GetData returns the message contents.
 	GetData() []byte
 
+	// GetHeader takes a key for the header and returns the value if the key exist in the header.
+	GetHeader(key string) string
+
 	// Mark marks the message as consumed, but doesn't commit the offset to the backend
 	Mark()
 
@@ -41,6 +44,16 @@ type SaramaMessage struct {
 // GetData returns the message contents.
 func (M SaramaMessage) GetData() []byte {
 	return M.message.Value
+}
+
+// GetHeader takes a key for the header and returns the value if the key exist in the header.
+func (M SaramaMessage) GetHeader(key string) string {
+	for _, recordHeader := range M.message.Headers {
+		if string(recordHeader.Key) == key {
+			return string(recordHeader.Value)
+		}
+	}
+	return ""
 }
 
 // Offset returns the message offset
