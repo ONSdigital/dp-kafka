@@ -6,6 +6,7 @@ import (
 	"time"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-net/v2/request"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ import (
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
 
 const (
-	TraceIDHeaderKey = "traceID"
+	TraceIDHeaderKey = string(request.RequestIdKey)
 )
 
 // IProducer is an interface representing a Kafka Producer

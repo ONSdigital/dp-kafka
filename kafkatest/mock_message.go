@@ -4,6 +4,7 @@
 package kafkatest
 
 import (
+	"context"
 	"github.com/ONSdigital/dp-kafka/v2"
 	"sync"
 )
@@ -23,6 +24,9 @@ var _ kafka.Message = &MessageMock{}
 // 			},
 // 			CommitAndReleaseFunc: func()  {
 // 				panic("mock out the CommitAndRelease method")
+// 			},
+// 			ContextFunc: func() context.Context {
+// 				panic("mock out the Context method")
 // 			},
 // 			GetDataFunc: func() []byte {
 // 				panic("mock out the GetData method")
@@ -55,6 +59,9 @@ type MessageMock struct {
 	// CommitAndReleaseFunc mocks the CommitAndRelease method.
 	CommitAndReleaseFunc func()
 
+	// ContextFunc mocks the Context method.
+	ContextFunc func() context.Context
+
 	// GetDataFunc mocks the GetData method.
 	GetDataFunc func() []byte
 
@@ -81,6 +88,9 @@ type MessageMock struct {
 		// CommitAndRelease holds details about calls to the CommitAndRelease method.
 		CommitAndRelease []struct {
 		}
+		// Context holds details about calls to the Context method.
+		Context []struct {
+		}
 		// GetData holds details about calls to the GetData method.
 		GetData []struct {
 		}
@@ -104,6 +114,7 @@ type MessageMock struct {
 	}
 	lockCommit           sync.RWMutex
 	lockCommitAndRelease sync.RWMutex
+	lockContext          sync.RWMutex
 	lockGetData          sync.RWMutex
 	lockGetHeader        sync.RWMutex
 	lockMark             sync.RWMutex
@@ -161,6 +172,32 @@ func (mock *MessageMock) CommitAndReleaseCalls() []struct {
 	mock.lockCommitAndRelease.RLock()
 	calls = mock.calls.CommitAndRelease
 	mock.lockCommitAndRelease.RUnlock()
+	return calls
+}
+
+// Context calls ContextFunc.
+func (mock *MessageMock) Context() context.Context {
+	if mock.ContextFunc == nil {
+		panic("MessageMock.ContextFunc: method is nil but Message.Context was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockContext.Lock()
+	mock.calls.Context = append(mock.calls.Context, callInfo)
+	mock.lockContext.Unlock()
+	return mock.ContextFunc()
+}
+
+// ContextCalls gets all the calls that were made to Context.
+// Check the length with:
+//     len(mockedMessage.ContextCalls())
+func (mock *MessageMock) ContextCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockContext.RLock()
+	calls = mock.calls.Context
+	mock.lockContext.RUnlock()
 	return calls
 }
 
