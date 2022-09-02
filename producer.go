@@ -92,7 +92,12 @@ func newProducer(ctx context.Context, brokerAddrs []string, topic string,
 	if err != nil {
 		producer.createLoopUninitialised(ctx)
 	}
-	producer.addTraceIDHeader()
+	traceID := ctx.Value(TraceIDHeaderKey)
+	if traceID == nil {
+		producer.addTraceIDHeader()
+	} else {
+		producer.AddHeader(TraceIDHeaderKey, traceID.(string))
+	}
 	return producer, nil
 }
 

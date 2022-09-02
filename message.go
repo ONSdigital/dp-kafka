@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"context"
+
 	"github.com/Shopify/sarama"
 )
 
@@ -44,6 +46,15 @@ type SaramaMessage struct {
 // GetData returns the message contents.
 func (M SaramaMessage) GetData() []byte {
 	return M.message.Value
+}
+
+func (M SaramaMessage) Context() context.Context {
+	ctx := context.Background()
+	traceID := M.GetHeader(TraceIDHeaderKey)
+	if traceID != "" {
+		ctx = context.WithValue(ctx, TraceIDHeaderKey, traceID)
+	}
+	return ctx
 }
 
 // GetHeader takes a key for the header and returns the value if the key exist in the header.

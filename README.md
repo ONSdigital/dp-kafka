@@ -129,10 +129,10 @@ After successfully closing a producer or consumer, the corresponding `Closed` ch
 ### Headers
 
 The headers are key-value pairs that are transparently passed
-by Kafka between producers and consumers.By default the traceid predefined header will be added to veery kafka producer message.There is also the option to add custom headers to kafka by doing the following
+by Kafka between producers and consumers.By default the traceid predefined header will be added to every kafka producer message.There is also the option to add custom headers to kafka by doing the following
 
 ```go
-	// Create Producer with channels and config
+// Create Producer with channels and config
 pChannels := kafka.CreateProducerChannels()
 pConfig := &kafka.ProducerConfig{MaxMessageBytes: &cfg.KafkaMaxBytes}
 producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
