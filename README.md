@@ -126,6 +126,31 @@ The `Closer` channel is used to signal to all the loops that they need to exit b
 
 After successfully closing a producer or consumer, the corresponding `Closed` channel is closed.
 
+### Headers
+
+The headers are key-value pairs that are transparently passed
+by Kafka between producers and consumers.By default the traceid predefined header will be added to veery kafka producer message.There is also the option to add custom headers to kafka by doing the following
+
+```go
+	// Create Producer with channels and config
+pChannels := kafka.CreateProducerChannels()
+pConfig := &kafka.ProducerConfig{MaxMessageBytes: &cfg.KafkaMaxBytes}
+producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
+producer.AddHeader(key, value)
+```
+The consumers can then retrieve these headers by the `GetHeader` api as follows.
+
+```go
+// consumer loop
+func consume(upstream chan kafka.Message) {
+	for {
+		msg := <-upstream
+		value := msg.GetHeader(key)
+		msg.Commit()
+	}
+}
+```
+
 ## Health-check
 
 The health status of a consumer or producer can be obtained by calling `Checker` method, which updates the provided CheckState structure with the relevant information:
