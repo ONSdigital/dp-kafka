@@ -1,1 +1,4 @@
 sonatype-2021-4899 #  1 non-CVE vulnerability found. To see more details, please create a free account at https://ossindex.sonatype.org/ and request for this information using your registered account
+CVE-2022-29153 #  CWE-918: Server-Side Request Forgery (SSRF)
+sonatype-2021-1401 # 1 non-CVE vulnerability found. To see more details, please create a free account at https://ossindex.sonatype.org/ and request for this information using your registered account
+sonatype-2019-0890 # 1 non-CVE vulnerability found. To see more details, please create a free account at https://ossindex.sonatype.org/ and request for this information using your registered account
