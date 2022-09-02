@@ -17,6 +17,9 @@ type Message interface {
 	// GetHeader takes a key for the header and returns the value if the key exist in the header.
 	GetHeader(key string) string
 
+	// Context returns a context with traceid.
+	Context() context.Context
+
 	// Mark marks the message as consumed, but doesn't commit the offset to the backend
 	Mark()
 
@@ -48,6 +51,7 @@ func (M SaramaMessage) GetData() []byte {
 	return M.message.Value
 }
 
+// Context returns a context with traceid.
 func (M SaramaMessage) Context() context.Context {
 	ctx := context.Background()
 	traceID := M.GetHeader(TraceIDHeaderKey)
