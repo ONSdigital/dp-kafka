@@ -74,7 +74,7 @@ func (internal *cgInternal) stopListeningToConsumerFunc(ctx context.Context) err
 	return nil
 }
 
-func (internal *cgInternal) closeFunc(ctx context.Context) error {
+func (internal *cgInternal) closeFunc(ctx context.Context, optFuncs ...kafka.OptFunc) error {
 	select {
 	case <-internal.cgChannels.Closer:
 	default:

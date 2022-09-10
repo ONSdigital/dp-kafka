@@ -5,18 +5,9 @@ package kafkatest
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v2"
 	"sync"
-)
-
-var (
-	lockIConsumerGroupMockChannels                sync.RWMutex
-	lockIConsumerGroupMockChecker                 sync.RWMutex
-	lockIConsumerGroupMockClose                   sync.RWMutex
-	lockIConsumerGroupMockInitialise              sync.RWMutex
-	lockIConsumerGroupMockIsInitialised           sync.RWMutex
-	lockIConsumerGroupMockStopListeningToConsumer sync.RWMutex
 )
 
 // Ensure, that IConsumerGroupMock does implement kafka.IConsumerGroup.
@@ -25,43 +16,43 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 
 // IConsumerGroupMock is a mock implementation of kafka.IConsumerGroup.
 //
-//     func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
+// 	func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
 //
-//         // make and configure a mocked kafka.IConsumerGroup
-//         mockedIConsumerGroup := &IConsumerGroupMock{
-//             ChannelsFunc: func() *kafka.ConsumerGroupChannels {
-// 	               panic("mock out the Channels method")
-//             },
-//             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
-// 	               panic("mock out the Checker method")
-//             },
-//             CloseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Close method")
-//             },
-//             InitialiseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Initialise method")
-//             },
-//             IsInitialisedFunc: func() bool {
-// 	               panic("mock out the IsInitialised method")
-//             },
-//             StopListeningToConsumerFunc: func(ctx context.Context) error {
-// 	               panic("mock out the StopListeningToConsumer method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.IConsumerGroup
+// 		mockedIConsumerGroup := &IConsumerGroupMock{
+// 			ChannelsFunc: func() *kafka.ConsumerGroupChannels {
+// 				panic("mock out the Channels method")
+// 			},
+// 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
+// 				panic("mock out the Checker method")
+// 			},
+// 			CloseFunc: func(ctx context.Context, optFuncs ...kafka.OptFunc) error {
+// 				panic("mock out the Close method")
+// 			},
+// 			InitialiseFunc: func(ctx context.Context) error {
+// 				panic("mock out the Initialise method")
+// 			},
+// 			IsInitialisedFunc: func() bool {
+// 				panic("mock out the IsInitialised method")
+// 			},
+// 			StopListeningToConsumerFunc: func(ctx context.Context) error {
+// 				panic("mock out the StopListeningToConsumer method")
+// 			},
+// 		}
 //
-//         // use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
-//         // and then make assertions.
+// 		// use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ConsumerGroupChannels
 
 	// CheckerFunc mocks the Checker method.
-	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
+	CheckerFunc func(ctx context.Context, state *health.CheckState) error
 
 	// CloseFunc mocks the Close method.
-	CloseFunc func(ctx context.Context) error
+	CloseFunc func(ctx context.Context, optFuncs ...kafka.OptFunc) error
 
 	// InitialiseFunc mocks the Initialise method.
 	InitialiseFunc func(ctx context.Context) error
@@ -82,12 +73,14 @@ type IConsumerGroupMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// State is the state argument value.
-			State *healthcheck.CheckState
+			State *health.CheckState
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// OptFuncs is the optFuncs argument value.
+			OptFuncs []kafka.OptFunc
 		}
 		// Initialise holds details about calls to the Initialise method.
 		Initialise []struct {
@@ -103,6 +96,12 @@ type IConsumerGroupMock struct {
 			Ctx context.Context
 		}
 	}
+	lockChannels                sync.RWMutex
+	lockChecker                 sync.RWMutex
+	lockClose                   sync.RWMutex
+	lockInitialise              sync.RWMutex
+	lockIsInitialised           sync.RWMutex
+	lockStopListeningToConsumer sync.RWMutex
 }
 
 // Channels calls ChannelsFunc.
@@ -112,9 +111,9 @@ func (mock *IConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockChannels.Lock()
+	mock.lockChannels.Lock()
 	mock.calls.Channels = append(mock.calls.Channels, callInfo)
-	lockIConsumerGroupMockChannels.Unlock()
+	mock.lockChannels.Unlock()
 	return mock.ChannelsFunc()
 }
 
@@ -125,27 +124,27 @@ func (mock *IConsumerGroupMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockChannels.RLock()
+	mock.lockChannels.RLock()
 	calls = mock.calls.Channels
-	lockIConsumerGroupMockChannels.RUnlock()
+	mock.lockChannels.RUnlock()
 	return calls
 }
 
 // Checker calls CheckerFunc.
-func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *health.CheckState) error {
 	if mock.CheckerFunc == nil {
 		panic("IConsumerGroupMock.CheckerFunc: method is nil but IConsumerGroup.Checker was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}{
 		Ctx:   ctx,
 		State: state,
 	}
-	lockIConsumerGroupMockChecker.Lock()
+	mock.lockChecker.Lock()
 	mock.calls.Checker = append(mock.calls.Checker, callInfo)
-	lockIConsumerGroupMockChecker.Unlock()
+	mock.lockChecker.Unlock()
 	return mock.CheckerFunc(ctx, state)
 }
 
@@ -154,46 +153,50 @@ func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *healthcheck.
 //     len(mockedIConsumerGroup.CheckerCalls())
 func (mock *IConsumerGroupMock) CheckerCalls() []struct {
 	Ctx   context.Context
-	State *healthcheck.CheckState
+	State *health.CheckState
 } {
 	var calls []struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}
-	lockIConsumerGroupMockChecker.RLock()
+	mock.lockChecker.RLock()
 	calls = mock.calls.Checker
-	lockIConsumerGroupMockChecker.RUnlock()
+	mock.lockChecker.RUnlock()
 	return calls
 }
 
 // Close calls CloseFunc.
-func (mock *IConsumerGroupMock) Close(ctx context.Context) error {
+func (mock *IConsumerGroupMock) Close(ctx context.Context, optFuncs ...kafka.OptFunc) error {
 	if mock.CloseFunc == nil {
 		panic("IConsumerGroupMock.CloseFunc: method is nil but IConsumerGroup.Close was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
+		Ctx      context.Context
+		OptFuncs []kafka.OptFunc
 	}{
-		Ctx: ctx,
+		Ctx:      ctx,
+		OptFuncs: optFuncs,
 	}
-	lockIConsumerGroupMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockIConsumerGroupMockClose.Unlock()
-	return mock.CloseFunc(ctx)
+	mock.lockClose.Unlock()
+	return mock.CloseFunc(ctx, optFuncs...)
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
 //     len(mockedIConsumerGroup.CloseCalls())
 func (mock *IConsumerGroupMock) CloseCalls() []struct {
-	Ctx context.Context
+	Ctx      context.Context
+	OptFuncs []kafka.OptFunc
 } {
 	var calls []struct {
-		Ctx context.Context
+		Ctx      context.Context
+		OptFuncs []kafka.OptFunc
 	}
-	lockIConsumerGroupMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockIConsumerGroupMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -207,9 +210,9 @@ func (mock *IConsumerGroupMock) Initialise(ctx context.Context) error {
 	}{
 		Ctx: ctx,
 	}
-	lockIConsumerGroupMockInitialise.Lock()
+	mock.lockInitialise.Lock()
 	mock.calls.Initialise = append(mock.calls.Initialise, callInfo)
-	lockIConsumerGroupMockInitialise.Unlock()
+	mock.lockInitialise.Unlock()
 	return mock.InitialiseFunc(ctx)
 }
 
@@ -222,9 +225,9 @@ func (mock *IConsumerGroupMock) InitialiseCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIConsumerGroupMockInitialise.RLock()
+	mock.lockInitialise.RLock()
 	calls = mock.calls.Initialise
-	lockIConsumerGroupMockInitialise.RUnlock()
+	mock.lockInitialise.RUnlock()
 	return calls
 }
 
@@ -235,9 +238,9 @@ func (mock *IConsumerGroupMock) IsInitialised() bool {
 	}
 	callInfo := struct {
 	}{}
-	lockIConsumerGroupMockIsInitialised.Lock()
+	mock.lockIsInitialised.Lock()
 	mock.calls.IsInitialised = append(mock.calls.IsInitialised, callInfo)
-	lockIConsumerGroupMockIsInitialised.Unlock()
+	mock.lockIsInitialised.Unlock()
 	return mock.IsInitialisedFunc()
 }
 
@@ -248,9 +251,9 @@ func (mock *IConsumerGroupMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIConsumerGroupMockIsInitialised.RLock()
+	mock.lockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
-	lockIConsumerGroupMockIsInitialised.RUnlock()
+	mock.lockIsInitialised.RUnlock()
 	return calls
 }
 
@@ -264,9 +267,9 @@ func (mock *IConsumerGroupMock) StopListeningToConsumer(ctx context.Context) err
 	}{
 		Ctx: ctx,
 	}
-	lockIConsumerGroupMockStopListeningToConsumer.Lock()
+	mock.lockStopListeningToConsumer.Lock()
 	mock.calls.StopListeningToConsumer = append(mock.calls.StopListeningToConsumer, callInfo)
-	lockIConsumerGroupMockStopListeningToConsumer.Unlock()
+	mock.lockStopListeningToConsumer.Unlock()
 	return mock.StopListeningToConsumerFunc(ctx)
 }
 
@@ -279,8 +282,8 @@ func (mock *IConsumerGroupMock) StopListeningToConsumerCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIConsumerGroupMockStopListeningToConsumer.RLock()
+	mock.lockStopListeningToConsumer.RLock()
 	calls = mock.calls.StopListeningToConsumer
-	lockIConsumerGroupMockStopListeningToConsumer.RUnlock()
+	mock.lockStopListeningToConsumer.RUnlock()
 	return calls
 }
