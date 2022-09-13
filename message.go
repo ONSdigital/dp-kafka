@@ -1,6 +1,8 @@
 package kafka
 
 import (
+	"context"
+	
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 )
@@ -25,6 +27,26 @@ func NewSaramaMessage(m *sarama.ConsumerMessage, s sarama.ConsumerGroupSession, 
 // GetData returns the message contents.
 func (m SaramaMessage) GetData() []byte {
 	return m.message.Value
+}
+
+// Context returns a context with traceid.
+func (M SaramaMessage) Context() context.Context {
+	ctx := context.Background()
+	traceID := M.GetHeader(TraceIDHeaderKey)
+	if traceID != "" {
+		ctx = context.WithValue(ctx, TraceIDHeaderKey, traceID)
+	}
+	return ctx
+}
+
+// GetHeader takes a key for the header and returns the value if the key exist in the header.
+func (M SaramaMessage) GetHeader(key string) string {
+	for _, recordHeader := range M.message.Headers {
+		if string(recordHeader.Key) == key {
+			return string(recordHeader.Value)
+		}
+	}
+	return ""
 }
 
 // Offset returns the message offset

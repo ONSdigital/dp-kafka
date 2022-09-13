@@ -10,11 +10,17 @@ import (
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3/avro"
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
+	"github.com/ONSdigital/dp-net/v2/request"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
+	"github.com/google/uuid"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
+
+const (
+	TraceIDHeaderKey = string(request.RequestIdKey)
+)
 
 // IProducer is an interface representing a Kafka Producer, as implemented in dp-kafka/producer
 type IProducer interface {
@@ -25,6 +31,7 @@ type IProducer interface {
 	Initialise(ctx context.Context) error
 	Send(schema *avro.Schema, event interface{}) error
 	Close(ctx context.Context) (err error)
+	AddHeader(key, value string)
 }
 
 // Producer is a producer of Kafka messages
@@ -41,6 +48,7 @@ type Producer struct {
 	minRetryPeriod    time.Duration
 	maxRetryPeriod    time.Duration
 	minBrokersHealthy int
+	headers           []sarama.RecordHeader
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
@@ -98,6 +106,14 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit interfaces.
 	if err != nil {
 		producer.createLoopUninitialised(ctx)
 	}
+
+	traceID := ctx.Value(TraceIDHeaderKey)
+	if traceID == nil {
+		producer.addTraceIDHeader()
+	} else {
+		producer.AddHeader(TraceIDHeaderKey, traceID.(string))
+	}
+
 	return producer, nil
 }
 
@@ -119,6 +135,16 @@ func (p *Producer) Checker(ctx context.Context, state *healthcheck.CheckState) e
 		return fmt.Errorf("error updating producer healthcheck status: %w", err)
 	}
 	return nil
+}
+
+func (p *Producer) AddHeader(key, value string) {
+	if key == "" {
+		return
+	}
+	p.headers = append(p.headers, sarama.RecordHeader{
+		Key:   []byte(key),
+		Value: []byte(value),
+	})
 }
 
 // LogErrors creates a go-routine that waits on Errors channel and logs any error received.
@@ -349,7 +375,7 @@ func (p *Producer) createLoopInitialised() error {
 				}
 				err := SafeSendProducerMessage(
 					p.producer.Input(),
-					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message)},
+					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message), Headers: p.headers},
 				)
 				if err != nil {
 					return // sarama producer input channel closed
@@ -360,4 +386,11 @@ func (p *Producer) createLoopInitialised() error {
 		}
 	}()
 	return nil
+}
+
+func (p *Producer) addTraceIDHeader() {
+	p.headers = append(p.headers, sarama.RecordHeader{
+		Key:   []byte(TraceIDHeaderKey),
+		Value: []byte(uuid.NewString()),
+	})
 }

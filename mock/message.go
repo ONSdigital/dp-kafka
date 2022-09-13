@@ -4,6 +4,7 @@
 package mock
 
 import (
+	"context"
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"sync"
 )
@@ -24,8 +25,14 @@ var _ interfaces.Message = &MessageMock{}
 // 			CommitAndReleaseFunc: func()  {
 // 				panic("mock out the CommitAndRelease method")
 // 			},
+// 			ContextFunc: func() context.Context {
+// 				panic("mock out the Context method")
+// 			},
 // 			GetDataFunc: func() []byte {
 // 				panic("mock out the GetData method")
+// 			},
+// 			GetHeaderFunc: func(key string) string {
+// 				panic("mock out the GetHeader method")
 // 			},
 // 			MarkFunc: func()  {
 // 				panic("mock out the Mark method")
@@ -52,8 +59,14 @@ type MessageMock struct {
 	// CommitAndReleaseFunc mocks the CommitAndRelease method.
 	CommitAndReleaseFunc func()
 
+	// ContextFunc mocks the Context method.
+	ContextFunc func() context.Context
+
 	// GetDataFunc mocks the GetData method.
 	GetDataFunc func() []byte
+
+	// GetHeaderFunc mocks the GetHeader method.
+	GetHeaderFunc func(key string) string
 
 	// MarkFunc mocks the Mark method.
 	MarkFunc func()
@@ -75,8 +88,16 @@ type MessageMock struct {
 		// CommitAndRelease holds details about calls to the CommitAndRelease method.
 		CommitAndRelease []struct {
 		}
+		// Context holds details about calls to the Context method.
+		Context []struct {
+		}
 		// GetData holds details about calls to the GetData method.
 		GetData []struct {
+		}
+		// GetHeader holds details about calls to the GetHeader method.
+		GetHeader []struct {
+			// Key is the key argument value.
+			Key string
 		}
 		// Mark holds details about calls to the Mark method.
 		Mark []struct {
@@ -93,7 +114,9 @@ type MessageMock struct {
 	}
 	lockCommit           sync.RWMutex
 	lockCommitAndRelease sync.RWMutex
+	lockContext          sync.RWMutex
 	lockGetData          sync.RWMutex
+	lockGetHeader        sync.RWMutex
 	lockMark             sync.RWMutex
 	lockOffset           sync.RWMutex
 	lockRelease          sync.RWMutex
@@ -152,6 +175,32 @@ func (mock *MessageMock) CommitAndReleaseCalls() []struct {
 	return calls
 }
 
+// Context calls ContextFunc.
+func (mock *MessageMock) Context() context.Context {
+	if mock.ContextFunc == nil {
+		panic("MessageMock.ContextFunc: method is nil but Message.Context was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockContext.Lock()
+	mock.calls.Context = append(mock.calls.Context, callInfo)
+	mock.lockContext.Unlock()
+	return mock.ContextFunc()
+}
+
+// ContextCalls gets all the calls that were made to Context.
+// Check the length with:
+//     len(mockedMessage.ContextCalls())
+func (mock *MessageMock) ContextCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockContext.RLock()
+	calls = mock.calls.Context
+	mock.lockContext.RUnlock()
+	return calls
+}
+
 // GetData calls GetDataFunc.
 func (mock *MessageMock) GetData() []byte {
 	if mock.GetDataFunc == nil {
@@ -175,6 +224,37 @@ func (mock *MessageMock) GetDataCalls() []struct {
 	mock.lockGetData.RLock()
 	calls = mock.calls.GetData
 	mock.lockGetData.RUnlock()
+	return calls
+}
+
+// GetHeader calls GetHeaderFunc.
+func (mock *MessageMock) GetHeader(key string) string {
+	if mock.GetHeaderFunc == nil {
+		panic("MessageMock.GetHeaderFunc: method is nil but Message.GetHeader was just called")
+	}
+	callInfo := struct {
+		Key string
+	}{
+		Key: key,
+	}
+	mock.lockGetHeader.Lock()
+	mock.calls.GetHeader = append(mock.calls.GetHeader, callInfo)
+	mock.lockGetHeader.Unlock()
+	return mock.GetHeaderFunc(key)
+}
+
+// GetHeaderCalls gets all the calls that were made to GetHeader.
+// Check the length with:
+//     len(mockedMessage.GetHeaderCalls())
+func (mock *MessageMock) GetHeaderCalls() []struct {
+	Key string
+} {
+	var calls []struct {
+		Key string
+	}
+	mock.lockGetHeader.RLock()
+	calls = mock.calls.GetHeader
+	mock.lockGetHeader.RUnlock()
 	return calls
 }
 

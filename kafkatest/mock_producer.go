@@ -21,6 +21,9 @@ var _ kafka.IProducer = &IProducerMock{}
 //
 // 		// make and configure a mocked kafka.IProducer
 // 		mockedIProducer := &IProducerMock{
+// 			AddHeaderFunc: func(key string, value string)  {
+// 				panic("mock out the AddHeader method")
+// 			},
 // 			ChannelsFunc: func() *kafka.ProducerChannels {
 // 				panic("mock out the Channels method")
 // 			},
@@ -49,6 +52,9 @@ var _ kafka.IProducer = &IProducerMock{}
 //
 // 	}
 type IProducerMock struct {
+	// AddHeaderFunc mocks the AddHeader method.
+	AddHeaderFunc func(key string, value string)
+
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ProducerChannels
 
@@ -72,6 +78,13 @@ type IProducerMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// AddHeader holds details about calls to the AddHeader method.
+		AddHeader []struct {
+			// Key is the key argument value.
+			Key string
+			// Value is the value argument value.
+			Value string
+		}
 		// Channels holds details about calls to the Channels method.
 		Channels []struct {
 		}
@@ -108,6 +121,7 @@ type IProducerMock struct {
 			Event interface{}
 		}
 	}
+	lockAddHeader     sync.RWMutex
 	lockChannels      sync.RWMutex
 	lockChecker       sync.RWMutex
 	lockClose         sync.RWMutex
@@ -115,6 +129,41 @@ type IProducerMock struct {
 	lockIsInitialised sync.RWMutex
 	lockLogErrors     sync.RWMutex
 	lockSend          sync.RWMutex
+}
+
+// AddHeader calls AddHeaderFunc.
+func (mock *IProducerMock) AddHeader(key string, value string) {
+	if mock.AddHeaderFunc == nil {
+		panic("IProducerMock.AddHeaderFunc: method is nil but IProducer.AddHeader was just called")
+	}
+	callInfo := struct {
+		Key   string
+		Value string
+	}{
+		Key:   key,
+		Value: value,
+	}
+	mock.lockAddHeader.Lock()
+	mock.calls.AddHeader = append(mock.calls.AddHeader, callInfo)
+	mock.lockAddHeader.Unlock()
+	mock.AddHeaderFunc(key, value)
+}
+
+// AddHeaderCalls gets all the calls that were made to AddHeader.
+// Check the length with:
+//     len(mockedIProducer.AddHeaderCalls())
+func (mock *IProducerMock) AddHeaderCalls() []struct {
+	Key   string
+	Value string
+} {
+	var calls []struct {
+		Key   string
+		Value string
+	}
+	mock.lockAddHeader.RLock()
+	calls = mock.calls.AddHeader
+	mock.lockAddHeader.RUnlock()
+	return calls
 }
 
 // Channels calls ChannelsFunc.
