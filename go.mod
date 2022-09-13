@@ -1,6 +1,6 @@
 module github.com/ONSdigital/dp-kafka/v3
 
-go 1.17
+go 1.18
 
 require (
 	github.com/ONSdigital/dp-healthcheck v1.3.0
