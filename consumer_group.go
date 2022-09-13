@@ -13,6 +13,15 @@ import (
 
 var messageConsumeTimeout = time.Second * 10
 
+// OptFunc is basically an optional function that is run once the upstream channel is closed and before consumer closer is called.
+// for example , while doing the graceful shutdown you would have received messages which are not processed, like you would have released
+// a message when you receive it from upstream and added to a batch and after a certain time when the batch is processed then only messages are
+// committed back . Now if you don't process this batch during the graceful shutdown this can create a lag in the consumer group.
+//
+// The optional functions can basically do this for you. During the graceful shutdown you can pass, say for the above case the batch processing to process the unprocessed batch and commit them back to the consumer group
+// while making sure no new messages are received.The optional function is run once the upstream channel is closed to make sure no new messages are received and before the consumer is closed so that the remaining messages can be processed and committed back to the consumer group.
+type OptFunc func()
+
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
 
 // IConsumerGroup is an interface representing a Kafka Consumer Group.
@@ -22,7 +31,7 @@ type IConsumerGroup interface {
 	Initialise(ctx context.Context) error
 	StopListeningToConsumer(ctx context.Context) (err error)
 	Checker(ctx context.Context, state *health.CheckState) error
-	Close(ctx context.Context) (err error)
+	Close(ctx context.Context, optFuncs ...OptFunc) (err error)
 }
 
 // ConsumerGroup is a Kafka consumer group instance.
@@ -176,10 +185,18 @@ func (cg *ConsumerGroup) StopListeningToConsumer(ctx context.Context) (err error
 // Close safely closes the consumer and releases all resources.
 // pass in a context with a timeout or deadline.
 // Passing a nil context will provide no timeout but is not recommended
-func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
+func (cg *ConsumerGroup) Close(ctx context.Context, optFuncs ...OptFunc) (err error) {
 
 	if ctx == nil {
 		ctx = context.Background()
+	}
+
+	close(cg.channels.Errors)
+	close(cg.channels.Upstream)
+
+	// run the optfunc
+	for _, eachFunc := range optFuncs {
+		eachFunc()
 	}
 
 	// StopListeningToConsumer will end the go-routines(if any) by closing the 'Closer' channel
@@ -189,9 +206,6 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	}
 
 	logData := log.Data{"topic": cg.topic, "group": cg.group}
-
-	close(cg.channels.Errors)
-	close(cg.channels.Upstream)
 
 	// Close consumer only if it was initialised.
 	if cg.IsInitialised() {
