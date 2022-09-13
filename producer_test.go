@@ -137,6 +137,8 @@ func TestProducer(t *testing.T) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}
+		testTraceID := "mytraceid"
+		ctx = context.WithValue(ctx, TraceIDHeaderKey, testTraceID)
 		producer, err := newProducer(
 			ctx,
 			&ProducerConfig{
@@ -183,6 +185,172 @@ func TestProducer(t *testing.T) {
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
 			So(saramaIn.Value, ShouldEqual, message)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Add custom header for kafka producer", func() {
+			testHeader := "test"
+			testValue := "testValue"
+			producer.AddHeader(testHeader, testValue)
+
+			// Send message to local kafka output chan
+			message := "HELLO"
+			producer.Channels().Output <- []byte(message)
+
+			// Read sarama channels with timeout
+			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+
+			// Validate that message was received by sarama message chan, with no error.
+			So(timeout, ShouldBeFalse)
+			So(saramaErr, ShouldBeNil)
+			So(saramaIn.Topic, ShouldEqual, testTopic)
+			So(saramaIn.Value, ShouldEqual, message)
+			So(extractHeaderValue(saramaIn, testHeader), ShouldEqual, testValue)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Use consumer driven traceid header", func() {
+			// Send message to local kafka output chan
+			message := "HELLO"
+			producer.Channels().Output <- []byte(message)
+
+			// Read sarama channels with timeout
+			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+
+			// Validate that message was received by sarama message chan, with no error.
+			So(timeout, ShouldBeFalse)
+			So(saramaErr, ShouldBeNil)
+			So(saramaIn.Topic, ShouldEqual, testTopic)
+			So(saramaIn.Value, ShouldEqual, message)
+			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldNotBeEmpty)
+			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldEqual, testTraceID)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Errors from Sarama AsyncProducer are redirected to the caller's errors channel", func() {
+			// Send error to Sarama channel
+			producerError := &sarama.ProducerError{
+				Msg: &sarama.ProducerMessage{
+					Topic: testTopic,
+				},
+				Err: errors.New("error text"),
+			}
+			chSaramaErr <- producerError
+			validateChanReceivesErr(producer.Channels().Errors, producerError)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Closing the producer closes Sarama producer and channels", func(c C) {
+			err := producer.Close(ctx)
+			So(err, ShouldBeNil)
+			validateChanClosed(c, producer.Channels().Closer, true)
+			validateChanClosed(c, producer.Channels().Closed, true)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 1)
+		})
+
+		Convey("Calling close with a nil context results in the expected error being returned", func(c C) {
+			err := producer.Close(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to producer close"))
+			validateChanClosed(c, producer.Channels().Closer, false)
+			validateChanClosed(c, producer.Channels().Closed, false)
+		})
+	})
+}
+
+// TestProducer checks that messages, errors, and closing events are correctly directed to the expected channels
+func TestProducer_WithDefaultContext(t *testing.T) {
+	Convey("Given a correct initialization of a Kafka Producer", t, func() {
+		chSaramaErr, chSaramaIn := createSaramaChannels()
+		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
+		pInitCalls := 0
+		pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
+			pInitCalls++
+			return asyncProducerMock, nil
+		}
+		producer, err := newProducer(
+			ctx,
+			&ProducerConfig{
+				BrokerAddrs: testBrokers,
+				Topic:       testTopic,
+			},
+			pInit,
+		)
+
+		Convey("Producer is correctly created and initialised without error", func(c C) {
+			So(err, ShouldBeNil)
+			So(producer, ShouldNotBeNil)
+			So(producer.Channels().Output, ShouldEqual, producer.Channels().Output)
+			So(producer.Channels().Errors, ShouldEqual, producer.Channels().Errors)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+			So(pInitCalls, ShouldEqual, 1)
+			So(producer.IsInitialised(), ShouldBeTrue)
+			validateChanClosed(c, producer.Channels().Initialised, true)
+		})
+
+		Convey("We cannot initialise producer again", func() {
+			err = producer.Initialise(ctx)
+			So(err, ShouldBeNil)
+			So(pInitCalls, ShouldEqual, 1)
+		})
+
+		Convey("Calling initiailse with a nil context results in the expected error being returned", func() {
+			err = producer.Initialise(nil)
+			So(err, ShouldResemble, errors.New("nil context was passed to producer initialise"))
+			So(pInitCalls, ShouldEqual, 1)
+		})
+
+		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
+
+			// Send message to local kafka output chan
+			message := "HELLO"
+			producer.Channels().Output <- []byte(message)
+
+			// Read sarama channels with timeout
+			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+
+			// Validate that message was received by sarama message chan, with no error.
+			So(timeout, ShouldBeFalse)
+			So(saramaErr, ShouldBeNil)
+			So(saramaIn.Topic, ShouldEqual, testTopic)
+			So(saramaIn.Value, ShouldEqual, message)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Add custom header for kafka producer", func() {
+			testHeader := "test"
+			testValue := "testValue"
+			producer.AddHeader(testHeader, testValue)
+
+			// Send message to local kafka output chan
+			message := "HELLO"
+			producer.Channels().Output <- []byte(message)
+
+			// Read sarama channels with timeout
+			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+
+			// Validate that message was received by sarama message chan, with no error.
+			So(timeout, ShouldBeFalse)
+			So(saramaErr, ShouldBeNil)
+			So(saramaIn.Topic, ShouldEqual, testTopic)
+			So(saramaIn.Value, ShouldEqual, message)
+			So(extractHeaderValue(saramaIn, testHeader), ShouldEqual, testValue)
+			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
+		})
+
+		Convey("Use consumer driven traceid header", func() {
+			// Send message to local kafka output chan
+			message := "HELLO"
+			producer.Channels().Output <- []byte(message)
+
+			// Read sarama channels with timeout
+			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+
+			// Validate that message was received by sarama message chan, with no error.
+			So(timeout, ShouldBeFalse)
+			So(saramaErr, ShouldBeNil)
+			So(saramaIn.Topic, ShouldEqual, testTopic)
+			So(saramaIn.Value, ShouldEqual, message)
+			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldNotBeEmpty)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
@@ -330,4 +498,13 @@ func TestSend(t *testing.T) {
 			)
 		})
 	})
+}
+
+func extractHeaderValue(sMessage *sarama.ProducerMessage, key string) string {
+	for _, header := range sMessage.Headers {
+		if string(header.Key) == key {
+			return string(header.Value)
+		}
+	}
+	return ""
 }
