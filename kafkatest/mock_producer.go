@@ -5,17 +5,9 @@ package kafkatest
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v2"
 	"sync"
-)
-
-var (
-	lockIProducerMockChannels      sync.RWMutex
-	lockIProducerMockChecker       sync.RWMutex
-	lockIProducerMockClose         sync.RWMutex
-	lockIProducerMockInitialise    sync.RWMutex
-	lockIProducerMockIsInitialised sync.RWMutex
 )
 
 // Ensure, that IProducerMock does implement kafka.IProducer.
@@ -24,37 +16,43 @@ var _ kafka.IProducer = &IProducerMock{}
 
 // IProducerMock is a mock implementation of kafka.IProducer.
 //
-//     func TestSomethingThatUsesIProducer(t *testing.T) {
+// 	func TestSomethingThatUsesIProducer(t *testing.T) {
 //
-//         // make and configure a mocked kafka.IProducer
-//         mockedIProducer := &IProducerMock{
-//             ChannelsFunc: func() *kafka.ProducerChannels {
-// 	               panic("mock out the Channels method")
-//             },
-//             CheckerFunc: func(ctx context.Context, state *healthcheck.CheckState) error {
-// 	               panic("mock out the Checker method")
-//             },
-//             CloseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Close method")
-//             },
-//             InitialiseFunc: func(ctx context.Context) error {
-// 	               panic("mock out the Initialise method")
-//             },
-//             IsInitialisedFunc: func() bool {
-// 	               panic("mock out the IsInitialised method")
-//             },
-//         }
+// 		// make and configure a mocked kafka.IProducer
+// 		mockedIProducer := &IProducerMock{
+// 			AddHeaderFunc: func(key string, value string)  {
+// 				panic("mock out the AddHeader method")
+// 			},
+// 			ChannelsFunc: func() *kafka.ProducerChannels {
+// 				panic("mock out the Channels method")
+// 			},
+// 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
+// 				panic("mock out the Checker method")
+// 			},
+// 			CloseFunc: func(ctx context.Context) error {
+// 				panic("mock out the Close method")
+// 			},
+// 			InitialiseFunc: func(ctx context.Context) error {
+// 				panic("mock out the Initialise method")
+// 			},
+// 			IsInitialisedFunc: func() bool {
+// 				panic("mock out the IsInitialised method")
+// 			},
+// 		}
 //
-//         // use mockedIProducer in code that requires kafka.IProducer
-//         // and then make assertions.
+// 		// use mockedIProducer in code that requires kafka.IProducer
+// 		// and then make assertions.
 //
-//     }
+// 	}
 type IProducerMock struct {
+	// AddHeaderFunc mocks the AddHeader method.
+	AddHeaderFunc func(key string, value string)
+
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ProducerChannels
 
 	// CheckerFunc mocks the Checker method.
-	CheckerFunc func(ctx context.Context, state *healthcheck.CheckState) error
+	CheckerFunc func(ctx context.Context, state *health.CheckState) error
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func(ctx context.Context) error
@@ -67,6 +65,13 @@ type IProducerMock struct {
 
 	// calls tracks calls to the methods.
 	calls struct {
+		// AddHeader holds details about calls to the AddHeader method.
+		AddHeader []struct {
+			// Key is the key argument value.
+			Key string
+			// Value is the value argument value.
+			Value string
+		}
 		// Channels holds details about calls to the Channels method.
 		Channels []struct {
 		}
@@ -75,7 +80,7 @@ type IProducerMock struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// State is the state argument value.
-			State *healthcheck.CheckState
+			State *health.CheckState
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
@@ -91,6 +96,47 @@ type IProducerMock struct {
 		IsInitialised []struct {
 		}
 	}
+	lockAddHeader     sync.RWMutex
+	lockChannels      sync.RWMutex
+	lockChecker       sync.RWMutex
+	lockClose         sync.RWMutex
+	lockInitialise    sync.RWMutex
+	lockIsInitialised sync.RWMutex
+}
+
+// AddHeader calls AddHeaderFunc.
+func (mock *IProducerMock) AddHeader(key string, value string) {
+	if mock.AddHeaderFunc == nil {
+		panic("IProducerMock.AddHeaderFunc: method is nil but IProducer.AddHeader was just called")
+	}
+	callInfo := struct {
+		Key   string
+		Value string
+	}{
+		Key:   key,
+		Value: value,
+	}
+	mock.lockAddHeader.Lock()
+	mock.calls.AddHeader = append(mock.calls.AddHeader, callInfo)
+	mock.lockAddHeader.Unlock()
+	mock.AddHeaderFunc(key, value)
+}
+
+// AddHeaderCalls gets all the calls that were made to AddHeader.
+// Check the length with:
+//     len(mockedIProducer.AddHeaderCalls())
+func (mock *IProducerMock) AddHeaderCalls() []struct {
+	Key   string
+	Value string
+} {
+	var calls []struct {
+		Key   string
+		Value string
+	}
+	mock.lockAddHeader.RLock()
+	calls = mock.calls.AddHeader
+	mock.lockAddHeader.RUnlock()
+	return calls
 }
 
 // Channels calls ChannelsFunc.
@@ -100,9 +146,9 @@ func (mock *IProducerMock) Channels() *kafka.ProducerChannels {
 	}
 	callInfo := struct {
 	}{}
-	lockIProducerMockChannels.Lock()
+	mock.lockChannels.Lock()
 	mock.calls.Channels = append(mock.calls.Channels, callInfo)
-	lockIProducerMockChannels.Unlock()
+	mock.lockChannels.Unlock()
 	return mock.ChannelsFunc()
 }
 
@@ -113,27 +159,27 @@ func (mock *IProducerMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIProducerMockChannels.RLock()
+	mock.lockChannels.RLock()
 	calls = mock.calls.Channels
-	lockIProducerMockChannels.RUnlock()
+	mock.lockChannels.RUnlock()
 	return calls
 }
 
 // Checker calls CheckerFunc.
-func (mock *IProducerMock) Checker(ctx context.Context, state *healthcheck.CheckState) error {
+func (mock *IProducerMock) Checker(ctx context.Context, state *health.CheckState) error {
 	if mock.CheckerFunc == nil {
 		panic("IProducerMock.CheckerFunc: method is nil but IProducer.Checker was just called")
 	}
 	callInfo := struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}{
 		Ctx:   ctx,
 		State: state,
 	}
-	lockIProducerMockChecker.Lock()
+	mock.lockChecker.Lock()
 	mock.calls.Checker = append(mock.calls.Checker, callInfo)
-	lockIProducerMockChecker.Unlock()
+	mock.lockChecker.Unlock()
 	return mock.CheckerFunc(ctx, state)
 }
 
@@ -142,15 +188,15 @@ func (mock *IProducerMock) Checker(ctx context.Context, state *healthcheck.Check
 //     len(mockedIProducer.CheckerCalls())
 func (mock *IProducerMock) CheckerCalls() []struct {
 	Ctx   context.Context
-	State *healthcheck.CheckState
+	State *health.CheckState
 } {
 	var calls []struct {
 		Ctx   context.Context
-		State *healthcheck.CheckState
+		State *health.CheckState
 	}
-	lockIProducerMockChecker.RLock()
+	mock.lockChecker.RLock()
 	calls = mock.calls.Checker
-	lockIProducerMockChecker.RUnlock()
+	mock.lockChecker.RUnlock()
 	return calls
 }
 
@@ -164,9 +210,9 @@ func (mock *IProducerMock) Close(ctx context.Context) error {
 	}{
 		Ctx: ctx,
 	}
-	lockIProducerMockClose.Lock()
+	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
-	lockIProducerMockClose.Unlock()
+	mock.lockClose.Unlock()
 	return mock.CloseFunc(ctx)
 }
 
@@ -179,9 +225,9 @@ func (mock *IProducerMock) CloseCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIProducerMockClose.RLock()
+	mock.lockClose.RLock()
 	calls = mock.calls.Close
-	lockIProducerMockClose.RUnlock()
+	mock.lockClose.RUnlock()
 	return calls
 }
 
@@ -195,9 +241,9 @@ func (mock *IProducerMock) Initialise(ctx context.Context) error {
 	}{
 		Ctx: ctx,
 	}
-	lockIProducerMockInitialise.Lock()
+	mock.lockInitialise.Lock()
 	mock.calls.Initialise = append(mock.calls.Initialise, callInfo)
-	lockIProducerMockInitialise.Unlock()
+	mock.lockInitialise.Unlock()
 	return mock.InitialiseFunc(ctx)
 }
 
@@ -210,9 +256,9 @@ func (mock *IProducerMock) InitialiseCalls() []struct {
 	var calls []struct {
 		Ctx context.Context
 	}
-	lockIProducerMockInitialise.RLock()
+	mock.lockInitialise.RLock()
 	calls = mock.calls.Initialise
-	lockIProducerMockInitialise.RUnlock()
+	mock.lockInitialise.RUnlock()
 	return calls
 }
 
@@ -223,9 +269,9 @@ func (mock *IProducerMock) IsInitialised() bool {
 	}
 	callInfo := struct {
 	}{}
-	lockIProducerMockIsInitialised.Lock()
+	mock.lockIsInitialised.Lock()
 	mock.calls.IsInitialised = append(mock.calls.IsInitialised, callInfo)
-	lockIProducerMockIsInitialised.Unlock()
+	mock.lockIsInitialised.Unlock()
 	return mock.IsInitialisedFunc()
 }
 
@@ -236,8 +282,8 @@ func (mock *IProducerMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
 	}
-	lockIProducerMockIsInitialised.RLock()
+	mock.lockIsInitialised.RLock()
 	calls = mock.calls.IsInitialised
-	lockIProducerMockIsInitialised.RUnlock()
+	mock.lockIsInitialised.RUnlock()
 	return calls
 }

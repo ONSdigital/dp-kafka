@@ -26,6 +26,7 @@ type IProducer interface {
 	Initialise(ctx context.Context) error
 	Checker(ctx context.Context, state *health.CheckState) error
 	Close(ctx context.Context) (err error)
+	AddHeader(key, value string)
 }
 
 // Producer is a producer of Kafka messages

@@ -18,6 +18,7 @@ type MessageProducer struct {
 type pInternal struct {
 	pChannels     *kafka.ProducerChannels
 	isInitialised bool
+	header        map[string]string
 }
 
 // NewMessageProducer creates a testing producer with new producerChannels.
@@ -65,6 +66,10 @@ func (internal *pInternal) isInitialisedFunc() bool {
 
 func (internal *pInternal) channelsFunc() *kafka.ProducerChannels {
 	return internal.pChannels
+}
+
+func (internal *pInternal) AddHeader(key, value string) {
+	internal.header[key] = value
 }
 
 func (internal *pInternal) closeFunc(ctx context.Context) (err error) {

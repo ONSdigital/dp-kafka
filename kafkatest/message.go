@@ -1,6 +1,7 @@
 package kafkatest
 
 import (
+	"context"
 	"sync"
 
 	kafka "github.com/ONSdigital/dp-kafka/v2"
@@ -16,6 +17,8 @@ type mInternal struct {
 	offset           int64
 	upstreamDoneChan chan struct{}
 	mu               sync.Mutex
+	context          context.Context
+	hValue           string
 }
 
 // Message allows a mock message to return the configured data, and capture whether commit has been called.
@@ -44,6 +47,8 @@ func NewMessage(data []byte, offset int64) *Message {
 			CommitAndReleaseFunc: internal.commitAndReleaseFunc,
 			OffsetFunc:           internal.offsetFunc,
 			UpstreamDoneFunc:     internal.upstreamDoneFunc,
+			ContextFunc:          internal.ContextFunc,
+			GetHeaderFunc:        internal.GetHeaderFunc,
 		},
 	}
 }
@@ -89,6 +94,20 @@ func (internal *mInternal) commitAndReleaseFunc() {
 	internal.marked = true
 	internal.committed = true
 	close(internal.upstreamDoneChan)
+}
+
+// Context returns a context with traceid.
+func (internal *mInternal) ContextFunc() context.Context {
+	internal.mu.Lock()
+	defer internal.mu.Unlock()
+	return internal.context
+}
+
+// GetHeader takes a key for the header and returns the value if the key exist in the header.
+func (internal *mInternal) GetHeaderFunc(key string) string {
+	internal.mu.Lock()
+	defer internal.mu.Unlock()
+	return internal.hValue
 }
 
 // upstreamDoneFunc returns the message upstreamDone channel.
