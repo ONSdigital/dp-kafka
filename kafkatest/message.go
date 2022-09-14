@@ -9,6 +9,8 @@ import (
 
 var _ kafka.Message = (*Message)(nil)
 
+type TestHeader map[string]string
+
 // mInternal is an internal struct to keep track of the message mock state
 type mInternal struct {
 	data             []byte
@@ -18,7 +20,7 @@ type mInternal struct {
 	upstreamDoneChan chan struct{}
 	mu               sync.Mutex
 	context          context.Context
-	hValue           string
+	hValue           TestHeader
 }
 
 // Message allows a mock message to return the configured data, and capture whether commit has been called.
@@ -28,7 +30,7 @@ type Message struct {
 }
 
 // NewMessage returns a new mock message containing the given data.
-func NewMessage(data []byte, offset int64) *Message {
+func NewMessage(data []byte, offset int64, hValue ...TestHeader) *Message {
 	internal := &mInternal{
 		data:             data,
 		marked:           false,
@@ -36,6 +38,11 @@ func NewMessage(data []byte, offset int64) *Message {
 		offset:           offset,
 		upstreamDoneChan: make(chan struct{}),
 		mu:               sync.Mutex{},
+		context:          context.TODO(),
+	}
+
+	for _, header := range hValue {
+		internal.hValue = header
 	}
 	return &Message{
 		internal,
@@ -107,7 +114,7 @@ func (internal *mInternal) ContextFunc() context.Context {
 func (internal *mInternal) GetHeaderFunc(key string) string {
 	internal.mu.Lock()
 	defer internal.mu.Unlock()
-	return internal.hValue
+	return internal.hValue[key]
 }
 
 // upstreamDoneFunc returns the message upstreamDone channel.

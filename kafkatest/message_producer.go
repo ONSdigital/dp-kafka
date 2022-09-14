@@ -18,7 +18,7 @@ type MessageProducer struct {
 type pInternal struct {
 	pChannels     *kafka.ProducerChannels
 	isInitialised bool
-	header        map[string]string
+	header        TestHeader
 }
 
 // NewMessageProducer creates a testing producer with new producerChannels.
