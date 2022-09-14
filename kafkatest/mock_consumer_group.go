@@ -26,7 +26,7 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 // 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
 // 				panic("mock out the Checker method")
 // 			},
-// 			CloseFunc: func(ctx context.Context) error {
+// 			CloseFunc: func(ctx context.Context, optFuncs ...kafka.OptFunc) error {
 // 				panic("mock out the Close method")
 // 			},
 // 			InitialiseFunc: func(ctx context.Context) error {
@@ -76,7 +76,7 @@ type IConsumerGroupMock struct {
 	CheckerFunc func(ctx context.Context, state *health.CheckState) error
 
 	// CloseFunc mocks the Close method.
-	CloseFunc func(ctx context.Context) error
+	CloseFunc func(ctx context.Context, optFuncs ...kafka.OptFunc) error
 
 	// InitialiseFunc mocks the Initialise method.
 	InitialiseFunc func(ctx context.Context) error
@@ -127,6 +127,8 @@ type IConsumerGroupMock struct {
 		Close []struct {
 			// Ctx is the ctx argument value.
 			Ctx context.Context
+			// OptFuncs is the optFuncs argument value.
+			OptFuncs []kafka.OptFunc
 		}
 		// Initialise holds details about calls to the Initialise method.
 		Initialise []struct {
@@ -256,29 +258,33 @@ func (mock *IConsumerGroupMock) CheckerCalls() []struct {
 }
 
 // Close calls CloseFunc.
-func (mock *IConsumerGroupMock) Close(ctx context.Context) error {
+func (mock *IConsumerGroupMock) Close(ctx context.Context, optFuncs ...kafka.OptFunc) error {
 	if mock.CloseFunc == nil {
 		panic("IConsumerGroupMock.CloseFunc: method is nil but IConsumerGroup.Close was just called")
 	}
 	callInfo := struct {
-		Ctx context.Context
+		Ctx      context.Context
+		OptFuncs []kafka.OptFunc
 	}{
-		Ctx: ctx,
+		Ctx:      ctx,
+		OptFuncs: optFuncs,
 	}
 	mock.lockClose.Lock()
 	mock.calls.Close = append(mock.calls.Close, callInfo)
 	mock.lockClose.Unlock()
-	return mock.CloseFunc(ctx)
+	return mock.CloseFunc(ctx, optFuncs...)
 }
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
 //     len(mockedIConsumerGroup.CloseCalls())
 func (mock *IConsumerGroupMock) CloseCalls() []struct {
-	Ctx context.Context
+	Ctx      context.Context
+	OptFuncs []kafka.OptFunc
 } {
 	var calls []struct {
-		Ctx context.Context
+		Ctx      context.Context
+		OptFuncs []kafka.OptFunc
 	}
 	mock.lockClose.RLock()
 	calls = mock.calls.Close

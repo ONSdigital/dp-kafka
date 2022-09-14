@@ -66,7 +66,7 @@ func (internal *cgInternal) channelsFunc() *kafka.ConsumerGroupChannels {
 	return internal.cgChannels
 }
 
-func (internal *cgInternal) closeFunc(ctx context.Context) error {
+func (internal *cgInternal) closeFunc(ctx context.Context, optFuncs ...kafka.OptFunc) error {
 	select {
 	case <-internal.cgChannels.Closer:
 	default:

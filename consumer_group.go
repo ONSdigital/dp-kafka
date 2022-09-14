@@ -15,6 +15,15 @@ import (
 
 const ErrorChanBufferSize = 20
 
+// OptFunc is basically an optional function that is run once the upstream channel is closed and before consumer closer is called.
+// for example , while doing the graceful shutdown you would have received messages which are not processed, like you would have released
+// a message when you receive it from upstream and added to a batch and after a certain time when the batch is processed then only messages are
+// committed back . Now if you don't process this batch during the graceful shutdown this can create a lag in the consumer group.
+//
+// The optional functions can basically do this for you. During the graceful shutdown you can pass, say for the above case the batch processing to process the unprocessed batch and commit them back to the consumer group
+// while making sure no new messages are received.The optional function is run once the upstream channel is closed to make sure no new messages are received and before the consumer is closed so that the remaining messages can be processed and committed back to the consumer group.
+type OptFunc func()
+
 //go:generate moq -out ./kafkatest/mock_consumer_group.go -pkg kafkatest . IConsumerGroup
 
 // IConsumerGroup is an interface representing a Kafka Consumer Group, as implemented in dp-kafka/consumer
@@ -32,7 +41,7 @@ type IConsumerGroup interface {
 	Stop() error
 	StopAndWait() error
 	LogErrors(ctx context.Context)
-	Close(ctx context.Context) error
+	Close(ctx context.Context, optFuncs ...OptFunc) error
 }
 
 // ConsumerGroup is a Kafka consumer group instance.
@@ -361,7 +370,7 @@ func (cg *ConsumerGroup) LogErrors(ctx context.Context) {
 
 // Close safely closes the consumer and releases all resources.
 // pass in a context with a timeout or deadline.
-func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
+func (cg *ConsumerGroup) Close(ctx context.Context, optFuncs ...OptFunc) (err error) {
 	if ctx == nil {
 		return errors.New("nil context was passed to consumer-group close")
 	}
@@ -374,6 +383,15 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 		return nil
 	}
 
+	// Close message-passing channels
+	SafeCloseErr(cg.channels.Errors)
+	SafeCloseMessage(cg.channels.Upstream)
+
+	// run the optfunc
+	for _, eachFunc := range optFuncs {
+		eachFunc()
+	}
+
 	// Always close the Closed channel to signal that the closing operation has completed
 	defer SafeClose(cg.channels.Closed)
 
@@ -383,10 +401,6 @@ func (cg *ConsumerGroup) Close(ctx context.Context) (err error) {
 	// Close Consume and Close channels and wait for any go-routine to finish their work
 	SafeCloseBool(cg.channels.Consume)
 	SafeClose(cg.channels.Closer)
-
-	// Close message-passing channels
-	SafeCloseErr(cg.channels.Errors)
-	SafeCloseMessage(cg.channels.Upstream)
 
 	// Close Sarama consumer only if it was initialised.
 	if cg.isInitialised() {
