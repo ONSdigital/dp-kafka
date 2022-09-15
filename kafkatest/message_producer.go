@@ -47,6 +47,7 @@ func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitial
 			IsInitialisedFunc: internal.isInitialisedFunc,
 			ChannelsFunc:      internal.channelsFunc,
 			CloseFunc:         internal.closeFunc,
+			AddHeaderFunc:     internal.AddHeaderFunc,
 		},
 	}
 }
@@ -68,7 +69,7 @@ func (internal *pInternal) channelsFunc() *kafka.ProducerChannels {
 	return internal.pChannels
 }
 
-func (internal *pInternal) AddHeader(key, value string) {
+func (internal *pInternal) AddHeaderFunc(key, value string) {
 	internal.header[key] = value
 }
 
