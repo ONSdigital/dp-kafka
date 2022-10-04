@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	dprequest "github.com/ONSdigital/dp-net/v2/request"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 
@@ -34,6 +35,8 @@ func shallCommit(err error) bool {
 // The batch will be committed unless a 'Commiter' error is returned and its Commit() func returns false
 func (cg *ConsumerGroup) handleMessage(ctx context.Context, workerID int, msg Message) {
 	msgCtx, cancel := context.WithCancel(ctx)
+	msgCtx = dprequest.WithRequestId(msgCtx, msg.GetHeader(TraceIDHeaderKey))
+
 	err := cg.handler(msgCtx, workerID, msg)
 	cancel() // TODO we might need to cancel the context also when Sarama session Cleanup is called
 	commit := shallCommit(err)
