@@ -122,13 +122,13 @@ func TestConsumerMock(t *testing.T) {
 
 		Convey("Messages are received in a synchronized fashion", func(c C) {
 			payload1 := []byte{0, 1, 2, 3, 4, 5}
-			message1 := NewMessage(payload1, 1)
+			message1 := NewMessage(payload1, 1, "")
 
 			payload2 := []byte{6, 7, 8, 9, 0}
-			message2 := NewMessage(payload2, 2)
+			message2 := NewMessage(payload2, 2, "")
 
 			payload3 := []byte{10, 11, 12, 13, 14}
-			message3 := NewMessage(payload3, 3)
+			message3 := NewMessage(payload3, 3, "")
 
 			wg := sync.WaitGroup{}
 			receivedAll := false
@@ -186,7 +186,7 @@ func TestMessageMock(t *testing.T) {
 
 	Convey("Given a message mock", t, func() {
 		payload := []byte{0, 1, 2, 3, 4, 5}
-		msg := NewMessage(payload, 1)
+		msg := NewMessage(payload, 1, "")
 
 		Convey("The initial state is not marked or committed", func() {
 			So(msg.marked, ShouldBeFalse)

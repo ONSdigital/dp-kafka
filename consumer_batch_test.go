@@ -1,19 +1,22 @@
 package kafka
 
 import (
+	"context"
 	"testing"
 
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-func newMessage(b []byte, offset int64) *mock.MessageMock {
+func newMessage(b []byte, offset int64, headerValue string) *mock.MessageMock {
 	return &mock.MessageMock{
-		GetDataFunc: func() []byte { return b },
-		OffsetFunc:  func() int64 { return offset },
-		MarkFunc:    func() {},
-		CommitFunc:  func() {},
-		ReleaseFunc: func() {},
+		ContextFunc:   func() context.Context { return context.Background() },
+		GetDataFunc:   func() []byte { return b },
+		GetHeaderFunc: func(key string) string { return headerValue },
+		OffsetFunc:    func() int64 { return offset },
+		MarkFunc:      func() {},
+		CommitFunc:    func() {},
+		ReleaseFunc:   func() {},
 	}
 }
 
@@ -27,7 +30,7 @@ func TestIsEmpty(t *testing.T) {
 	Convey("IsEmpty returns false for a non-empty batch", t, func() {
 		batchSize := 1
 		batch := NewBatch(batchSize)
-		batch.messages = append(batch.messages, newMessage([]byte{1, 2, 3, 4}, 0))
+		batch.messages = append(batch.messages, newMessage([]byte{1, 2, 3, 4}, 0, ""))
 		So(batch.IsEmpty(), ShouldBeFalse)
 	})
 }
@@ -38,7 +41,7 @@ func TestAdd(t *testing.T) {
 		batch := NewBatch(batchSize)
 
 		Convey("When add is called with a valid message", func() {
-			batch.Add(newMessage([]byte{1, 2, 3, 4}, 0))
+			batch.Add(newMessage([]byte{1, 2, 3, 4}, 0, ""))
 
 			Convey("The batch contains the expected message.", func() {
 				So(batch.Size(), ShouldEqual, 1)
@@ -49,8 +52,8 @@ func TestAdd(t *testing.T) {
 
 func TestCommit(t *testing.T) {
 	Convey("Given a batch with two valid messages", t, func() {
-		message1 := newMessage([]byte{0, 1, 2, 3}, 1)
-		message2 := newMessage([]byte{4, 5, 6, 7}, 2)
+		message1 := newMessage([]byte{0, 1, 2, 3}, 1, "")
+		message2 := newMessage([]byte{4, 5, 6, 7}, 2, "")
 
 		batchSize := 2
 		batch := NewBatch(batchSize)
@@ -73,9 +76,9 @@ func TestCommit(t *testing.T) {
 
 func TestClear(t *testing.T) {
 	Convey("Given a batch with two valid messages", t, func() {
-		message1 := newMessage([]byte{0, 1, 2, 3}, 1)
-		message2 := newMessage([]byte{4, 5, 6, 7}, 2)
-		message3 := newMessage([]byte{8, 9, 10, 11}, 3)
+		message1 := newMessage([]byte{0, 1, 2, 3}, 1, "")
+		message2 := newMessage([]byte{4, 5, 6, 7}, 2, "")
+		message3 := newMessage([]byte{8, 9, 10, 11}, 3, "")
 
 		batchSize := 2
 		batch := NewBatch(batchSize)
@@ -105,7 +108,7 @@ func TestClear(t *testing.T) {
 
 func TestSize(t *testing.T) {
 	Convey("Given a batch", t, func() {
-		message := newMessage([]byte{1, 2, 3, 4}, 0)
+		message := newMessage([]byte{1, 2, 3, 4}, 0, "")
 
 		batchSize := 1
 		batch := NewBatch(batchSize)
@@ -126,7 +129,7 @@ func TestSize(t *testing.T) {
 
 func TestIsFull(t *testing.T) {
 	Convey("Given a batch with a size of 2", t, func() {
-		message := newMessage([]byte{1, 2, 3, 4}, 0)
+		message := newMessage([]byte{1, 2, 3, 4}, 0, "")
 
 		batchSize := 2
 		batch := NewBatch(batchSize)

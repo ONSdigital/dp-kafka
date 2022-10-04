@@ -1,6 +1,7 @@
 package kafkatest
 
 import (
+	"context"
 	"sync"
 
 	"github.com/ONSdigital/dp-kafka/v3/mock"
@@ -23,7 +24,7 @@ type Message struct {
 }
 
 // NewMessage returns a new mock message containing the given data.
-func NewMessage(data []byte, offset int64) *Message {
+func NewMessage(data []byte, offset int64, headerValue string) *Message {
 	internal := &mInternal{
 		data:             data,
 		marked:           false,
@@ -36,8 +37,10 @@ func NewMessage(data []byte, offset int64) *Message {
 		internal,
 		&mock.MessageMock{
 			GetDataFunc:          internal.getDataFunc,
+			GetHeaderFunc:        func(key string) string { return headerValue },
 			MarkFunc:             internal.markFunc,
 			CommitFunc:           internal.commitFunc,
+			ContextFunc:          func() context.Context { return context.Background() },
 			ReleaseFunc:          internal.releaseFunc,
 			CommitAndReleaseFunc: internal.commitAndReleaseFunc,
 			OffsetFunc:           internal.offsetFunc,
