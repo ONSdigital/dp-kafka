@@ -5,7 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/Shopify/sarama"
@@ -71,7 +71,7 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) error {
 			rootCAsBytes = []byte(expandNewlines(tlsConfig.RootCACerts))
 		} else {
 			var err error
-			rootCAsBytes, err = ioutil.ReadFile(tlsConfig.RootCACerts)
+			rootCAsBytes, err = os.ReadFile(tlsConfig.RootCACerts)
 			if err != nil {
 				return fmt.Errorf("failed read from %q: %w", tlsConfig.RootCACerts, err)
 			}

@@ -46,7 +46,11 @@ func TestHandler(t *testing.T) {
 		cg.listen(ctx)
 
 		Convey("When a message is received from the Upstream channel", func() {
-			sentMessage := newMessage([]byte{2, 4, 8}, 7, "")
+			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage
 			wg.Wait()
 
@@ -56,7 +60,12 @@ func TestHandler(t *testing.T) {
 
 			Convey("Then the message is committed and released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{1, 3, 7}, 8, "")
+				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure the first message has been fully processed and we can validate calls
 				So(sentMessage.CommitCalls(), ShouldHaveLength, 1)
 				So(sentMessage.ReleaseCalls(), ShouldHaveLength, 1)
@@ -82,7 +91,11 @@ func TestHandler(t *testing.T) {
 		cg.listen(ctx)
 
 		Convey("When a message is received from the Upstream channel", func() {
-			sentMessage := newMessage([]byte{2, 4, 8}, 7, "")
+			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage
 			wg.Wait()
 
@@ -92,7 +105,12 @@ func TestHandler(t *testing.T) {
 
 			Convey("Then the message is committed and released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{1, 3, 7}, 8, "")
+				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure the first message has been fully processed and we can validate calls
 				So(sentMessage.CommitCalls(), ShouldHaveLength, 1)
 				So(sentMessage.ReleaseCalls(), ShouldHaveLength, 1)
@@ -118,7 +136,11 @@ func TestHandler(t *testing.T) {
 		cg.listen(ctx)
 
 		Convey("When a message is received from the Upstream channel", func() {
-			sentMessage := newMessage([]byte{2, 4, 8}, 7, "")
+			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage
 			wg.Wait()
 
@@ -128,7 +150,12 @@ func TestHandler(t *testing.T) {
 
 			Convey("Then the message is committed and released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{1, 3, 7}, 8, "")
+				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure the first message has been fully processed and we can validate calls
 				So(sentMessage.CommitCalls(), ShouldHaveLength, 1)
 				So(sentMessage.ReleaseCalls(), ShouldHaveLength, 1)
@@ -154,7 +181,11 @@ func TestHandler(t *testing.T) {
 		cg.listen(ctx)
 
 		Convey("When a message is received from the Upstream channel", func() {
-			sentMessage := newMessage([]byte{2, 4, 8}, 7, "")
+			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage
 			wg.Wait()
 
@@ -164,8 +195,13 @@ func TestHandler(t *testing.T) {
 
 			Convey("Then the message is released but it is not commited", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{1, 3, 7}, 8, "")
+				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure the first message has been fully processed and we can validate calls
+
 				So(sentMessage.CommitCalls(), ShouldHaveLength, 0)
 				So(sentMessage.ReleaseCalls(), ShouldHaveLength, 1)
 			})
@@ -198,9 +234,21 @@ func TestBatchHandler(t *testing.T) {
 		cg.listenBatch(ctx)
 
 		Convey("When three messages are received from the Upstream channel", func() {
-			sentMessage1 := newMessage([]byte{2, 4, 8}, 7, "")
-			sentMessage2 := newMessage([]byte{1, 3, 7}, 8, "")
-			sentMessage3 := newMessage([]byte{3, 5, 9}, 9, "")
+			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
+			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
+			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
 			cg.channels.Upstream <- sentMessage3
@@ -212,7 +260,12 @@ func TestBatchHandler(t *testing.T) {
 
 			Convey("Then the messages are marked and the last one commits itself and the other marks, they are also released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{0}, 10, "")
+				newMessage, err := newMessage([]byte{0}, 10)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
 				So(sentMessage1.MarkCalls(), ShouldHaveLength, 1)
 				So(sentMessage1.ReleaseCalls(), ShouldHaveLength, 1)
@@ -224,7 +277,11 @@ func TestBatchHandler(t *testing.T) {
 		})
 
 		Convey("When a message is received from the Upstream channel and nothing else is received in the following batchWaitTime", func() {
-			sentMessage1 := newMessage([]byte{2, 4, 8}, 7, "")
+			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+
 			cg.channels.Upstream <- sentMessage1
 			wg.Wait()
 
@@ -234,7 +291,12 @@ func TestBatchHandler(t *testing.T) {
 
 			Convey("Then the message is committed and released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{0}, 10, "")
+				newMessage, err := newMessage([]byte{0}, 10)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
 				So(sentMessage1.CommitCalls(), ShouldHaveLength, 1)
 				So(sentMessage1.ReleaseCalls(), ShouldHaveLength, 1)
@@ -261,9 +323,18 @@ func TestBatchHandler(t *testing.T) {
 		cg.listenBatch(ctx)
 
 		Convey("When three messages are received from the Upstream channel", func() {
-			sentMessage1 := newMessage([]byte{2, 4, 8}, 7, "")
-			sentMessage2 := newMessage([]byte{1, 3, 7}, 8, "")
-			sentMessage3 := newMessage([]byte{3, 5, 9}, 9, "")
+			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
 			cg.channels.Upstream <- sentMessage3
@@ -275,7 +346,11 @@ func TestBatchHandler(t *testing.T) {
 
 			Convey("Then the messages are marked and the last one commits itself and the other marks, they are also released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{0}, 10, "")
+				newMessage, err := newMessage([]byte{0}, 10)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
 				So(sentMessage1.MarkCalls(), ShouldHaveLength, 1)
 				So(sentMessage1.ReleaseCalls(), ShouldHaveLength, 1)
@@ -306,9 +381,18 @@ func TestBatchHandler(t *testing.T) {
 		cg.listenBatch(ctx)
 
 		Convey("When three messages are received from the Upstream channel", func() {
-			sentMessage1 := newMessage([]byte{2, 4, 8}, 7, "")
-			sentMessage2 := newMessage([]byte{1, 3, 7}, 8, "")
-			sentMessage3 := newMessage([]byte{3, 5, 9}, 9, "")
+			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
 			cg.channels.Upstream <- sentMessage3
@@ -320,7 +404,11 @@ func TestBatchHandler(t *testing.T) {
 
 			Convey("Then the messages are marked and the last one commits itself and the other marks, they are also released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{0}, 10, "")
+				newMessage, err := newMessage([]byte{0}, 10)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
 				So(sentMessage1.MarkCalls(), ShouldHaveLength, 1)
 				So(sentMessage1.ReleaseCalls(), ShouldHaveLength, 1)
@@ -351,9 +439,18 @@ func TestBatchHandler(t *testing.T) {
 		cg.listenBatch(ctx)
 
 		Convey("When three messages are received from the Upstream channel", func() {
-			sentMessage1 := newMessage([]byte{2, 4, 8}, 7, "")
-			sentMessage2 := newMessage([]byte{1, 3, 7}, 8, "")
-			sentMessage3 := newMessage([]byte{3, 5, 9}, 9, "")
+			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
+			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
 			cg.channels.Upstream <- sentMessage3
@@ -365,7 +462,11 @@ func TestBatchHandler(t *testing.T) {
 
 			Convey("Then the messages are not marked nor committed, but they are released", func() {
 				wg.Add(1)
-				cg.channels.Upstream <- newMessage([]byte{0}, 10, "")
+				newMessage, err := newMessage([]byte{0}, 10)
+				if err != nil {
+					t.Errorf(errNewMessage)
+				}
+				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
 				So(sentMessage1.MarkCalls(), ShouldHaveLength, 0)
 				So(sentMessage1.CommitCalls(), ShouldHaveLength, 0)

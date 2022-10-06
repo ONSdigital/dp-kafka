@@ -13,6 +13,7 @@ type mInternal struct {
 	marked           bool
 	committed        bool
 	offset           int64
+	options          *Options
 	upstreamDoneChan chan struct{}
 	mu               sync.Mutex
 }
@@ -24,20 +25,30 @@ type Message struct {
 }
 
 // NewMessage returns a new mock message containing the given data.
-func NewMessage(data []byte, offset int64, headerValue string) *Message {
+func NewMessage(data []byte, offset int64, optionFuncs ...func(*Options) error) (*Message, error) {
 	internal := &mInternal{
 		data:             data,
 		marked:           false,
 		committed:        false,
 		offset:           offset,
+		options:          &Options{},
 		upstreamDoneChan: make(chan struct{}),
 		mu:               sync.Mutex{},
 	}
+
+	// Option paremeters values:
+	for _, op := range optionFuncs {
+		err := op(internal.options)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &Message{
 		internal,
 		&mock.MessageMock{
 			GetDataFunc:          internal.getDataFunc,
-			GetHeaderFunc:        func(key string) string { return headerValue },
+			GetHeaderFunc:        internal.getHeaderFunc,
 			MarkFunc:             internal.markFunc,
 			CommitFunc:           internal.commitFunc,
 			ContextFunc:          func() context.Context { return context.Background() },
@@ -46,12 +57,17 @@ func NewMessage(data []byte, offset int64, headerValue string) *Message {
 			OffsetFunc:           internal.offsetFunc,
 			UpstreamDoneFunc:     internal.upstreamDoneFunc,
 		},
-	}
+	}, nil
 }
 
 // getDataFunc returns the data that was added to the struct.
 func (internal *mInternal) getDataFunc() []byte {
 	return internal.data
+}
+
+// getHeaderFunc returns the value of the given  that was added to the struct.
+func (internal *mInternal) getHeaderFunc(key string) string {
+	return internal.options.Headers[key]
 }
 
 // offsetFunc returns the message offset.
