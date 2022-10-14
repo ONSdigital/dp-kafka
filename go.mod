@@ -11,11 +11,11 @@ require (
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/klauspost/compress v1.15.11 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
-	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
 	github.com/smartystreets/goconvey v1.7.2
 	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43 // indirect
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
+	golang.org/x/text v0.3.8 // indirect
 )
 
 require (
