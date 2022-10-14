@@ -29,6 +29,18 @@ var _ interfaces.SaramaConsumerGroup = &SaramaConsumerGroupMock{}
 // 			ErrorsFunc: func() <-chan error {
 // 				panic("mock out the Errors method")
 // 			},
+// 			PauseFunc: func(partitions map[string][]int32)  {
+// 				panic("mock out the Pause method")
+// 			},
+// 			PauseAllFunc: func()  {
+// 				panic("mock out the PauseAll method")
+// 			},
+// 			ResumeFunc: func(partitions map[string][]int32)  {
+// 				panic("mock out the Resume method")
+// 			},
+// 			ResumeAllFunc: func()  {
+// 				panic("mock out the ResumeAll method")
+// 			},
 // 		}
 //
 // 		// use mockedSaramaConsumerGroup in code that requires interfaces.SaramaConsumerGroup
@@ -46,13 +58,13 @@ type SaramaConsumerGroupMock struct {
 	ErrorsFunc func() <-chan error
 
 	// PauseFunc mocks the Pause method.
-	PauseFunc func(topicPartitions map[string][]int32)
+	PauseFunc func(partitions map[string][]int32)
 
 	// PauseAllFunc mocks the PauseAll method.
 	PauseAllFunc func()
 
 	// ResumeFunc mocks the Resume method.
-	ResumeFunc func(topicPartitions map[string][]int32)
+	ResumeFunc func(partitions map[string][]int32)
 
 	// ResumeAllFunc mocks the ResumeAll method.
 	ResumeAllFunc func()
@@ -74,22 +86,30 @@ type SaramaConsumerGroupMock struct {
 		// Errors holds details about calls to the Errors method.
 		Errors []struct {
 		}
+		// Pause holds details about calls to the Pause method.
+		Pause []struct {
+			// Partitions is the partitions argument value.
+			Partitions map[string][]int32
+		}
+		// PauseAll holds details about calls to the PauseAll method.
+		PauseAll []struct {
+		}
+		// Resume holds details about calls to the Resume method.
+		Resume []struct {
+			// Partitions is the partitions argument value.
+			Partitions map[string][]int32
+		}
+		// ResumeAll holds details about calls to the ResumeAll method.
+		ResumeAll []struct {
+		}
 	}
-	lockClose   sync.RWMutex
-	lockConsume sync.RWMutex
-	lockErrors  sync.RWMutex
-}
-
-func (mock *SaramaConsumerGroupMock) Pause(topicPartitions map[string][]int32) {
-}
-
-func (mock *SaramaConsumerGroupMock) PauseAll() {
-}
-
-func (mock *SaramaConsumerGroupMock) Resume(topicPartitions map[string][]int32) {
-}
-
-func (mock *SaramaConsumerGroupMock) ResumeAll() {
+	lockClose     sync.RWMutex
+	lockConsume   sync.RWMutex
+	lockErrors    sync.RWMutex
+	lockPause     sync.RWMutex
+	lockPauseAll  sync.RWMutex
+	lockResume    sync.RWMutex
+	lockResumeAll sync.RWMutex
 }
 
 // Close calls CloseFunc.
@@ -180,5 +200,119 @@ func (mock *SaramaConsumerGroupMock) ErrorsCalls() []struct {
 	mock.lockErrors.RLock()
 	calls = mock.calls.Errors
 	mock.lockErrors.RUnlock()
+	return calls
+}
+
+// Pause calls PauseFunc.
+func (mock *SaramaConsumerGroupMock) Pause(partitions map[string][]int32) {
+	if mock.PauseFunc == nil {
+		panic("SaramaConsumerGroupMock.PauseFunc: method is nil but SaramaConsumerGroup.Pause was just called")
+	}
+	callInfo := struct {
+		Partitions map[string][]int32
+	}{
+		Partitions: partitions,
+	}
+	mock.lockPause.Lock()
+	mock.calls.Pause = append(mock.calls.Pause, callInfo)
+	mock.lockPause.Unlock()
+	mock.PauseFunc(partitions)
+}
+
+// PauseCalls gets all the calls that were made to Pause.
+// Check the length with:
+//     len(mockedSaramaConsumerGroup.PauseCalls())
+func (mock *SaramaConsumerGroupMock) PauseCalls() []struct {
+	Partitions map[string][]int32
+} {
+	var calls []struct {
+		Partitions map[string][]int32
+	}
+	mock.lockPause.RLock()
+	calls = mock.calls.Pause
+	mock.lockPause.RUnlock()
+	return calls
+}
+
+// PauseAll calls PauseAllFunc.
+func (mock *SaramaConsumerGroupMock) PauseAll() {
+	if mock.PauseAllFunc == nil {
+		panic("SaramaConsumerGroupMock.PauseAllFunc: method is nil but SaramaConsumerGroup.PauseAll was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockPauseAll.Lock()
+	mock.calls.PauseAll = append(mock.calls.PauseAll, callInfo)
+	mock.lockPauseAll.Unlock()
+	mock.PauseAllFunc()
+}
+
+// PauseAllCalls gets all the calls that were made to PauseAll.
+// Check the length with:
+//     len(mockedSaramaConsumerGroup.PauseAllCalls())
+func (mock *SaramaConsumerGroupMock) PauseAllCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockPauseAll.RLock()
+	calls = mock.calls.PauseAll
+	mock.lockPauseAll.RUnlock()
+	return calls
+}
+
+// Resume calls ResumeFunc.
+func (mock *SaramaConsumerGroupMock) Resume(partitions map[string][]int32) {
+	if mock.ResumeFunc == nil {
+		panic("SaramaConsumerGroupMock.ResumeFunc: method is nil but SaramaConsumerGroup.Resume was just called")
+	}
+	callInfo := struct {
+		Partitions map[string][]int32
+	}{
+		Partitions: partitions,
+	}
+	mock.lockResume.Lock()
+	mock.calls.Resume = append(mock.calls.Resume, callInfo)
+	mock.lockResume.Unlock()
+	mock.ResumeFunc(partitions)
+}
+
+// ResumeCalls gets all the calls that were made to Resume.
+// Check the length with:
+//     len(mockedSaramaConsumerGroup.ResumeCalls())
+func (mock *SaramaConsumerGroupMock) ResumeCalls() []struct {
+	Partitions map[string][]int32
+} {
+	var calls []struct {
+		Partitions map[string][]int32
+	}
+	mock.lockResume.RLock()
+	calls = mock.calls.Resume
+	mock.lockResume.RUnlock()
+	return calls
+}
+
+// ResumeAll calls ResumeAllFunc.
+func (mock *SaramaConsumerGroupMock) ResumeAll() {
+	if mock.ResumeAllFunc == nil {
+		panic("SaramaConsumerGroupMock.ResumeAllFunc: method is nil but SaramaConsumerGroup.ResumeAll was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockResumeAll.Lock()
+	mock.calls.ResumeAll = append(mock.calls.ResumeAll, callInfo)
+	mock.lockResumeAll.Unlock()
+	mock.ResumeAllFunc()
+}
+
+// ResumeAllCalls gets all the calls that were made to ResumeAll.
+// Check the length with:
+//     len(mockedSaramaConsumerGroup.ResumeAllCalls())
+func (mock *SaramaConsumerGroupMock) ResumeAllCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockResumeAll.RLock()
+	calls = mock.calls.ResumeAll
+	mock.lockResumeAll.RUnlock()
 	return calls
 }
