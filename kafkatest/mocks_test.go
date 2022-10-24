@@ -8,7 +8,10 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var ctx = context.Background()
+var (
+	ctx           = context.Background()
+	errNewMessage = "failed to create new message"
+)
 
 func TestProducerMock(t *testing.T) {
 	Convey("Given an uninitialised producer mock", t, func() {
@@ -122,13 +125,22 @@ func TestConsumerMock(t *testing.T) {
 
 		Convey("Messages are received in a synchronized fashion", func(c C) {
 			payload1 := []byte{0, 1, 2, 3, 4, 5}
-			message1 := NewMessage(payload1, 1)
+			message1, err := NewMessage(payload1, 1)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 
 			payload2 := []byte{6, 7, 8, 9, 0}
-			message2 := NewMessage(payload2, 2)
+			message2, err := NewMessage(payload2, 2)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 
 			payload3 := []byte{10, 11, 12, 13, 14}
-			message3 := NewMessage(payload3, 3)
+			message3, err := NewMessage(payload3, 3)
+			if err != nil {
+				t.Errorf(errNewMessage)
+			}
 
 			wg := sync.WaitGroup{}
 			receivedAll := false
@@ -186,7 +198,10 @@ func TestMessageMock(t *testing.T) {
 
 	Convey("Given a message mock", t, func() {
 		payload := []byte{0, 1, 2, 3, 4, 5}
-		msg := NewMessage(payload, 1)
+		msg, err := NewMessage(payload, 1)
+		if err != nil {
+			t.Errorf(errNewMessage)
+		}
 
 		Convey("The initial state is not marked or committed", func() {
 			So(msg.marked, ShouldBeFalse)
