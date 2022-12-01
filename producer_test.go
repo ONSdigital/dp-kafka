@@ -299,7 +299,6 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 		})
 
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
-
 			// Send message to local kafka output chan
 			message := "HELLO"
 			producer.Channels().Output <- []byte(message)

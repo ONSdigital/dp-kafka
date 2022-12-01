@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"context"
-	
+
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
 )
@@ -30,9 +30,9 @@ func (m SaramaMessage) GetData() []byte {
 }
 
 // Context returns a context with traceid.
-func (M SaramaMessage) Context() context.Context {
+func (m SaramaMessage) Context() context.Context {
 	ctx := context.Background()
-	traceID := M.GetHeader(TraceIDHeaderKey)
+	traceID := m.GetHeader(TraceIDHeaderKey)
 	if traceID != "" {
 		ctx = context.WithValue(ctx, TraceIDHeaderKey, traceID)
 	}
@@ -40,8 +40,8 @@ func (M SaramaMessage) Context() context.Context {
 }
 
 // GetHeader takes a key for the header and returns the value if the key exist in the header.
-func (M SaramaMessage) GetHeader(key string) string {
-	for _, recordHeader := range M.message.Headers {
+func (m SaramaMessage) GetHeader(key string) string {
+	for _, recordHeader := range m.message.Headers {
 		if string(recordHeader.Key) == key {
 			return string(recordHeader.Value)
 		}

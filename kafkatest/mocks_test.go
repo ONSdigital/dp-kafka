@@ -15,7 +15,6 @@ var (
 
 func TestProducerMock(t *testing.T) {
 	Convey("Given an uninitialised producer mock", t, func() {
-
 		producerMock := NewMessageProducer(false)
 		So(producerMock.IsInitialised(), ShouldBeFalse)
 
@@ -53,7 +52,6 @@ func TestProducerMock(t *testing.T) {
 		Convey("It can be successfully closed", func() {
 			validateCloseProducer(producerMock)
 		})
-
 	})
 }
 
@@ -195,7 +193,6 @@ func TestConsumerMock(t *testing.T) {
 }
 
 func TestMessageMock(t *testing.T) {
-
 	Convey("Given a message mock", t, func() {
 		payload := []byte{0, 1, 2, 3, 4, 5}
 		msg, err := NewMessage(payload, 1)

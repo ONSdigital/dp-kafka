@@ -14,15 +14,6 @@ type options struct {
 	headers map[string]string
 }
 
-type headers map[string]string
-
-func optionalHeaders(h headers) func(o *options) error {
-	return func(o *options) error {
-		o.headers = h
-		return nil
-	}
-}
-
 func newMessage(b []byte, offset int64, optionFuncs ...func(*options) error) (*mock.MessageMock, error) {
 	options := &options{}
 

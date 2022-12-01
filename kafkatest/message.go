@@ -51,7 +51,7 @@ func NewMessage(data []byte, offset int64, optionFuncs ...func(*Options) error) 
 			GetHeaderFunc:        internal.getHeaderFunc,
 			MarkFunc:             internal.markFunc,
 			CommitFunc:           internal.commitFunc,
-			ContextFunc:          func() context.Context { return context.Background() },
+			ContextFunc:          context.Background,
 			ReleaseFunc:          internal.releaseFunc,
 			CommitAndReleaseFunc: internal.commitAndReleaseFunc,
 			OffsetFunc:           internal.offsetFunc,
