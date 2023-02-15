@@ -31,6 +31,7 @@ var testNestedArraySchema = `{
         },
         {
             "name" : "footballers",
+			"default": null,
             "type" : {
                 "type" : "array",
                 "items" : {
@@ -63,29 +64,32 @@ var nestedObjectSchema = `{
 		},
 		{
 			"name": "footballer",
-			"type": {
-				"name": "footballer-name",
-				"type": "record",
-				"fields": [
-					{
-						"name": "surname",
-						"type": "string",
-						"default": ""
-					},
-					{
-						"name": "forename",
-						"type": "string",
-						"default": ""
-					},
-                                	{
-                                        	"name": "aka",
-                                                "type": {
-                                                        "type": "map",
-                                                        "values": "string"
-                                		}
-                                        }
-				]
-			}
+			"type": [
+				"null",
+				{
+					"name": "footballer-name",
+					"type": "record",
+					"fields": [
+						{
+							"name": "surname",
+							"type": "string",
+							"default": ""
+						},
+						{
+							"name": "forename",
+							"type": "string",
+							"default": ""
+						},
+						{
+							"name": "aka",
+							"type": {
+								"type": "map",
+								"values": "string"
+							}
+						}
+					]
+				}
+			]
 		},
 		{
 			"name": "aka",
