@@ -175,7 +175,7 @@ func getNestedSchema(avroSchema avro.Schema, fieldTag string, v reflect.Value, t
 
 				// If the nested schema could potentially be "null", then the schema is the second type
 				// element rather than the first
-				if avroFieldType = avroFieldTypes[1].(map[string]interface{}); !ok {
+				if avroFieldType, ok = avroFieldTypes[1].(map[string]interface{}); !ok {
 					continue
 				}
 			}
