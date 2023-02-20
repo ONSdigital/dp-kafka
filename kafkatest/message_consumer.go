@@ -41,10 +41,12 @@ func NewMessageConsumerWithChannels(cgChannels *kafka.ConsumerGroupChannels, isI
 	return &MessageConsumer{
 		internal,
 		&IConsumerGroupMock{
-			ChannelsFunc:      internal.channelsFunc,
-			IsInitialisedFunc: internal.isInitialisedFunc,
-			InitialiseFunc:    internal.initialiseFunc,
-			CloseFunc:         internal.closeFunc,
+			ChannelsFunc:        internal.channelsFunc,
+			IsInitialisedFunc:   internal.isInitialisedFunc,
+			InitialiseFunc:      internal.initialiseFunc,
+			CloseFunc:           internal.closeFunc,
+			LogErrorsFunc:       internal.logErrorsFunc,
+			RegisterHandlerFunc: internal.registerHandlerFunc,
 		},
 	}
 }
@@ -64,6 +66,14 @@ func (internal *cgInternal) isInitialisedFunc() bool {
 
 func (internal *cgInternal) channelsFunc() *kafka.ConsumerGroupChannels {
 	return internal.cgChannels
+}
+
+func (internal *cgInternal) logErrorsFunc(ctx context.Context) {
+	return
+}
+
+func (internal *cgInternal) registerHandlerFunc(ctx context.Context, h kafka.Handler) error {
+	return nil
 }
 
 func (internal *cgInternal) closeFunc(ctx context.Context, optFuncs ...kafka.OptFunc) error {

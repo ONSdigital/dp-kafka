@@ -48,6 +48,7 @@ func NewMessageProducerWithChannels(pChannels *kafka.ProducerChannels, isInitial
 			ChannelsFunc:      internal.channelsFunc,
 			CloseFunc:         internal.closeFunc,
 			SendFunc:          internal.sendFunc,
+			LogErrorsFunc:     internal.logErrorsFunc,
 		},
 	}
 }
@@ -77,6 +78,10 @@ func (internal *pInternal) closeFunc(ctx context.Context) (err error) {
 	close(internal.pChannels.Errors)
 	close(internal.pChannels.Output)
 	return nil
+}
+
+func (internal *pInternal) logErrorsFunc(ctx context.Context) {
+	return
 }
 
 func (internal *pInternal) sendFunc(schema *avro.Schema, event interface{}) error {
