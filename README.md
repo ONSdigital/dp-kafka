@@ -529,3 +529,41 @@ Some mocks are provided, so that you can test your code interactions with this l
    [kafka-section-detail]: <https://github.com/ONSdigital/dp-configs/tree/master/manifests#kafka-section-detail>
    [kafka-setup-tools-readme]: <https://github.com/ONSdigital/dp-setup/tree/develop/scripts/kafka>
    [manifest-example]: <https://github.com/ONSdigital/dp-configs/blob/master/manifests/dp-import-api.yml>
+
+
+## Drain topics
+
+In some scenarios we may need to "drain a topic", or consume all the messages in a particular topic and group, disregarding them.
+For example, in a component test that uses a kafka docker stack for testing, we need to make sure all the messages are consumed before starting the following test.
+Another example is an environment where a bug happened and messages were not committed, in that case we might want to drain a topic before releasing the fix to prevent a bottleneck of too many messages that are actually not needed.
+
+A tool to drain topics is provided as part of this library.
+You can drain multiple topics in parallel by providing multiple DrainTopicInput structs, like so:
+
+```go
+	kafka.DrainTopics(c.ctx,
+		&kafka.DrainTopicConfig{
+			BrokerAddrs:  cfg.BrokerAddrs,
+			KafkaVersion: cfg.KafkaVersion,
+			Timeout:      cfg.Timeout,
+			BatchSize:    cfg.BatchSize,
+		},
+		&kafka.DrainTopicInput{
+			Topic:     "myTopic-1",
+			GroupName: "myGroup-1",
+		},
+		&kafka.DrainTopicInput{
+			Topic:     "myTopic-2",
+			GroupName: "myGroup-2",
+		},
+        ...
+        &kafka.DrainTopicInput{
+			Topic:     "myTopic-N",
+			GroupName: "myGroup-N",
+		},
+	)
+```
+
+This will create N go routines with a consumer in each. Each consumer will consume messages in batches of up to `BatchSize`. When all messages are consumed for a topic and group, the corresponding consumer and go-routine is closed. `DrainTopics` will block until all topics have been drained.
+
+WARNING: Services should not drain topics. This may be used by platform engineers to clean up environments, or by component tests to clean up local stacks between scenarios.
