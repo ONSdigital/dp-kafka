@@ -67,12 +67,7 @@ type ConsumerGroup struct {
 	minRetryPeriod    time.Duration
 	maxRetryPeriod    time.Duration
 	minBrokersHealthy int
-	ctx               context.Context // Contet provided to the ConsumerGroup at creation time
-}
-
-// SaramaCgHandler is a getter for the internal sarama consumer group handler
-func (cg *ConsumerGroup) SaramaCgHandler() *SaramaHandler {
-	return cg.saramaCgHandler
+	ctx               context.Context // Context provided to the ConsumerGroup at creation time
 }
 
 // NewConsumerGroup creates a new consumer group with the provided configuration
@@ -159,6 +154,30 @@ func NewConsumerGroupWithGenerators(
 		cg.createLoopUninitialised(ctx)
 	}
 	return cg, nil
+}
+
+// Topic returns the ConsumerGroup's topic
+func (cg *ConsumerGroup) Topic() string {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+
+	return cg.topic
+}
+
+// GroupName returns the ConsumerGroup's group name
+func (cg *ConsumerGroup) GroupName() string {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+
+	return cg.group
+}
+
+// SaramaCgHandler returns the ConsumerGroup's sarama consumer group handler
+func (cg *ConsumerGroup) SaramaCgHandler() *SaramaHandler {
+	cg.mutex.RLock()
+	defer cg.mutex.RUnlock()
+
+	return cg.saramaCgHandler
 }
 
 // Channels returns the ConsumerGroup channels for this consumer group

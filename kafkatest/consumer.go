@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	kafka "github.com/ONSdigital/dp-kafka/v3"
 	"github.com/ONSdigital/dp-kafka/v3/avro"
@@ -28,11 +29,13 @@ var DefaultConsumerConfig = &ConsumerConfig{
 // Consumer is an extension of the moq ConsumerGroup
 // with implementation of required functions and Sarama mocks to emulate a fully functional Kafka ConsumerGroup
 type Consumer struct {
-	cfg                 *ConsumerConfig              // Mock configuration
+	cfg                 *ConsumerConfig // Mock configuration
+	mutex               *sync.Mutex
 	wgSaramaConsumers   *sync.WaitGroup              // Waitgroup for sarama-handler consumer funcs during a session
 	saramaErrors        chan error                   // Sarama level error channel
 	saramaMessages      chan *sarama.ConsumerMessage // Sarama level consumed message channel
 	saramaSessionID     int64                        // ID of the Sarama session (incremental)
+	currentOffset       int64                        // last offset assigned to a message
 	saramaCancelSession context.CancelFunc           // Context cancel func to end a Sarama session
 	saramaMock          sarama.ConsumerGroup         // Internal sarama consumer group mock
 	cg                  *kafka.ConsumerGroup         // Internal consumer group
@@ -51,6 +54,12 @@ func (cg *Consumer) consumerGroupInitialiser(addrs []string, groupID string, con
 func (cg *Consumer) newSaramaSessionID() string {
 	cg.saramaSessionID++
 	return strconv.FormatInt(cg.saramaSessionID, 10)
+}
+
+// newOffset increments the offset and returns the new value
+func (cg *Consumer) newOffset() int64 {
+	cg.currentOffset++
+	return cg.currentOffset
 }
 
 // createSaramaConsumeFunc returns a mocked Sarama 'Consume' function,
@@ -119,6 +128,9 @@ func (cg *Consumer) createSaramaConsumeFunc(topic string) func(ctx context.Conte
 // NewConsumer creates a testing consumer for testing.
 // It behaves like a real consuemr-group, without network communication
 func NewConsumer(ctx context.Context, cgConfig *kafka.ConsumerGroupConfig, cfg *ConsumerConfig) (*Consumer, error) {
+	if cgConfig == nil {
+		return nil, errors.New("kafka consumer config must be provided")
+	}
 	if cfg == nil {
 		cfg = DefaultConsumerConfig
 	}
@@ -126,9 +138,11 @@ func NewConsumer(ctx context.Context, cgConfig *kafka.ConsumerGroupConfig, cfg *
 	cg := &Consumer{
 		cfg:               cfg,
 		wgSaramaConsumers: &sync.WaitGroup{},
+		mutex:             &sync.Mutex{},
 		saramaErrors:      make(chan error, cfg.ChannelBufferSize),
 		saramaMessages:    make(chan *sarama.ConsumerMessage, cfg.ChannelBufferSize),
 		saramaSessionID:   0,
+		currentOffset:     0,
 	}
 
 	saramaMock := &mock.SaramaConsumerGroupMock{
@@ -191,10 +205,18 @@ func (cg *Consumer) QueueMessage(schema *avro.Schema, event interface{}) error {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
 
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+
+	msgTime := time.Now()
 	msg := &sarama.ConsumerMessage{
-		Value:   bytes,
-		Offset:  0,
-		Headers: []*sarama.RecordHeader{},
+		Headers:        []*sarama.RecordHeader{},
+		Timestamp:      msgTime,
+		BlockTimestamp: msgTime,
+
+		Value:  bytes,
+		Topic:  cg.cg.Topic(),
+		Offset: cg.newOffset(),
 	}
 
 	if err := kafka.SafeSendConsumerMessage(cg.saramaMessages, msg); err != nil {

@@ -44,6 +44,9 @@ func (p *Producer) producerInitialiser(addrs []string, config *sarama.Config) (s
 // NewProducer creates a testing producer for testing.
 // It behaves like a real producer, without network communication
 func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *ProducerConfig) (*Producer, error) {
+	if pConfig == nil {
+		return nil, errors.New("kafka producer config must be provided")
+	}
 	if cfg == nil {
 		cfg = DefaultProducerConfig
 	}
@@ -100,9 +103,9 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 	return p, nil
 }
 
-// ExpectMessage waits for a new message being sent to Kafka, with a timeout according to the provided value
+// WaitForMessageSent waits for a new message being sent to Kafka, with a timeout according to the provided value
 // If a message is sent, it unmarshals it into the provided 'event', using the provided avro 'schema'.
-func (p *Producer) ExpectMessage(schema *avro.Schema, event interface{}, timeout time.Duration) error {
+func (p *Producer) WaitForMessageSent(schema *avro.Schema, event interface{}, timeout time.Duration) error {
 	select {
 	case <-time.After(timeout):
 		return errors.New("timeout while waiting for kafka message being produced")

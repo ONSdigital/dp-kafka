@@ -1,11 +1,13 @@
 package kafkatest
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
 	kafka "github.com/ONSdigital/dp-kafka/v3"
+	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -138,6 +140,40 @@ func TestConsumerMock(t *testing.T) {
 			validateCloseConsumer(cg)
 		})
 	})
+
+	Convey("Creating a consumer with a nil mock consumer configuration results in the default config being used", t, func() {
+		cg, err := NewConsumer(
+			ctx,
+			cgConfig,
+			nil,
+		)
+		So(err, ShouldBeNil)
+		So(cg.cfg, ShouldResemble, DefaultConsumerConfig)
+
+		Convey("And, accordingly, the consumer group being initialised", func() {
+			So(cg.Mock.IsInitialised(), ShouldBeTrue)
+		})
+	})
+
+	Convey("Creating a consumer with a nil kafka consumer configuration results in the expected error being returned", t, func() {
+		_, err := NewConsumer(
+			ctx,
+			nil,
+			nil,
+		)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "kafka consumer config must be provided")
+	})
+
+	Convey("Creating a consumer with an invalid kafka consumer configuration results in the expected error being returned", t, func() {
+		_, err := NewConsumer(
+			ctx,
+			&kafka.ConsumerGroupConfig{},
+			nil,
+		)
+		So(err, ShouldNotBeNil)
+		So(err.Error(), ShouldEqual, "failed to create consumer group for testing: failed to get consumer-group config: validation error: topic is compulsory but was not provided in config")
+	})
 }
 
 func validateCloseConsumer(cg *Consumer) {
@@ -168,4 +204,120 @@ func validateCloseConsumer(cg *Consumer) {
 	So(closedErrors, ShouldBeTrue)
 	So(closedCloser, ShouldBeTrue)
 	So(closedClosed, ShouldBeTrue)
+}
+
+func TestQueueMessage(t *testing.T) {
+	cgConfig := &kafka.ConsumerGroupConfig{
+		Topic:       "test-topic",
+		GroupName:   "test-group",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest consumer", t, func() {
+		cg, err := NewConsumer(ctx, cgConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When a valid event is queued", func() {
+			t0 := time.Now()
+			event := &TestEvent{
+				Field1: "value one",
+				Field2: "value two",
+			}
+			err := cg.QueueMessage(TestSchema, event)
+			So(err, ShouldBeNil)
+
+			Convey("Then the expected Sarama message is sent to the mock's sarmaMessages channel", func() {
+				select {
+				case <-time.After(time.Second):
+					t.Fail()
+				case msg := <-cg.saramaMessages:
+					So(msg.Headers, ShouldResemble, []*sarama.RecordHeader{})
+					So(msg.Timestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.BlockTimestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.Topic, ShouldEqual, "test-topic")
+					So(msg.Offset, ShouldEqual, 1)
+
+					queued := &TestEvent{}
+					err := TestSchema.Unmarshal(msg.Value, queued)
+					So(err, ShouldBeNil)
+					So(queued, ShouldResemble, event)
+				}
+			})
+		})
+
+		Convey("When an invalid event is queued, then QueueMessage fails with the expected error", func() {
+			err := cg.QueueMessage(TestSchema, "wrong")
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "failed to marshal event with avro schema: unsupported interface type: string")
+		})
+
+		Convey("When a valid event queued but the saramaMessages channel is closed, then QueueMessage fails with the expected error", func() {
+			close(cg.saramaMessages)
+			event := &TestEvent{
+				Field1: "value one",
+				Field2: "value two",
+			}
+			err := cg.QueueMessage(TestSchema, event)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldEqual, "failed to send message to saramaMessages channel: failed to send ConsumerMessage value to channel: send on closed channel")
+		})
+	})
+}
+
+func TestConsume(t *testing.T) {
+	cgConfig := &kafka.ConsumerGroupConfig{
+		Topic:       "test-topic",
+		GroupName:   "test-group",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest consumer, with a valid handler registered", t, func() {
+		cg, err := NewConsumer(ctx, cgConfig, nil)
+		So(err, ShouldBeNil)
+
+		handlerCalled := make(chan struct{})
+		var handledMessage kafka.Message
+		cg.cg.RegisterHandler(ctx, func(ctx context.Context, workerID int, msg kafka.Message) error {
+			handledMessage = msg
+			kafka.SafeClose(handlerCalled)
+			return nil
+		})
+
+		Convey("And a valid message is queued", func() {
+			event := &TestEvent{
+				Field1: "value one",
+				Field2: "value two",
+			}
+			err := cg.QueueMessage(TestSchema, event)
+			So(err, ShouldBeNil)
+
+			Convey("When the consumer group starts", func() {
+				cg.cg.Start()
+
+				Convey("Then the handler is called", func() {
+					select {
+					case <-time.After(time.Second):
+						t.Fail()
+					case <-handlerCalled:
+					}
+
+					Convey("And the expected message has been handled", func() {
+						So(handledMessage, ShouldNotBeNil)
+						event := &TestEvent{}
+						err = TestSchema.Unmarshal(handledMessage.GetData(), event)
+						So(err, ShouldBeNil)
+						So(event, ShouldResemble, &TestEvent{
+							Field1: "value one",
+							Field2: "value two",
+						})
+
+						Convey("And the consumer group can be successfully stopped", func() {
+							cg.cg.Stop()
+							cg.cg.StateWait(kafka.Stopped)
+						})
+					})
+				})
+			})
+		})
+	})
 }
