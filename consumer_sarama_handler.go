@@ -136,6 +136,7 @@ func (sh *SaramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
 	}()
 
 	select {
+	//nolint
 	case sh.channels.Upstream <- msg: // Send message to Upsream channel to be consumed by the app
 		<-msg.UpstreamDone() // Wait until the message is released
 		return nil           // Message has been released

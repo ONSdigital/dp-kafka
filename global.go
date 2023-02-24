@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/rcrowley/go-metrics"
+	metrics "github.com/rcrowley/go-metrics"
 )
 
 // init is executed only once, when the package is imported.
