@@ -80,9 +80,10 @@ func GetFromSaramaChans(
 
 func TestProducerCreation(t *testing.T) {
 	Convey("Providing a nil context results in the expected error being returned", t, func() {
-		p, err := newProducer(
+		p, err := NewProducerWithGenerators(
 			nil,
 			&ProducerConfig{},
+			nil,
 			nil,
 		)
 		So(p, ShouldBeNil)
@@ -91,13 +92,14 @@ func TestProducerCreation(t *testing.T) {
 
 	Convey("Providing an invalid config (kafka version) results in an error being returned and consumer not being initialised", t, func() {
 		wrongVersion := "wrongVersion"
-		p, err := newProducer(
+		p, err := NewProducerWithGenerators(
 			ctx,
 			&ProducerConfig{
 				KafkaVersion: &wrongVersion,
 				BrokerAddrs:  testBrokers,
 				Topic:        testTopic,
 			},
+			nil,
 			nil,
 		)
 		So(p, ShouldBeNil)
@@ -108,7 +110,13 @@ func TestProducerCreation(t *testing.T) {
 
 	Convey("Given a successful creation of a producer", t, func() {
 		testCtx, cancel := context.WithCancel(ctx)
-		p, err := newProducer(
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
+
+		p, err := NewProducerWithGenerators(
 			testCtx,
 			&ProducerConfig{
 				Topic:       testTopic,
@@ -117,6 +125,7 @@ func TestProducerCreation(t *testing.T) {
 			func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 				return nil, errors.New("uninitialised")
 			},
+			brokerGen,
 		)
 		So(err, ShouldBeNil)
 
@@ -137,15 +146,21 @@ func TestProducer(t *testing.T) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
 		testTraceID := "mytraceid"
 		ctx = context.WithValue(ctx, TraceIDHeaderKey, testTraceID)
-		producer, err := newProducer(
+		producer, err := NewProducerWithGenerators(
 			ctx,
 			&ProducerConfig{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 			},
 			pInit,
+			brokerGen,
 		)
 
 		Convey("Producer is correctly created and initialised without error", func(c C) {
@@ -266,13 +281,19 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 			pInitCalls++
 			return asyncProducerMock, nil
 		}
-		producer, err := newProducer(
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
+		producer, err := NewProducerWithGenerators(
 			ctx,
 			&ProducerConfig{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 			},
 			pInit,
+			brokerGen,
 		)
 
 		Convey("Producer is correctly created and initialised without error", func(c C) {
@@ -389,13 +410,20 @@ func TestProducerNotInitialised(t *testing.T) {
 			pInitCalls++
 			return nil, ErrSaramaNoBrokers
 		}
-		producer, err := newProducer(
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
+
+		producer, err := NewProducerWithGenerators(
 			ctx,
 			&ProducerConfig{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 			},
 			pInit,
+			brokerGen,
 		)
 
 		Convey("Producer is partially created with channels and checker and is not initialised", func(c C) {

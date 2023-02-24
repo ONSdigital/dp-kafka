@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
+	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/dp-kafka/v3/mock"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
@@ -23,9 +24,10 @@ var (
 
 func TestConsumerCreation(t *testing.T) {
 	Convey("Providing a nil context results in the expected error being returned", t, func() {
-		cg, err := newConsumerGroup(
+		cg, err := NewConsumerGroupWithGenerators(
 			nil,
 			&ConsumerGroupConfig{},
+			nil,
 			nil,
 		)
 		So(cg, ShouldBeNil)
@@ -34,7 +36,7 @@ func TestConsumerCreation(t *testing.T) {
 
 	Convey("Providing an invalid kafka version results in the expected error being returned", t, func() {
 		wrongVersion := "wrongVersion"
-		cg, err := newConsumerGroup(
+		cg, err := NewConsumerGroupWithGenerators(
 			ctx,
 			&ConsumerGroupConfig{
 				KafkaVersion: &wrongVersion,
@@ -42,6 +44,7 @@ func TestConsumerCreation(t *testing.T) {
 				GroupName:    testGroup,
 				BrokerAddrs:  testBrokers,
 			},
+			nil,
 			nil,
 		)
 		So(cg, ShouldBeNil)
@@ -52,7 +55,12 @@ func TestConsumerCreation(t *testing.T) {
 
 	Convey("Given a successful creation of a consumer group", t, func() {
 		testCtx, cancel := context.WithCancel(ctx)
-		cg, err := newConsumerGroup(
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
+		cg, err := NewConsumerGroupWithGenerators(
 			testCtx,
 			&ConsumerGroupConfig{
 				Topic:       testTopic,
@@ -62,6 +70,7 @@ func TestConsumerCreation(t *testing.T) {
 			func(addrs []string, groupID string, config *sarama.Config) (sarama.ConsumerGroup, error) {
 				return nil, errors.New("uninitialised")
 			},
+			brokerGen,
 		)
 		So(err, ShouldBeNil)
 
@@ -84,15 +93,22 @@ func TestConsumerInitialised(t *testing.T) {
 			cgInitCalls++
 			return saramaConsumerGroupMock, nil
 		}
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
 
-		consumer, err := newConsumerGroup(
+		consumer, err := NewConsumerGroupWithGenerators(
 			ctx,
 			&ConsumerGroupConfig{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 				GroupName:   testGroup,
 			},
-			cgInit)
+			cgInit,
+			brokerGen,
+		)
 
 		Convey("Consumer is correctly created and initialised without error", func() {
 			So(err, ShouldBeNil)
@@ -140,14 +156,22 @@ func TestConsumerNotInitialised(t *testing.T) {
 			cgInitCalls++
 			return nil, errNoBrokers
 		}
-		consumer, err := newConsumerGroup(
+		brokerGen := func(addr string) interfaces.SaramaBroker {
+			return &mock.SaramaBrokerMock{
+				CloseFunc: func() error { return nil },
+			}
+		}
+
+		consumer, err := NewConsumerGroupWithGenerators(
 			ctx,
 			&ConsumerGroupConfig{
 				BrokerAddrs: testBrokers,
 				Topic:       testTopic,
 				GroupName:   testGroup,
 			},
-			cgInit)
+			cgInit,
+			brokerGen,
+		)
 
 		Convey("Consumer is partially created with channels and checker, but it is not initialised", func() {
 			So(err, ShouldBeNil)
@@ -534,7 +558,7 @@ func TestStop(t *testing.T) {
 		Convey("Calling StopAndWait in 'Consuming' results in a 'true' value being sent to the Consume channel and the call blocking until the sessionConsuming channel is closed", func(c C) {
 			cg.state = NewConsumerStateMachine()
 			cg.state.Set(Consuming)
-			cg.saramaCgHandler = &saramaHandler{
+			cg.saramaCgHandler = &SaramaHandler{
 				settingUp: NewStateChan(),
 			}
 			cg.saramaCgHandler.enterSession()

@@ -15,31 +15,31 @@ var _ interfaces.SaramaConsumerGroupClaim = &SaramaConsumerGroupClaimMock{}
 
 // SaramaConsumerGroupClaimMock is a mock implementation of interfaces.SaramaConsumerGroupClaim.
 //
-// 	func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
+//	func TestSomethingThatUsesSaramaConsumerGroupClaim(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.SaramaConsumerGroupClaim
-// 		mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
-// 			HighWaterMarkOffsetFunc: func() int64 {
-// 				panic("mock out the HighWaterMarkOffset method")
-// 			},
-// 			InitialOffsetFunc: func() int64 {
-// 				panic("mock out the InitialOffset method")
-// 			},
-// 			MessagesFunc: func() <-chan *sarama.ConsumerMessage {
-// 				panic("mock out the Messages method")
-// 			},
-// 			PartitionFunc: func() int32 {
-// 				panic("mock out the Partition method")
-// 			},
-// 			TopicFunc: func() string {
-// 				panic("mock out the Topic method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.SaramaConsumerGroupClaim
+//		mockedSaramaConsumerGroupClaim := &SaramaConsumerGroupClaimMock{
+//			HighWaterMarkOffsetFunc: func() int64 {
+//				panic("mock out the HighWaterMarkOffset method")
+//			},
+//			InitialOffsetFunc: func() int64 {
+//				panic("mock out the InitialOffset method")
+//			},
+//			MessagesFunc: func() <-chan *sarama.ConsumerMessage {
+//				panic("mock out the Messages method")
+//			},
+//			PartitionFunc: func() int32 {
+//				panic("mock out the Partition method")
+//			},
+//			TopicFunc: func() string {
+//				panic("mock out the Topic method")
+//			},
+//		}
 //
-// 		// use mockedSaramaConsumerGroupClaim in code that requires interfaces.SaramaConsumerGroupClaim
-// 		// and then make assertions.
+//		// use mockedSaramaConsumerGroupClaim in code that requires interfaces.SaramaConsumerGroupClaim
+//		// and then make assertions.
 //
-// 	}
+//	}
 type SaramaConsumerGroupClaimMock struct {
 	// HighWaterMarkOffsetFunc mocks the HighWaterMarkOffset method.
 	HighWaterMarkOffsetFunc func() int64
@@ -96,7 +96,8 @@ func (mock *SaramaConsumerGroupClaimMock) HighWaterMarkOffset() int64 {
 
 // HighWaterMarkOffsetCalls gets all the calls that were made to HighWaterMarkOffset.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupClaim.HighWaterMarkOffsetCalls())
+//
+//	len(mockedSaramaConsumerGroupClaim.HighWaterMarkOffsetCalls())
 func (mock *SaramaConsumerGroupClaimMock) HighWaterMarkOffsetCalls() []struct {
 } {
 	var calls []struct {
@@ -122,7 +123,8 @@ func (mock *SaramaConsumerGroupClaimMock) InitialOffset() int64 {
 
 // InitialOffsetCalls gets all the calls that were made to InitialOffset.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupClaim.InitialOffsetCalls())
+//
+//	len(mockedSaramaConsumerGroupClaim.InitialOffsetCalls())
 func (mock *SaramaConsumerGroupClaimMock) InitialOffsetCalls() []struct {
 } {
 	var calls []struct {
@@ -148,7 +150,8 @@ func (mock *SaramaConsumerGroupClaimMock) Messages() <-chan *sarama.ConsumerMess
 
 // MessagesCalls gets all the calls that were made to Messages.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupClaim.MessagesCalls())
+//
+//	len(mockedSaramaConsumerGroupClaim.MessagesCalls())
 func (mock *SaramaConsumerGroupClaimMock) MessagesCalls() []struct {
 } {
 	var calls []struct {
@@ -174,7 +177,8 @@ func (mock *SaramaConsumerGroupClaimMock) Partition() int32 {
 
 // PartitionCalls gets all the calls that were made to Partition.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupClaim.PartitionCalls())
+//
+//	len(mockedSaramaConsumerGroupClaim.PartitionCalls())
 func (mock *SaramaConsumerGroupClaimMock) PartitionCalls() []struct {
 } {
 	var calls []struct {
@@ -200,7 +204,8 @@ func (mock *SaramaConsumerGroupClaimMock) Topic() string {
 
 // TopicCalls gets all the calls that were made to Topic.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupClaim.TopicCalls())
+//
+//	len(mockedSaramaConsumerGroupClaim.TopicCalls())
 func (mock *SaramaConsumerGroupClaimMock) TopicCalls() []struct {
 } {
 	var calls []struct {

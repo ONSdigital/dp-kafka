@@ -50,7 +50,7 @@ type ConsumerGroup struct {
 	brokers           []interfaces.SaramaBroker
 	channels          *ConsumerGroupChannels
 	saramaCg          sarama.ConsumerGroup
-	saramaCgHandler   *saramaHandler
+	saramaCgHandler   *SaramaHandler
 	saramaCgInit      interfaces.ConsumerGroupInitialiser
 	topic             string
 	group             string
@@ -70,12 +70,29 @@ type ConsumerGroup struct {
 	ctx               context.Context // Contet provided to the ConsumerGroup at creation time
 }
 
-// NewConsumerGroup creates a new consumer group with the provided parameters
-func NewConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error) {
-	return newConsumerGroup(ctx, cgConfig, interfaces.SaramaNewConsumerGroup)
+// SaramaCgHandler is a getter for the internal sarama consumer group handler
+func (cg *ConsumerGroup) SaramaCgHandler() *SaramaHandler {
+	return cg.saramaCgHandler
 }
 
-func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit interfaces.ConsumerGroupInitialiser) (*ConsumerGroup, error) {
+// NewConsumerGroup creates a new consumer group with the provided configuration
+func NewConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error) {
+	return NewConsumerGroupWithGenerators(
+		ctx,
+		cgConfig,
+		sarama.NewConsumerGroup,
+		SaramaNewBroker,
+	)
+}
+
+// NewConsumerGroupWithGenerators creates a new consumer group with the provided configuration
+// and sarama generators or initialisers
+func NewConsumerGroupWithGenerators(
+	ctx context.Context,
+	cgConfig *ConsumerGroupConfig,
+	cgInit interfaces.ConsumerGroupInitialiser,
+	brokerGenerator interfaces.BrokerGenerator,
+) (*ConsumerGroup, error) {
 	if ctx == nil {
 		return nil, errors.New("nil context was passed to consumer-group constructor")
 	}
@@ -133,7 +150,7 @@ func newConsumerGroup(ctx context.Context, cgConfig *ConsumerGroupConfig, cgInit
 
 	// create broker objects
 	for _, addr := range cg.brokerAddrs {
-		cg.brokers = append(cg.brokers, sarama.NewBroker(addr))
+		cg.brokers = append(cg.brokers, brokerGenerator(addr))
 	}
 
 	// initialise consumer group

@@ -15,43 +15,43 @@ var _ interfaces.Message = &MessageMock{}
 
 // MessageMock is a mock implementation of interfaces.Message.
 //
-// 	func TestSomethingThatUsesMessage(t *testing.T) {
+//	func TestSomethingThatUsesMessage(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.Message
-// 		mockedMessage := &MessageMock{
-// 			CommitFunc: func()  {
-// 				panic("mock out the Commit method")
-// 			},
-// 			CommitAndReleaseFunc: func()  {
-// 				panic("mock out the CommitAndRelease method")
-// 			},
-// 			ContextFunc: func() context.Context {
-// 				panic("mock out the Context method")
-// 			},
-// 			GetDataFunc: func() []byte {
-// 				panic("mock out the GetData method")
-// 			},
-// 			GetHeaderFunc: func(key string) string {
-// 				panic("mock out the GetHeader method")
-// 			},
-// 			MarkFunc: func()  {
-// 				panic("mock out the Mark method")
-// 			},
-// 			OffsetFunc: func() int64 {
-// 				panic("mock out the Offset method")
-// 			},
-// 			ReleaseFunc: func()  {
-// 				panic("mock out the Release method")
-// 			},
-// 			UpstreamDoneFunc: func() chan struct{} {
-// 				panic("mock out the UpstreamDone method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.Message
+//		mockedMessage := &MessageMock{
+//			CommitFunc: func()  {
+//				panic("mock out the Commit method")
+//			},
+//			CommitAndReleaseFunc: func()  {
+//				panic("mock out the CommitAndRelease method")
+//			},
+//			ContextFunc: func() context.Context {
+//				panic("mock out the Context method")
+//			},
+//			GetDataFunc: func() []byte {
+//				panic("mock out the GetData method")
+//			},
+//			GetHeaderFunc: func(key string) string {
+//				panic("mock out the GetHeader method")
+//			},
+//			MarkFunc: func()  {
+//				panic("mock out the Mark method")
+//			},
+//			OffsetFunc: func() int64 {
+//				panic("mock out the Offset method")
+//			},
+//			ReleaseFunc: func()  {
+//				panic("mock out the Release method")
+//			},
+//			UpstreamDoneFunc: func() chan struct{} {
+//				panic("mock out the UpstreamDone method")
+//			},
+//		}
 //
-// 		// use mockedMessage in code that requires interfaces.Message
-// 		// and then make assertions.
+//		// use mockedMessage in code that requires interfaces.Message
+//		// and then make assertions.
 //
-// 	}
+//	}
 type MessageMock struct {
 	// CommitFunc mocks the Commit method.
 	CommitFunc func()
@@ -138,7 +138,8 @@ func (mock *MessageMock) Commit() {
 
 // CommitCalls gets all the calls that were made to Commit.
 // Check the length with:
-//     len(mockedMessage.CommitCalls())
+//
+//	len(mockedMessage.CommitCalls())
 func (mock *MessageMock) CommitCalls() []struct {
 } {
 	var calls []struct {
@@ -164,7 +165,8 @@ func (mock *MessageMock) CommitAndRelease() {
 
 // CommitAndReleaseCalls gets all the calls that were made to CommitAndRelease.
 // Check the length with:
-//     len(mockedMessage.CommitAndReleaseCalls())
+//
+//	len(mockedMessage.CommitAndReleaseCalls())
 func (mock *MessageMock) CommitAndReleaseCalls() []struct {
 } {
 	var calls []struct {
@@ -190,7 +192,8 @@ func (mock *MessageMock) Context() context.Context {
 
 // ContextCalls gets all the calls that were made to Context.
 // Check the length with:
-//     len(mockedMessage.ContextCalls())
+//
+//	len(mockedMessage.ContextCalls())
 func (mock *MessageMock) ContextCalls() []struct {
 } {
 	var calls []struct {
@@ -216,7 +219,8 @@ func (mock *MessageMock) GetData() []byte {
 
 // GetDataCalls gets all the calls that were made to GetData.
 // Check the length with:
-//     len(mockedMessage.GetDataCalls())
+//
+//	len(mockedMessage.GetDataCalls())
 func (mock *MessageMock) GetDataCalls() []struct {
 } {
 	var calls []struct {
@@ -245,7 +249,8 @@ func (mock *MessageMock) GetHeader(key string) string {
 
 // GetHeaderCalls gets all the calls that were made to GetHeader.
 // Check the length with:
-//     len(mockedMessage.GetHeaderCalls())
+//
+//	len(mockedMessage.GetHeaderCalls())
 func (mock *MessageMock) GetHeaderCalls() []struct {
 	Key string
 } {
@@ -273,7 +278,8 @@ func (mock *MessageMock) Mark() {
 
 // MarkCalls gets all the calls that were made to Mark.
 // Check the length with:
-//     len(mockedMessage.MarkCalls())
+//
+//	len(mockedMessage.MarkCalls())
 func (mock *MessageMock) MarkCalls() []struct {
 } {
 	var calls []struct {
@@ -299,7 +305,8 @@ func (mock *MessageMock) Offset() int64 {
 
 // OffsetCalls gets all the calls that were made to Offset.
 // Check the length with:
-//     len(mockedMessage.OffsetCalls())
+//
+//	len(mockedMessage.OffsetCalls())
 func (mock *MessageMock) OffsetCalls() []struct {
 } {
 	var calls []struct {
@@ -325,7 +332,8 @@ func (mock *MessageMock) Release() {
 
 // ReleaseCalls gets all the calls that were made to Release.
 // Check the length with:
-//     len(mockedMessage.ReleaseCalls())
+//
+//	len(mockedMessage.ReleaseCalls())
 func (mock *MessageMock) ReleaseCalls() []struct {
 } {
 	var calls []struct {
@@ -351,7 +359,8 @@ func (mock *MessageMock) UpstreamDone() chan struct{} {
 
 // UpstreamDoneCalls gets all the calls that were made to UpstreamDone.
 // Check the length with:
-//     len(mockedMessage.UpstreamDoneCalls())
+//
+//	len(mockedMessage.UpstreamDoneCalls())
 func (mock *MessageMock) UpstreamDoneCalls() []struct {
 } {
 	var calls []struct {

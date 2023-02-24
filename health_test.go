@@ -92,7 +92,7 @@ func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, er
 		BrokerAddrs: brokerAddrs,
 		Topic:       topic,
 	}
-	return newProducer(ctx, pConfig, pInit)
+	return NewProducerWithGenerators(ctx, pConfig, pInit, SaramaNewBroker)
 }
 
 // createUninitialisedProducerForTesting creates a producer for testing without a valid AsyncProducer
@@ -104,7 +104,7 @@ func createUninitialisedProducerForTesting(brokerAddrs []string, topic string) (
 		BrokerAddrs: brokerAddrs,
 		Topic:       topic,
 	}
-	return newProducer(ctx, pConfig, pInit)
+	return NewProducerWithGenerators(ctx, pConfig, pInit, SaramaNewBroker)
 }
 
 // createConsumerForTesting creates a consumer with a mock Sarama library for testing
@@ -131,7 +131,7 @@ func createConsumerForTesting(brokerAddrs []string, topic string) (*ConsumerGrou
 		Topic:       topic,
 		GroupName:   testGroup,
 	}
-	return newConsumerGroup(ctx, cgConfig, cgInit)
+	return NewConsumerGroupWithGenerators(ctx, cgConfig, cgInit, SaramaNewBroker)
 }
 
 // createConsumerForTesting creates a consumer for testing without a valid Sarama ConsuerGroup
@@ -144,7 +144,7 @@ func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (
 		Topic:       topic,
 		GroupName:   testGroup,
 	}
-	return newConsumerGroup(ctx, cgConfig, cgInit)
+	return NewConsumerGroupWithGenerators(ctx, cgConfig, cgInit, SaramaNewBroker)
 }
 
 func TestKafkaProducerHealthcheck(t *testing.T) {

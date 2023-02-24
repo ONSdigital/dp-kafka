@@ -17,6 +17,11 @@ const MsgHealthyProducer = "kafka producer is healthy"
 // MsgHealthyConsumerGroup Check message returned when Kafka consumer group is healthy.
 const MsgHealthyConsumerGroup = "kafka consumer group is healthy"
 
+// SaramaNewBroker wraps the real call to sarama.NewBroker
+var SaramaNewBroker interfaces.BrokerGenerator = func(addr string) interfaces.SaramaBroker {
+	return sarama.NewBroker(addr)
+}
+
 // Healthcheck validates all the provided brokers for the provided topic.
 // It returns a HealthInfoMap containing all the information.
 func Healthcheck(ctx context.Context, brokers []interfaces.SaramaBroker, topic string, cfg *sarama.Config) HealthInfoMap {

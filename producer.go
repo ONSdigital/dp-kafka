@@ -54,10 +54,20 @@ type Producer struct {
 // NewProducer returns a new producer instance using the provided config and channels.
 // The rest of the config is set to defaults. If any channel parameter is nil, an error will be returned.
 func NewProducer(ctx context.Context, pConfig *ProducerConfig) (producer *Producer, err error) {
-	return newProducer(ctx, pConfig, interfaces.SaramaNewAsyncProducer)
+	return NewProducerWithGenerators(
+		ctx,
+		pConfig,
+		sarama.NewAsyncProducer,
+		SaramaNewBroker,
+	)
 }
 
-func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit interfaces.ProducerInitialiser) (*Producer, error) {
+func NewProducerWithGenerators(
+	ctx context.Context,
+	pConfig *ProducerConfig,
+	pInit interfaces.ProducerInitialiser,
+	brokerGenerator interfaces.BrokerGenerator,
+) (*Producer, error) {
 	if ctx == nil {
 		return nil, errors.New("nil context was passed to producer constructor")
 	}
@@ -98,7 +108,7 @@ func newProducer(ctx context.Context, pConfig *ProducerConfig, pInit interfaces.
 
 	// Create broker objects
 	for _, addr := range pConfig.BrokerAddrs {
-		producer.brokers = append(producer.brokers, sarama.NewBroker(addr))
+		producer.brokers = append(producer.brokers, brokerGenerator(addr))
 	}
 
 	// Initialise producer, and log any error
@@ -222,17 +232,25 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 // Send marshals the provided event with the provided schema, and sends it to kafka
 func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
+	log.Info(context.Background(), "[DEBUG] SEND going to marshal event")
 	bytes, err := schema.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
 
+	log.Info(context.Background(), "[DEBUG] SEND acquireing lock")
+
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
+
+	log.Info(context.Background(), "[DEBUG] SEND safe-sening message to output channel", log.Data{"bytes": bytes})
 
 	if err := SafeSendBytes(p.channels.Output, bytes); err != nil {
 		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
 	}
+
+	log.Info(context.Background(), "[DEBUG] SEND OK")
+
 	return nil
 }
 

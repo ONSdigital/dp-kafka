@@ -8,17 +8,17 @@ import (
 	"github.com/Shopify/sarama"
 )
 
-// saramaHandler is a consumer-group handler used by Sarama as a callback receiver
+// SaramaHandler is a consumer-group handler used by Sarama as a callback receiver
 // to setup/cleanup sessions and consume messages
-type saramaHandler struct {
+type SaramaHandler struct {
 	ctx       context.Context
 	channels  *ConsumerGroupChannels // Channels are shared with ConsumerGroup
 	state     *StateMachine          // State is shared with ConsumerGroup
 	settingUp *StateChan             // aux channel that will be created on each session, before ConsumeClaim, and destroyed when the session ends
 }
 
-func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *saramaHandler {
-	return &saramaHandler{
+func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, state *StateMachine) *SaramaHandler {
+	return &SaramaHandler{
 		ctx:       ctx,
 		channels:  channels,
 		state:     state,
@@ -29,7 +29,7 @@ func newSaramaHandler(ctx context.Context, channels *ConsumerGroupChannels, stat
 // Setup is run by Sarama at the beginning of a new session, before ConsumeClaim. The following actions are performed:
 // - Set state to 'Consuming' (only if the state was Starting or Consuming - fail otherwise)
 // - Create a new SessionConsuming channel and start the control go-routine
-func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
+func (sh *SaramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 	if err := sh.state.SetIf([]State{Starting, Consuming}, Consuming); err != nil {
 		return fmt.Errorf("wrong state to start consuming: %w", err)
 	}
@@ -48,7 +48,7 @@ func (sh *saramaHandler) Setup(session sarama.ConsumerGroupSession) error {
 // - sessionFinished: abort control routine and stop consuming
 //
 // note: this func should only be executed after enterSession()
-func (sh *saramaHandler) controlRoutine() {
+func (sh *SaramaHandler) controlRoutine() {
 	for {
 		select {
 		case <-sh.channels.Closer: // consumer group is closing (valid scenario)
@@ -75,7 +75,7 @@ func (sh *saramaHandler) controlRoutine() {
 // Cleanup is run by Sarama at the end of a session, once all ConsumeClaim goroutines have exited.
 // - Close SessionConsuming channel
 // - Set state to 'Starting' (only if it was consuming)
-func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
+func (sh *SaramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 	log.Info(session.Context(), "kafka consumer group has finished consuming: sarama consumer group session cleanup finished: all go-routines have completed", log.Data{"memberID": session.MemberID(), "claims": session.Claims()})
 
 	// close sh.chConsuming if it was not already closed, to make sure that the control go-routine finishes
@@ -105,7 +105,7 @@ func (sh *saramaHandler) Cleanup(session sarama.ConsumerGroupSession) error {
 // and then wait for the message specific upstreamDone channel to be closed.
 //
 // note: this func should only be executed after enterSession()
-func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (sh *SaramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for {
 		select {
 		case <-sh.sessionFinished(): // stop consuming
@@ -118,6 +118,8 @@ func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 			if err := sh.consumeMessage(NewSaramaMessage(m, session, make(chan struct{}))); err != nil {
 				return fmt.Errorf("error consuming message: %w", err)
 			}
+		case <-session.Context().Done():
+			return nil
 		}
 	}
 }
@@ -126,7 +128,7 @@ func (sh *saramaHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim
 // Note that this doesn't make the consumer synchronous: we still have other go-routines processing messages.
 //
 // note: this func should only be executed after enterSession()
-func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
+func (sh *SaramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send sarama message to upstream channel: %v", pErr)
@@ -144,13 +146,13 @@ func (sh *saramaHandler) consumeMessage(msg *SaramaMessage) (err error) {
 
 // enterSession leaves the settingUp state channel in a concurrency safe manner
 // signaling that we have entered in a kafka consuming session
-func (sh *saramaHandler) enterSession() {
+func (sh *SaramaHandler) enterSession() {
 	sh.settingUp.leave()
 }
 
 // leaveSession enters the settingUp state channel in a concurrency safe manner
 // signaling that we leave a kafka consuming session (no new messages will be consumed until we enter into the next session)
-func (sh *saramaHandler) leaveSession() {
+func (sh *SaramaHandler) leaveSession() {
 	sh.settingUp.enter()
 }
 
@@ -162,13 +164,13 @@ func (sh *saramaHandler) leaveSession() {
 // please acquire a read lock on sh.settingUp.RWMutex()
 //
 // You may consider using 'waitSessionFinish' instead, if you just need to wait for the session to finish.
-func (sh *saramaHandler) sessionFinished() chan struct{} {
+func (sh *SaramaHandler) sessionFinished() chan struct{} {
 	return sh.settingUp.Channel()
 }
 
 // waitSessionFinish blocks execution until the current session has finished, in a concurrency safe manner.
 // If there is no session established, this call will not block.
-func (sh *saramaHandler) waitSessionFinish() {
+func (sh *SaramaHandler) waitSessionFinish() {
 	sessionMutex := sh.settingUp.RWMutex()
 	sessionMutex.RLock()
 	defer sessionMutex.RUnlock()

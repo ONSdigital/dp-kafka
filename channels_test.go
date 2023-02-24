@@ -328,6 +328,20 @@ func TestSafeSendProducerMessage(t *testing.T) {
 	})
 }
 
+func TestSafeSendConsumerMessage(t *testing.T) {
+	Convey("A ConsumerMessage value can be safely sent to a ConsumerMessage chan an does not panic if it is closed", t, func(c C) {
+		ch := make(chan *sarama.ConsumerMessage)
+		go func() {
+			err := SafeSendConsumerMessage(ch, &sarama.ConsumerMessage{Topic: "testTopic"})
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesConsumerMessage(ch, &sarama.ConsumerMessage{Topic: "testTopic"})
+		close(ch)
+		err := SafeSendConsumerMessage(ch, &sarama.ConsumerMessage{Topic: "testTopic"})
+		So(err, ShouldResemble, errors.New("failed to send ConsumerMessage value to channel: send on closed channel"))
+	})
+}
+
 func TestSafeSendErr(t *testing.T) {
 	Convey("An error value can be safely sent to an error chan an does not panic if it is closed", t, func(c C) {
 		ch := make(chan error)
@@ -517,6 +531,31 @@ func validateChanReceivesBytes(ch chan []byte, expectedVal []byte) {
 func validateChanReceivesProducerMessage(ch chan *sarama.ProducerMessage, expectedVal *sarama.ProducerMessage) {
 	var (
 		rxVal   *sarama.ProducerMessage
+		timeout bool
+	)
+	delay := time.NewTimer(TIMEOUT)
+	select {
+	case e, ok := <-ch:
+		// Ensure timer is stopped and its resources are freed
+		if !delay.Stop() {
+			// if the timer has been stopped then read from the channel
+			<-delay.C
+		}
+		if !ok {
+			break
+		}
+		rxVal = e
+	case <-delay.C:
+		timeout = true
+	}
+	So(timeout, ShouldBeFalse)
+	So(rxVal, ShouldResemble, expectedVal)
+}
+
+// validateChanReceivesConsumerMessage validates that a ConsumerMessage channel receives a provided ConsumerMessage
+func validateChanReceivesConsumerMessage(ch chan *sarama.ConsumerMessage, expectedVal *sarama.ConsumerMessage) {
+	var (
+		rxVal   *sarama.ConsumerMessage
 		timeout bool
 	)
 	delay := time.NewTimer(TIMEOUT)

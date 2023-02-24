@@ -268,11 +268,22 @@ func SafeSendBool(ch chan bool, val bool) (err error) {
 	return
 }
 
-// SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instad of panicking if the channel is closed
+// SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed
 func SafeSendProducerMessage(ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
+		}
+	}()
+	ch <- val
+	return
+}
+
+// SafeSendConsumerMessage sends a provided ConsumerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed
+func SafeSendConsumerMessage(ch chan<- *sarama.ConsumerMessage, val *sarama.ConsumerMessage) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send ConsumerMessage value to channel: %v", pErr)
 		}
 	}()
 	ch <- val

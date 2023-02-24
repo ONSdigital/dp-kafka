@@ -4,10 +4,8 @@ import "github.com/Shopify/sarama"
 
 //go:generate moq -out ../mock/sarama_async_producer.go -pkg mock . SaramaAsyncProducer
 
-// SaramaAsyncProducer is a wrapper around sarama.AsyncProducer
+// SaramaAsyncProducer is an alias for sarama.AsyncProducer
 type SaramaAsyncProducer = sarama.AsyncProducer
 
-// Types for sarama initialisers
+// ProducerInitialiser is a function that returns a sarama async producer interface
 type ProducerInitialiser = func(addrs []string, config *sarama.Config) (sarama.AsyncProducer, error)
-
-var SaramaNewAsyncProducer = sarama.NewAsyncProducer

@@ -17,40 +17,40 @@ var _ kafka.IProducer = &IProducerMock{}
 
 // IProducerMock is a mock implementation of kafka.IProducer.
 //
-// 	func TestSomethingThatUsesIProducer(t *testing.T) {
+//	func TestSomethingThatUsesIProducer(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.IProducer
-// 		mockedIProducer := &IProducerMock{
-// 			AddHeaderFunc: func(key string, value string)  {
-// 				panic("mock out the AddHeader method")
-// 			},
-// 			ChannelsFunc: func() *kafka.ProducerChannels {
-// 				panic("mock out the Channels method")
-// 			},
-// 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
-// 				panic("mock out the Checker method")
-// 			},
-// 			CloseFunc: func(ctx context.Context) error {
-// 				panic("mock out the Close method")
-// 			},
-// 			InitialiseFunc: func(ctx context.Context) error {
-// 				panic("mock out the Initialise method")
-// 			},
-// 			IsInitialisedFunc: func() bool {
-// 				panic("mock out the IsInitialised method")
-// 			},
-// 			LogErrorsFunc: func(ctx context.Context)  {
-// 				panic("mock out the LogErrors method")
-// 			},
-// 			SendFunc: func(schema *avro.Schema, event interface{}) error {
-// 				panic("mock out the Send method")
-// 			},
-// 		}
+//		// make and configure a mocked kafka.IProducer
+//		mockedIProducer := &IProducerMock{
+//			AddHeaderFunc: func(key string, value string)  {
+//				panic("mock out the AddHeader method")
+//			},
+//			ChannelsFunc: func() *kafka.ProducerChannels {
+//				panic("mock out the Channels method")
+//			},
+//			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
+//				panic("mock out the Checker method")
+//			},
+//			CloseFunc: func(ctx context.Context) error {
+//				panic("mock out the Close method")
+//			},
+//			InitialiseFunc: func(ctx context.Context) error {
+//				panic("mock out the Initialise method")
+//			},
+//			IsInitialisedFunc: func() bool {
+//				panic("mock out the IsInitialised method")
+//			},
+//			LogErrorsFunc: func(ctx context.Context)  {
+//				panic("mock out the LogErrors method")
+//			},
+//			SendFunc: func(schema *avro.Schema, event interface{}) error {
+//				panic("mock out the Send method")
+//			},
+//		}
 //
-// 		// use mockedIProducer in code that requires kafka.IProducer
-// 		// and then make assertions.
+//		// use mockedIProducer in code that requires kafka.IProducer
+//		// and then make assertions.
 //
-// 	}
+//	}
 type IProducerMock struct {
 	// AddHeaderFunc mocks the AddHeader method.
 	AddHeaderFunc func(key string, value string)
@@ -151,7 +151,8 @@ func (mock *IProducerMock) AddHeader(key string, value string) {
 
 // AddHeaderCalls gets all the calls that were made to AddHeader.
 // Check the length with:
-//     len(mockedIProducer.AddHeaderCalls())
+//
+//	len(mockedIProducer.AddHeaderCalls())
 func (mock *IProducerMock) AddHeaderCalls() []struct {
 	Key   string
 	Value string
@@ -181,7 +182,8 @@ func (mock *IProducerMock) Channels() *kafka.ProducerChannels {
 
 // ChannelsCalls gets all the calls that were made to Channels.
 // Check the length with:
-//     len(mockedIProducer.ChannelsCalls())
+//
+//	len(mockedIProducer.ChannelsCalls())
 func (mock *IProducerMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
@@ -212,7 +214,8 @@ func (mock *IProducerMock) Checker(ctx context.Context, state *health.CheckState
 
 // CheckerCalls gets all the calls that were made to Checker.
 // Check the length with:
-//     len(mockedIProducer.CheckerCalls())
+//
+//	len(mockedIProducer.CheckerCalls())
 func (mock *IProducerMock) CheckerCalls() []struct {
 	Ctx   context.Context
 	State *health.CheckState
@@ -245,7 +248,8 @@ func (mock *IProducerMock) Close(ctx context.Context) error {
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedIProducer.CloseCalls())
+//
+//	len(mockedIProducer.CloseCalls())
 func (mock *IProducerMock) CloseCalls() []struct {
 	Ctx context.Context
 } {
@@ -276,7 +280,8 @@ func (mock *IProducerMock) Initialise(ctx context.Context) error {
 
 // InitialiseCalls gets all the calls that were made to Initialise.
 // Check the length with:
-//     len(mockedIProducer.InitialiseCalls())
+//
+//	len(mockedIProducer.InitialiseCalls())
 func (mock *IProducerMock) InitialiseCalls() []struct {
 	Ctx context.Context
 } {
@@ -304,7 +309,8 @@ func (mock *IProducerMock) IsInitialised() bool {
 
 // IsInitialisedCalls gets all the calls that were made to IsInitialised.
 // Check the length with:
-//     len(mockedIProducer.IsInitialisedCalls())
+//
+//	len(mockedIProducer.IsInitialisedCalls())
 func (mock *IProducerMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
@@ -333,7 +339,8 @@ func (mock *IProducerMock) LogErrors(ctx context.Context) {
 
 // LogErrorsCalls gets all the calls that were made to LogErrors.
 // Check the length with:
-//     len(mockedIProducer.LogErrorsCalls())
+//
+//	len(mockedIProducer.LogErrorsCalls())
 func (mock *IProducerMock) LogErrorsCalls() []struct {
 	Ctx context.Context
 } {
@@ -366,7 +373,8 @@ func (mock *IProducerMock) Send(schema *avro.Schema, event interface{}) error {
 
 // SendCalls gets all the calls that were made to Send.
 // Check the length with:
-//     len(mockedIProducer.SendCalls())
+//
+//	len(mockedIProducer.SendCalls())
 func (mock *IProducerMock) SendCalls() []struct {
 	Schema *avro.Schema
 	Event  interface{}

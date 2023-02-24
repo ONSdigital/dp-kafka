@@ -16,58 +16,58 @@ var _ kafka.IConsumerGroup = &IConsumerGroupMock{}
 
 // IConsumerGroupMock is a mock implementation of kafka.IConsumerGroup.
 //
-// 	func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
+//	func TestSomethingThatUsesIConsumerGroup(t *testing.T) {
 //
-// 		// make and configure a mocked kafka.IConsumerGroup
-// 		mockedIConsumerGroup := &IConsumerGroupMock{
-// 			ChannelsFunc: func() *kafka.ConsumerGroupChannels {
-// 				panic("mock out the Channels method")
-// 			},
-// 			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
-// 				panic("mock out the Checker method")
-// 			},
-// 			CloseFunc: func(ctx context.Context, optFuncs ...kafka.OptFunc) error {
-// 				panic("mock out the Close method")
-// 			},
-// 			InitialiseFunc: func(ctx context.Context) error {
-// 				panic("mock out the Initialise method")
-// 			},
-// 			IsInitialisedFunc: func() bool {
-// 				panic("mock out the IsInitialised method")
-// 			},
-// 			LogErrorsFunc: func(ctx context.Context)  {
-// 				panic("mock out the LogErrors method")
-// 			},
-// 			OnHealthUpdateFunc: func(status string)  {
-// 				panic("mock out the OnHealthUpdate method")
-// 			},
-// 			RegisterBatchHandlerFunc: func(ctx context.Context, batchHandler kafka.BatchHandler) error {
-// 				panic("mock out the RegisterBatchHandler method")
-// 			},
-// 			RegisterHandlerFunc: func(ctx context.Context, h kafka.Handler) error {
-// 				panic("mock out the RegisterHandler method")
-// 			},
-// 			StartFunc: func() error {
-// 				panic("mock out the Start method")
-// 			},
-// 			StateFunc: func() kafka.State {
-// 				panic("mock out the State method")
-// 			},
-// 			StateWaitFunc: func(state kafka.State)  {
-// 				panic("mock out the StateWait method")
-// 			},
-// 			StopFunc: func() error {
-// 				panic("mock out the Stop method")
-// 			},
-// 			StopAndWaitFunc: func() error {
-// 				panic("mock out the StopAndWait method")
-// 			},
-// 		}
+//		// make and configure a mocked kafka.IConsumerGroup
+//		mockedIConsumerGroup := &IConsumerGroupMock{
+//			ChannelsFunc: func() *kafka.ConsumerGroupChannels {
+//				panic("mock out the Channels method")
+//			},
+//			CheckerFunc: func(ctx context.Context, state *health.CheckState) error {
+//				panic("mock out the Checker method")
+//			},
+//			CloseFunc: func(ctx context.Context, optFuncs ...kafka.OptFunc) error {
+//				panic("mock out the Close method")
+//			},
+//			InitialiseFunc: func(ctx context.Context) error {
+//				panic("mock out the Initialise method")
+//			},
+//			IsInitialisedFunc: func() bool {
+//				panic("mock out the IsInitialised method")
+//			},
+//			LogErrorsFunc: func(ctx context.Context)  {
+//				panic("mock out the LogErrors method")
+//			},
+//			OnHealthUpdateFunc: func(status string)  {
+//				panic("mock out the OnHealthUpdate method")
+//			},
+//			RegisterBatchHandlerFunc: func(ctx context.Context, batchHandler kafka.BatchHandler) error {
+//				panic("mock out the RegisterBatchHandler method")
+//			},
+//			RegisterHandlerFunc: func(ctx context.Context, h kafka.Handler) error {
+//				panic("mock out the RegisterHandler method")
+//			},
+//			StartFunc: func() error {
+//				panic("mock out the Start method")
+//			},
+//			StateFunc: func() kafka.State {
+//				panic("mock out the State method")
+//			},
+//			StateWaitFunc: func(state kafka.State)  {
+//				panic("mock out the StateWait method")
+//			},
+//			StopFunc: func() error {
+//				panic("mock out the Stop method")
+//			},
+//			StopAndWaitFunc: func() error {
+//				panic("mock out the StopAndWait method")
+//			},
+//		}
 //
-// 		// use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
-// 		// and then make assertions.
+//		// use mockedIConsumerGroup in code that requires kafka.IConsumerGroup
+//		// and then make assertions.
 //
-// 	}
+//	}
 type IConsumerGroupMock struct {
 	// ChannelsFunc mocks the Channels method.
 	ChannelsFunc func() *kafka.ConsumerGroupChannels
@@ -211,7 +211,8 @@ func (mock *IConsumerGroupMock) Channels() *kafka.ConsumerGroupChannels {
 
 // ChannelsCalls gets all the calls that were made to Channels.
 // Check the length with:
-//     len(mockedIConsumerGroup.ChannelsCalls())
+//
+//	len(mockedIConsumerGroup.ChannelsCalls())
 func (mock *IConsumerGroupMock) ChannelsCalls() []struct {
 } {
 	var calls []struct {
@@ -242,7 +243,8 @@ func (mock *IConsumerGroupMock) Checker(ctx context.Context, state *health.Check
 
 // CheckerCalls gets all the calls that were made to Checker.
 // Check the length with:
-//     len(mockedIConsumerGroup.CheckerCalls())
+//
+//	len(mockedIConsumerGroup.CheckerCalls())
 func (mock *IConsumerGroupMock) CheckerCalls() []struct {
 	Ctx   context.Context
 	State *health.CheckState
@@ -277,7 +279,8 @@ func (mock *IConsumerGroupMock) Close(ctx context.Context, optFuncs ...kafka.Opt
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedIConsumerGroup.CloseCalls())
+//
+//	len(mockedIConsumerGroup.CloseCalls())
 func (mock *IConsumerGroupMock) CloseCalls() []struct {
 	Ctx      context.Context
 	OptFuncs []kafka.OptFunc
@@ -310,7 +313,8 @@ func (mock *IConsumerGroupMock) Initialise(ctx context.Context) error {
 
 // InitialiseCalls gets all the calls that were made to Initialise.
 // Check the length with:
-//     len(mockedIConsumerGroup.InitialiseCalls())
+//
+//	len(mockedIConsumerGroup.InitialiseCalls())
 func (mock *IConsumerGroupMock) InitialiseCalls() []struct {
 	Ctx context.Context
 } {
@@ -338,7 +342,8 @@ func (mock *IConsumerGroupMock) IsInitialised() bool {
 
 // IsInitialisedCalls gets all the calls that were made to IsInitialised.
 // Check the length with:
-//     len(mockedIConsumerGroup.IsInitialisedCalls())
+//
+//	len(mockedIConsumerGroup.IsInitialisedCalls())
 func (mock *IConsumerGroupMock) IsInitialisedCalls() []struct {
 } {
 	var calls []struct {
@@ -367,7 +372,8 @@ func (mock *IConsumerGroupMock) LogErrors(ctx context.Context) {
 
 // LogErrorsCalls gets all the calls that were made to LogErrors.
 // Check the length with:
-//     len(mockedIConsumerGroup.LogErrorsCalls())
+//
+//	len(mockedIConsumerGroup.LogErrorsCalls())
 func (mock *IConsumerGroupMock) LogErrorsCalls() []struct {
 	Ctx context.Context
 } {
@@ -398,7 +404,8 @@ func (mock *IConsumerGroupMock) OnHealthUpdate(status string) {
 
 // OnHealthUpdateCalls gets all the calls that were made to OnHealthUpdate.
 // Check the length with:
-//     len(mockedIConsumerGroup.OnHealthUpdateCalls())
+//
+//	len(mockedIConsumerGroup.OnHealthUpdateCalls())
 func (mock *IConsumerGroupMock) OnHealthUpdateCalls() []struct {
 	Status string
 } {
@@ -431,7 +438,8 @@ func (mock *IConsumerGroupMock) RegisterBatchHandler(ctx context.Context, batchH
 
 // RegisterBatchHandlerCalls gets all the calls that were made to RegisterBatchHandler.
 // Check the length with:
-//     len(mockedIConsumerGroup.RegisterBatchHandlerCalls())
+//
+//	len(mockedIConsumerGroup.RegisterBatchHandlerCalls())
 func (mock *IConsumerGroupMock) RegisterBatchHandlerCalls() []struct {
 	Ctx          context.Context
 	BatchHandler kafka.BatchHandler
@@ -466,7 +474,8 @@ func (mock *IConsumerGroupMock) RegisterHandler(ctx context.Context, h kafka.Han
 
 // RegisterHandlerCalls gets all the calls that were made to RegisterHandler.
 // Check the length with:
-//     len(mockedIConsumerGroup.RegisterHandlerCalls())
+//
+//	len(mockedIConsumerGroup.RegisterHandlerCalls())
 func (mock *IConsumerGroupMock) RegisterHandlerCalls() []struct {
 	Ctx context.Context
 	H   kafka.Handler
@@ -496,7 +505,8 @@ func (mock *IConsumerGroupMock) Start() error {
 
 // StartCalls gets all the calls that were made to Start.
 // Check the length with:
-//     len(mockedIConsumerGroup.StartCalls())
+//
+//	len(mockedIConsumerGroup.StartCalls())
 func (mock *IConsumerGroupMock) StartCalls() []struct {
 } {
 	var calls []struct {
@@ -522,7 +532,8 @@ func (mock *IConsumerGroupMock) State() kafka.State {
 
 // StateCalls gets all the calls that were made to State.
 // Check the length with:
-//     len(mockedIConsumerGroup.StateCalls())
+//
+//	len(mockedIConsumerGroup.StateCalls())
 func (mock *IConsumerGroupMock) StateCalls() []struct {
 } {
 	var calls []struct {
@@ -551,7 +562,8 @@ func (mock *IConsumerGroupMock) StateWait(state kafka.State) {
 
 // StateWaitCalls gets all the calls that were made to StateWait.
 // Check the length with:
-//     len(mockedIConsumerGroup.StateWaitCalls())
+//
+//	len(mockedIConsumerGroup.StateWaitCalls())
 func (mock *IConsumerGroupMock) StateWaitCalls() []struct {
 	State kafka.State
 } {
@@ -579,7 +591,8 @@ func (mock *IConsumerGroupMock) Stop() error {
 
 // StopCalls gets all the calls that were made to Stop.
 // Check the length with:
-//     len(mockedIConsumerGroup.StopCalls())
+//
+//	len(mockedIConsumerGroup.StopCalls())
 func (mock *IConsumerGroupMock) StopCalls() []struct {
 } {
 	var calls []struct {
@@ -605,7 +618,8 @@ func (mock *IConsumerGroupMock) StopAndWait() error {
 
 // StopAndWaitCalls gets all the calls that were made to StopAndWait.
 // Check the length with:
-//     len(mockedIConsumerGroup.StopAndWaitCalls())
+//
+//	len(mockedIConsumerGroup.StopAndWaitCalls())
 func (mock *IConsumerGroupMock) StopAndWaitCalls() []struct {
 } {
 	var calls []struct {

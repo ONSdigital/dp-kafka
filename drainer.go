@@ -82,7 +82,7 @@ func DrainTopic(ctx context.Context, cfg *DrainTopicConfig, in *DrainTopicInput,
 	if err := drainer.RegisterBatchHandler(
 		ctx,
 		func(ctx context.Context, batch []Message) error {
-			defer close(drained)
+			defer SafeClose(drained)
 			msgs = append(msgs, batch...)
 			return nil
 		},

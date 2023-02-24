@@ -15,31 +15,31 @@ var _ interfaces.SaramaBroker = &SaramaBrokerMock{}
 
 // SaramaBrokerMock is a mock implementation of interfaces.SaramaBroker.
 //
-// 	func TestSomethingThatUsesSaramaBroker(t *testing.T) {
+//	func TestSomethingThatUsesSaramaBroker(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.SaramaBroker
-// 		mockedSaramaBroker := &SaramaBrokerMock{
-// 			AddrFunc: func() string {
-// 				panic("mock out the Addr method")
-// 			},
-// 			CloseFunc: func() error {
-// 				panic("mock out the Close method")
-// 			},
-// 			ConnectedFunc: func() (bool, error) {
-// 				panic("mock out the Connected method")
-// 			},
-// 			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
-// 				panic("mock out the GetMetadata method")
-// 			},
-// 			OpenFunc: func(conf *sarama.Config) error {
-// 				panic("mock out the Open method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.SaramaBroker
+//		mockedSaramaBroker := &SaramaBrokerMock{
+//			AddrFunc: func() string {
+//				panic("mock out the Addr method")
+//			},
+//			CloseFunc: func() error {
+//				panic("mock out the Close method")
+//			},
+//			ConnectedFunc: func() (bool, error) {
+//				panic("mock out the Connected method")
+//			},
+//			GetMetadataFunc: func(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error) {
+//				panic("mock out the GetMetadata method")
+//			},
+//			OpenFunc: func(conf *sarama.Config) error {
+//				panic("mock out the Open method")
+//			},
+//		}
 //
-// 		// use mockedSaramaBroker in code that requires interfaces.SaramaBroker
-// 		// and then make assertions.
+//		// use mockedSaramaBroker in code that requires interfaces.SaramaBroker
+//		// and then make assertions.
 //
-// 	}
+//	}
 type SaramaBrokerMock struct {
 	// AddrFunc mocks the Addr method.
 	AddrFunc func() string
@@ -100,7 +100,8 @@ func (mock *SaramaBrokerMock) Addr() string {
 
 // AddrCalls gets all the calls that were made to Addr.
 // Check the length with:
-//     len(mockedSaramaBroker.AddrCalls())
+//
+//	len(mockedSaramaBroker.AddrCalls())
 func (mock *SaramaBrokerMock) AddrCalls() []struct {
 } {
 	var calls []struct {
@@ -126,7 +127,8 @@ func (mock *SaramaBrokerMock) Close() error {
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedSaramaBroker.CloseCalls())
+//
+//	len(mockedSaramaBroker.CloseCalls())
 func (mock *SaramaBrokerMock) CloseCalls() []struct {
 } {
 	var calls []struct {
@@ -152,7 +154,8 @@ func (mock *SaramaBrokerMock) Connected() (bool, error) {
 
 // ConnectedCalls gets all the calls that were made to Connected.
 // Check the length with:
-//     len(mockedSaramaBroker.ConnectedCalls())
+//
+//	len(mockedSaramaBroker.ConnectedCalls())
 func (mock *SaramaBrokerMock) ConnectedCalls() []struct {
 } {
 	var calls []struct {
@@ -181,7 +184,8 @@ func (mock *SaramaBrokerMock) GetMetadata(request *sarama.MetadataRequest) (*sar
 
 // GetMetadataCalls gets all the calls that were made to GetMetadata.
 // Check the length with:
-//     len(mockedSaramaBroker.GetMetadataCalls())
+//
+//	len(mockedSaramaBroker.GetMetadataCalls())
 func (mock *SaramaBrokerMock) GetMetadataCalls() []struct {
 	Request *sarama.MetadataRequest
 } {
@@ -212,7 +216,8 @@ func (mock *SaramaBrokerMock) Open(conf *sarama.Config) error {
 
 // OpenCalls gets all the calls that were made to Open.
 // Check the length with:
-//     len(mockedSaramaBroker.OpenCalls())
+//
+//	len(mockedSaramaBroker.OpenCalls())
 func (mock *SaramaBrokerMock) OpenCalls() []struct {
 	Conf *sarama.Config
 } {

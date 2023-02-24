@@ -15,52 +15,52 @@ var _ interfaces.SaramaAsyncProducer = &SaramaAsyncProducerMock{}
 
 // SaramaAsyncProducerMock is a mock implementation of interfaces.SaramaAsyncProducer.
 //
-// 	func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
+//	func TestSomethingThatUsesSaramaAsyncProducer(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.SaramaAsyncProducer
-// 		mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
-// 			AbortTxnFunc: func() error {
-// 				panic("mock out the AbortTxn method")
-// 			},
-// 			AddMessageToTxnFunc: func(msg *sarama.ConsumerMessage, groupId string, metadata *string) error {
-// 				panic("mock out the AddMessageToTxn method")
-// 			},
-// 			AddOffsetsToTxnFunc: func(offsets map[string][]*sarama.PartitionOffsetMetadata, groupId string) error {
-// 				panic("mock out the AddOffsetsToTxn method")
-// 			},
-// 			AsyncCloseFunc: func()  {
-// 				panic("mock out the AsyncClose method")
-// 			},
-// 			BeginTxnFunc: func() error {
-// 				panic("mock out the BeginTxn method")
-// 			},
-// 			CloseFunc: func() error {
-// 				panic("mock out the Close method")
-// 			},
-// 			CommitTxnFunc: func() error {
-// 				panic("mock out the CommitTxn method")
-// 			},
-// 			ErrorsFunc: func() <-chan *sarama.ProducerError {
-// 				panic("mock out the Errors method")
-// 			},
-// 			InputFunc: func() chan<- *sarama.ProducerMessage {
-// 				panic("mock out the Input method")
-// 			},
-// 			IsTransactionalFunc: func() bool {
-// 				panic("mock out the IsTransactional method")
-// 			},
-// 			SuccessesFunc: func() <-chan *sarama.ProducerMessage {
-// 				panic("mock out the Successes method")
-// 			},
-// 			TxnStatusFunc: func() sarama.ProducerTxnStatusFlag {
-// 				panic("mock out the TxnStatus method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.SaramaAsyncProducer
+//		mockedSaramaAsyncProducer := &SaramaAsyncProducerMock{
+//			AbortTxnFunc: func() error {
+//				panic("mock out the AbortTxn method")
+//			},
+//			AddMessageToTxnFunc: func(msg *sarama.ConsumerMessage, groupId string, metadata *string) error {
+//				panic("mock out the AddMessageToTxn method")
+//			},
+//			AddOffsetsToTxnFunc: func(offsets map[string][]*sarama.PartitionOffsetMetadata, groupId string) error {
+//				panic("mock out the AddOffsetsToTxn method")
+//			},
+//			AsyncCloseFunc: func()  {
+//				panic("mock out the AsyncClose method")
+//			},
+//			BeginTxnFunc: func() error {
+//				panic("mock out the BeginTxn method")
+//			},
+//			CloseFunc: func() error {
+//				panic("mock out the Close method")
+//			},
+//			CommitTxnFunc: func() error {
+//				panic("mock out the CommitTxn method")
+//			},
+//			ErrorsFunc: func() <-chan *sarama.ProducerError {
+//				panic("mock out the Errors method")
+//			},
+//			InputFunc: func() chan<- *sarama.ProducerMessage {
+//				panic("mock out the Input method")
+//			},
+//			IsTransactionalFunc: func() bool {
+//				panic("mock out the IsTransactional method")
+//			},
+//			SuccessesFunc: func() <-chan *sarama.ProducerMessage {
+//				panic("mock out the Successes method")
+//			},
+//			TxnStatusFunc: func() sarama.ProducerTxnStatusFlag {
+//				panic("mock out the TxnStatus method")
+//			},
+//		}
 //
-// 		// use mockedSaramaAsyncProducer in code that requires interfaces.SaramaAsyncProducer
-// 		// and then make assertions.
+//		// use mockedSaramaAsyncProducer in code that requires interfaces.SaramaAsyncProducer
+//		// and then make assertions.
 //
-// 	}
+//	}
 type SaramaAsyncProducerMock struct {
 	// AbortTxnFunc mocks the AbortTxn method.
 	AbortTxnFunc func() error
@@ -176,7 +176,8 @@ func (mock *SaramaAsyncProducerMock) AbortTxn() error {
 
 // AbortTxnCalls gets all the calls that were made to AbortTxn.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.AbortTxnCalls())
+//
+//	len(mockedSaramaAsyncProducer.AbortTxnCalls())
 func (mock *SaramaAsyncProducerMock) AbortTxnCalls() []struct {
 } {
 	var calls []struct {
@@ -209,7 +210,8 @@ func (mock *SaramaAsyncProducerMock) AddMessageToTxn(msg *sarama.ConsumerMessage
 
 // AddMessageToTxnCalls gets all the calls that were made to AddMessageToTxn.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.AddMessageToTxnCalls())
+//
+//	len(mockedSaramaAsyncProducer.AddMessageToTxnCalls())
 func (mock *SaramaAsyncProducerMock) AddMessageToTxnCalls() []struct {
 	Msg      *sarama.ConsumerMessage
 	GroupId  string
@@ -246,7 +248,8 @@ func (mock *SaramaAsyncProducerMock) AddOffsetsToTxn(offsets map[string][]*saram
 
 // AddOffsetsToTxnCalls gets all the calls that were made to AddOffsetsToTxn.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.AddOffsetsToTxnCalls())
+//
+//	len(mockedSaramaAsyncProducer.AddOffsetsToTxnCalls())
 func (mock *SaramaAsyncProducerMock) AddOffsetsToTxnCalls() []struct {
 	Offsets map[string][]*sarama.PartitionOffsetMetadata
 	GroupId string
@@ -276,7 +279,8 @@ func (mock *SaramaAsyncProducerMock) AsyncClose() {
 
 // AsyncCloseCalls gets all the calls that were made to AsyncClose.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.AsyncCloseCalls())
+//
+//	len(mockedSaramaAsyncProducer.AsyncCloseCalls())
 func (mock *SaramaAsyncProducerMock) AsyncCloseCalls() []struct {
 } {
 	var calls []struct {
@@ -302,7 +306,8 @@ func (mock *SaramaAsyncProducerMock) BeginTxn() error {
 
 // BeginTxnCalls gets all the calls that were made to BeginTxn.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.BeginTxnCalls())
+//
+//	len(mockedSaramaAsyncProducer.BeginTxnCalls())
 func (mock *SaramaAsyncProducerMock) BeginTxnCalls() []struct {
 } {
 	var calls []struct {
@@ -328,7 +333,8 @@ func (mock *SaramaAsyncProducerMock) Close() error {
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.CloseCalls())
+//
+//	len(mockedSaramaAsyncProducer.CloseCalls())
 func (mock *SaramaAsyncProducerMock) CloseCalls() []struct {
 } {
 	var calls []struct {
@@ -354,7 +360,8 @@ func (mock *SaramaAsyncProducerMock) CommitTxn() error {
 
 // CommitTxnCalls gets all the calls that were made to CommitTxn.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.CommitTxnCalls())
+//
+//	len(mockedSaramaAsyncProducer.CommitTxnCalls())
 func (mock *SaramaAsyncProducerMock) CommitTxnCalls() []struct {
 } {
 	var calls []struct {
@@ -380,7 +387,8 @@ func (mock *SaramaAsyncProducerMock) Errors() <-chan *sarama.ProducerError {
 
 // ErrorsCalls gets all the calls that were made to Errors.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.ErrorsCalls())
+//
+//	len(mockedSaramaAsyncProducer.ErrorsCalls())
 func (mock *SaramaAsyncProducerMock) ErrorsCalls() []struct {
 } {
 	var calls []struct {
@@ -406,7 +414,8 @@ func (mock *SaramaAsyncProducerMock) Input() chan<- *sarama.ProducerMessage {
 
 // InputCalls gets all the calls that were made to Input.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.InputCalls())
+//
+//	len(mockedSaramaAsyncProducer.InputCalls())
 func (mock *SaramaAsyncProducerMock) InputCalls() []struct {
 } {
 	var calls []struct {
@@ -432,7 +441,8 @@ func (mock *SaramaAsyncProducerMock) IsTransactional() bool {
 
 // IsTransactionalCalls gets all the calls that were made to IsTransactional.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.IsTransactionalCalls())
+//
+//	len(mockedSaramaAsyncProducer.IsTransactionalCalls())
 func (mock *SaramaAsyncProducerMock) IsTransactionalCalls() []struct {
 } {
 	var calls []struct {
@@ -458,7 +468,8 @@ func (mock *SaramaAsyncProducerMock) Successes() <-chan *sarama.ProducerMessage 
 
 // SuccessesCalls gets all the calls that were made to Successes.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.SuccessesCalls())
+//
+//	len(mockedSaramaAsyncProducer.SuccessesCalls())
 func (mock *SaramaAsyncProducerMock) SuccessesCalls() []struct {
 } {
 	var calls []struct {
@@ -484,7 +495,8 @@ func (mock *SaramaAsyncProducerMock) TxnStatus() sarama.ProducerTxnStatusFlag {
 
 // TxnStatusCalls gets all the calls that were made to TxnStatus.
 // Check the length with:
-//     len(mockedSaramaAsyncProducer.TxnStatusCalls())
+//
+//	len(mockedSaramaAsyncProducer.TxnStatusCalls())
 func (mock *SaramaAsyncProducerMock) TxnStatusCalls() []struct {
 } {
 	var calls []struct {

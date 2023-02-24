@@ -11,3 +11,6 @@ type SaramaBroker interface {
 	GetMetadata(request *sarama.MetadataRequest) (*sarama.MetadataResponse, error)
 	Close() error
 }
+
+// BrokerGenerator is a function that returns a sarama broker interface
+type BrokerGenerator = func(addr string) SaramaBroker

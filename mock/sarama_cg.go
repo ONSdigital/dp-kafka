@@ -16,37 +16,37 @@ var _ interfaces.SaramaConsumerGroup = &SaramaConsumerGroupMock{}
 
 // SaramaConsumerGroupMock is a mock implementation of interfaces.SaramaConsumerGroup.
 //
-// 	func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
+//	func TestSomethingThatUsesSaramaConsumerGroup(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.SaramaConsumerGroup
-// 		mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
-// 			CloseFunc: func() error {
-// 				panic("mock out the Close method")
-// 			},
-// 			ConsumeFunc: func(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
-// 				panic("mock out the Consume method")
-// 			},
-// 			ErrorsFunc: func() <-chan error {
-// 				panic("mock out the Errors method")
-// 			},
-// 			PauseFunc: func(partitions map[string][]int32)  {
-// 				panic("mock out the Pause method")
-// 			},
-// 			PauseAllFunc: func()  {
-// 				panic("mock out the PauseAll method")
-// 			},
-// 			ResumeFunc: func(partitions map[string][]int32)  {
-// 				panic("mock out the Resume method")
-// 			},
-// 			ResumeAllFunc: func()  {
-// 				panic("mock out the ResumeAll method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.SaramaConsumerGroup
+//		mockedSaramaConsumerGroup := &SaramaConsumerGroupMock{
+//			CloseFunc: func() error {
+//				panic("mock out the Close method")
+//			},
+//			ConsumeFunc: func(ctx context.Context, topics []string, handler sarama.ConsumerGroupHandler) error {
+//				panic("mock out the Consume method")
+//			},
+//			ErrorsFunc: func() <-chan error {
+//				panic("mock out the Errors method")
+//			},
+//			PauseFunc: func(partitions map[string][]int32)  {
+//				panic("mock out the Pause method")
+//			},
+//			PauseAllFunc: func()  {
+//				panic("mock out the PauseAll method")
+//			},
+//			ResumeFunc: func(partitions map[string][]int32)  {
+//				panic("mock out the Resume method")
+//			},
+//			ResumeAllFunc: func()  {
+//				panic("mock out the ResumeAll method")
+//			},
+//		}
 //
-// 		// use mockedSaramaConsumerGroup in code that requires interfaces.SaramaConsumerGroup
-// 		// and then make assertions.
+//		// use mockedSaramaConsumerGroup in code that requires interfaces.SaramaConsumerGroup
+//		// and then make assertions.
 //
-// 	}
+//	}
 type SaramaConsumerGroupMock struct {
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
@@ -127,7 +127,8 @@ func (mock *SaramaConsumerGroupMock) Close() error {
 
 // CloseCalls gets all the calls that were made to Close.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.CloseCalls())
+//
+//	len(mockedSaramaConsumerGroup.CloseCalls())
 func (mock *SaramaConsumerGroupMock) CloseCalls() []struct {
 } {
 	var calls []struct {
@@ -160,7 +161,8 @@ func (mock *SaramaConsumerGroupMock) Consume(ctx context.Context, topics []strin
 
 // ConsumeCalls gets all the calls that were made to Consume.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.ConsumeCalls())
+//
+//	len(mockedSaramaConsumerGroup.ConsumeCalls())
 func (mock *SaramaConsumerGroupMock) ConsumeCalls() []struct {
 	Ctx     context.Context
 	Topics  []string
@@ -192,7 +194,8 @@ func (mock *SaramaConsumerGroupMock) Errors() <-chan error {
 
 // ErrorsCalls gets all the calls that were made to Errors.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.ErrorsCalls())
+//
+//	len(mockedSaramaConsumerGroup.ErrorsCalls())
 func (mock *SaramaConsumerGroupMock) ErrorsCalls() []struct {
 } {
 	var calls []struct {
@@ -221,7 +224,8 @@ func (mock *SaramaConsumerGroupMock) Pause(partitions map[string][]int32) {
 
 // PauseCalls gets all the calls that were made to Pause.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.PauseCalls())
+//
+//	len(mockedSaramaConsumerGroup.PauseCalls())
 func (mock *SaramaConsumerGroupMock) PauseCalls() []struct {
 	Partitions map[string][]int32
 } {
@@ -249,7 +253,8 @@ func (mock *SaramaConsumerGroupMock) PauseAll() {
 
 // PauseAllCalls gets all the calls that were made to PauseAll.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.PauseAllCalls())
+//
+//	len(mockedSaramaConsumerGroup.PauseAllCalls())
 func (mock *SaramaConsumerGroupMock) PauseAllCalls() []struct {
 } {
 	var calls []struct {
@@ -278,7 +283,8 @@ func (mock *SaramaConsumerGroupMock) Resume(partitions map[string][]int32) {
 
 // ResumeCalls gets all the calls that were made to Resume.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.ResumeCalls())
+//
+//	len(mockedSaramaConsumerGroup.ResumeCalls())
 func (mock *SaramaConsumerGroupMock) ResumeCalls() []struct {
 	Partitions map[string][]int32
 } {
@@ -306,7 +312,8 @@ func (mock *SaramaConsumerGroupMock) ResumeAll() {
 
 // ResumeAllCalls gets all the calls that were made to ResumeAll.
 // Check the length with:
-//     len(mockedSaramaConsumerGroup.ResumeAllCalls())
+//
+//	len(mockedSaramaConsumerGroup.ResumeAllCalls())
 func (mock *SaramaConsumerGroupMock) ResumeAllCalls() []struct {
 } {
 	var calls []struct {

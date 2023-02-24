@@ -1,11 +1,13 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
+	"github.com/ONSdigital/log.go/v2/log"
 )
 
 // HealthInfo contains the health information for one broker
@@ -46,6 +48,8 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 			numHealthy++
 		}
 	}
+
+	log.Info(context.Background(), "[DEBUG] update status", log.Data{"num_healty": numHealthy, "exptected": len(h.infoMap), "min": minHealthyThreshold})
 
 	if numHealthy == len(h.infoMap) {
 		// All brokers are healthy

@@ -16,40 +16,40 @@ var _ interfaces.SaramaConsumerGroupSession = &SaramaConsumerGroupSessionMock{}
 
 // SaramaConsumerGroupSessionMock is a mock implementation of interfaces.SaramaConsumerGroupSession.
 //
-// 	func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
+//	func TestSomethingThatUsesSaramaConsumerGroupSession(t *testing.T) {
 //
-// 		// make and configure a mocked interfaces.SaramaConsumerGroupSession
-// 		mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
-// 			ClaimsFunc: func() map[string][]int32 {
-// 				panic("mock out the Claims method")
-// 			},
-// 			CommitFunc: func()  {
-// 				panic("mock out the Commit method")
-// 			},
-// 			ContextFunc: func() context.Context {
-// 				panic("mock out the Context method")
-// 			},
-// 			GenerationIDFunc: func() int32 {
-// 				panic("mock out the GenerationID method")
-// 			},
-// 			MarkMessageFunc: func(msg *sarama.ConsumerMessage, metadata string)  {
-// 				panic("mock out the MarkMessage method")
-// 			},
-// 			MarkOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
-// 				panic("mock out the MarkOffset method")
-// 			},
-// 			MemberIDFunc: func() string {
-// 				panic("mock out the MemberID method")
-// 			},
-// 			ResetOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
-// 				panic("mock out the ResetOffset method")
-// 			},
-// 		}
+//		// make and configure a mocked interfaces.SaramaConsumerGroupSession
+//		mockedSaramaConsumerGroupSession := &SaramaConsumerGroupSessionMock{
+//			ClaimsFunc: func() map[string][]int32 {
+//				panic("mock out the Claims method")
+//			},
+//			CommitFunc: func()  {
+//				panic("mock out the Commit method")
+//			},
+//			ContextFunc: func() context.Context {
+//				panic("mock out the Context method")
+//			},
+//			GenerationIDFunc: func() int32 {
+//				panic("mock out the GenerationID method")
+//			},
+//			MarkMessageFunc: func(msg *sarama.ConsumerMessage, metadata string)  {
+//				panic("mock out the MarkMessage method")
+//			},
+//			MarkOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
+//				panic("mock out the MarkOffset method")
+//			},
+//			MemberIDFunc: func() string {
+//				panic("mock out the MemberID method")
+//			},
+//			ResetOffsetFunc: func(topic string, partition int32, offset int64, metadata string)  {
+//				panic("mock out the ResetOffset method")
+//			},
+//		}
 //
-// 		// use mockedSaramaConsumerGroupSession in code that requires interfaces.SaramaConsumerGroupSession
-// 		// and then make assertions.
+//		// use mockedSaramaConsumerGroupSession in code that requires interfaces.SaramaConsumerGroupSession
+//		// and then make assertions.
 //
-// 	}
+//	}
 type SaramaConsumerGroupSessionMock struct {
 	// ClaimsFunc mocks the Claims method.
 	ClaimsFunc func() map[string][]int32
@@ -147,7 +147,8 @@ func (mock *SaramaConsumerGroupSessionMock) Claims() map[string][]int32 {
 
 // ClaimsCalls gets all the calls that were made to Claims.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.ClaimsCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.ClaimsCalls())
 func (mock *SaramaConsumerGroupSessionMock) ClaimsCalls() []struct {
 } {
 	var calls []struct {
@@ -173,7 +174,8 @@ func (mock *SaramaConsumerGroupSessionMock) Commit() {
 
 // CommitCalls gets all the calls that were made to Commit.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.CommitCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.CommitCalls())
 func (mock *SaramaConsumerGroupSessionMock) CommitCalls() []struct {
 } {
 	var calls []struct {
@@ -199,7 +201,8 @@ func (mock *SaramaConsumerGroupSessionMock) Context() context.Context {
 
 // ContextCalls gets all the calls that were made to Context.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.ContextCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.ContextCalls())
 func (mock *SaramaConsumerGroupSessionMock) ContextCalls() []struct {
 } {
 	var calls []struct {
@@ -225,7 +228,8 @@ func (mock *SaramaConsumerGroupSessionMock) GenerationID() int32 {
 
 // GenerationIDCalls gets all the calls that were made to GenerationID.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.GenerationIDCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.GenerationIDCalls())
 func (mock *SaramaConsumerGroupSessionMock) GenerationIDCalls() []struct {
 } {
 	var calls []struct {
@@ -256,7 +260,8 @@ func (mock *SaramaConsumerGroupSessionMock) MarkMessage(msg *sarama.ConsumerMess
 
 // MarkMessageCalls gets all the calls that were made to MarkMessage.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.MarkMessageCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.MarkMessageCalls())
 func (mock *SaramaConsumerGroupSessionMock) MarkMessageCalls() []struct {
 	Msg      *sarama.ConsumerMessage
 	Metadata string
@@ -295,7 +300,8 @@ func (mock *SaramaConsumerGroupSessionMock) MarkOffset(topic string, partition i
 
 // MarkOffsetCalls gets all the calls that were made to MarkOffset.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.MarkOffsetCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.MarkOffsetCalls())
 func (mock *SaramaConsumerGroupSessionMock) MarkOffsetCalls() []struct {
 	Topic     string
 	Partition int32
@@ -329,7 +335,8 @@ func (mock *SaramaConsumerGroupSessionMock) MemberID() string {
 
 // MemberIDCalls gets all the calls that were made to MemberID.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.MemberIDCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.MemberIDCalls())
 func (mock *SaramaConsumerGroupSessionMock) MemberIDCalls() []struct {
 } {
 	var calls []struct {
@@ -364,7 +371,8 @@ func (mock *SaramaConsumerGroupSessionMock) ResetOffset(topic string, partition 
 
 // ResetOffsetCalls gets all the calls that were made to ResetOffset.
 // Check the length with:
-//     len(mockedSaramaConsumerGroupSession.ResetOffsetCalls())
+//
+//	len(mockedSaramaConsumerGroupSession.ResetOffsetCalls())
 func (mock *SaramaConsumerGroupSessionMock) ResetOffsetCalls() []struct {
 	Topic     string
 	Partition int32
