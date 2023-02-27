@@ -234,24 +234,17 @@ func (p *Producer) Initialise(ctx context.Context) error {
 
 // Send marshals the provided event with the provided schema, and sends it to kafka
 func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
-	log.Info(context.Background(), "[DEBUG] SEND going to marshal event")
 	bytes, err := schema.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
 	}
 
-	log.Info(context.Background(), "[DEBUG] SEND acquireing lock")
-
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
-
-	log.Info(context.Background(), "[DEBUG] SEND safe-sening message to output channel", log.Data{"bytes": bytes})
 
 	if err := SafeSendBytes(p.channels.Output, bytes); err != nil {
 		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
 	}
-
-	log.Info(context.Background(), "[DEBUG] SEND OK")
 
 	return nil
 }

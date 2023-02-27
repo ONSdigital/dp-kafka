@@ -55,7 +55,7 @@ kafkaConsumer, err := kafkatest.NewConsumer(
 
 Please, provide the kafka ConsumerGroupConfig as you would do for a real kafka consumer, and the required `kafkatest.ConsumerConfig` according to your needs for the mock.
 
-This will create a new kafkatest consumer, with `NumPartitions` (e.g. 10) go-routines running the sarama handler, one emuling each kafka partition.
+This will create a new kafkatest consumer, with `NumPartitions` (e.g. 10) go-routines running the sarama handler, one emulating each kafka partition.
 
 The sarama message and error channels will have `ChannelBufferSize` (e.g. 10)
 
