@@ -104,10 +104,15 @@ func DrainTopic(ctx context.Context, cfg *DrainTopicConfig, in *DrainTopicInput,
 		drainer.StateWait(Consuming)
 		log.Info(ctx, "drainer is consuming", log.Data{"topic": in.Topic, "group": in.GroupName})
 
+		delay := time.NewTimer(cfg.Timeout + 100*time.Millisecond)
+
 		select {
-		case <-time.After(cfg.Timeout + 100*time.Millisecond):
+		case <-delay.C:
 			log.Info(ctx, "drain timeout has expired (no messages drained)")
 		case <-drained:
+			if !delay.Stop() {
+				<-delay.C
+			}
 			log.Info(ctx, "message(s) have been drained")
 		}
 

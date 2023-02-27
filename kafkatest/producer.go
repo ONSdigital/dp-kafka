@@ -106,12 +106,20 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 // WaitForMessageSent waits for a new message being sent to Kafka, with a timeout according to the provided value
 // If a message is sent, it unmarshals it into the provided 'event', using the provided avro 'schema'.
 func (p *Producer) WaitForMessageSent(schema *avro.Schema, event interface{}, timeout time.Duration) error {
+	delay := time.NewTimer(timeout)
+
 	select {
-	case <-time.After(timeout):
+	case <-delay.C:
 		return errors.New("timeout while waiting for kafka message being produced")
 	case <-p.p.Channels().Closer:
+		if !delay.Stop() {
+			<-delay.C
+		}
 		return errors.New("closer channel closed")
 	case msg, ok := <-p.saramaMessages:
+		if !delay.Stop() {
+			<-delay.C
+		}
 		if !ok {
 			return errors.New("sarama messages channel closed")
 		}
@@ -132,12 +140,20 @@ func (p *Producer) WaitForMessageSent(schema *avro.Schema, event interface{}, ti
 // If during the time window the closer channel is closed,
 // or a message is sent to the sarama message channel, then an error is returned
 func (p *Producer) WaitNoMessageSent(timeWindow time.Duration) error {
+	delay := time.NewTimer(timeWindow)
+
 	select {
-	case <-time.After(timeWindow):
+	case <-delay.C:
 		return nil
 	case <-p.p.Channels().Closer:
+		if !delay.Stop() {
+			<-delay.C
+		}
 		return errors.New("closer channel closed")
 	case _, ok := <-p.saramaMessages:
+		if !delay.Stop() {
+			<-delay.C
+		}
 		if !ok {
 			return errors.New("sarama messages channel closed")
 		}

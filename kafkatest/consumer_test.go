@@ -227,10 +227,16 @@ func TestQueueMessage(t *testing.T) {
 			So(err, ShouldBeNil)
 
 			Convey("Then the expected Sarama message is sent to the mock's sarmaMessages channel", func() {
+				delay := time.NewTimer(time.Second)
+
 				select {
-				case <-time.After(time.Second):
+				case <-delay.C:
 					t.Fail()
 				case msg := <-cg.saramaMessages:
+					if !delay.Stop() {
+						<-delay.C
+					}
+
 					So(msg.Headers, ShouldResemble, []*sarama.RecordHeader{})
 					So(msg.Timestamp, ShouldHappenOnOrBetween, t0, time.Now())
 					So(msg.BlockTimestamp, ShouldHappenOnOrBetween, t0, time.Now())
@@ -295,10 +301,15 @@ func TestConsume(t *testing.T) {
 				cg.cg.Start()
 
 				Convey("Then the handler is called", func() {
+					delay := time.NewTimer(time.Second)
+
 					select {
-					case <-time.After(time.Second):
+					case <-delay.C:
 						t.Fail()
 					case <-handlerCalled:
+						if !delay.Stop() {
+							<-delay.C
+						}
 					}
 
 					Convey("And the expected message has been handled", func() {
