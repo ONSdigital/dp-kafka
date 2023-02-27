@@ -127,3 +127,20 @@ func (p *Producer) WaitForMessageSent(schema *avro.Schema, event interface{}, ti
 	}
 	return nil
 }
+
+// WaitNoMessageSent waits until the timeWindow elapses.
+// If during the time window the closer channel is closed,
+// or a message is sent to the sarama message channel, then an error is returned
+func (p *Producer) WaitNoMessageSent(timeWindow time.Duration) error {
+	select {
+	case <-time.After(timeWindow):
+		return nil
+	case <-p.p.Channels().Closer:
+		return errors.New("closer channel closed")
+	case _, ok := <-p.saramaMessages:
+		if !ok {
+			return errors.New("sarama messages channel closed")
+		}
+		return errors.New("unexpected message was sent within the time window")
+	}
+}

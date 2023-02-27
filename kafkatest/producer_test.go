@@ -211,6 +211,71 @@ func TestWaitForMessageSent(t *testing.T) {
 	})
 }
 
+func TestWaitNoMessageSent(t *testing.T) {
+	pConfig := &kafka.ProducerConfig{
+		Topic:       "test-topic",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest producer", t, func() {
+		p, err := NewProducer(ctx, pConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When no event is sent within the time window", func(c C) {
+			timeWindow := 100 * time.Millisecond
+
+			t0 := time.Now()
+			err := p.WaitNoMessageSent(timeWindow)
+			t1 := time.Now()
+
+			Convey("Then WaitNoMessageSent returns after the expected time has elapsed, with no error", func() {
+				So(err, ShouldBeNil)
+				So(t1, ShouldHappenOnOrAfter, t0.Add(timeWindow))
+			})
+		})
+
+		Convey("When a valid event is sent", func(c C) {
+			go func() {
+				err := p.Mock.Send(TestSchema, &TestEvent{
+					Field1: "value one",
+					Field2: "value two",
+				})
+				c.So(err, ShouldBeNil)
+			}()
+
+			Convey("Then WaitNoMessageSent fails with the expected error", func() {
+				err := p.WaitNoMessageSent(time.Second)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "unexpected message was sent within the time window")
+			})
+		})
+
+		Convey("When the producer's Closer channel is closed", func(c C) {
+			go func() {
+				kafka.SafeClose(p.Mock.Channels().Closer)
+			}()
+
+			Convey("Then WaitNoMessageSent fails with the expected error", func() {
+				err := p.WaitNoMessageSent(time.Second)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "closer channel closed")
+			})
+		})
+
+		Convey("When the mock's saramaMessage channel is closed", func(c C) {
+			go func() {
+				close(p.saramaMessages)
+			}()
+
+			Convey("Then WaitForMessageSent fails with the expected error", func() {
+				err := p.WaitNoMessageSent(time.Second)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldEqual, "sarama messages channel closed")
+			})
+		})
+	})
+}
+
 func validateCloseProducer(p *Producer) {
 	closedOutput := false
 	closedErrors := false
