@@ -427,20 +427,21 @@ If you need to do this, you will need to acquire the read lock on the state chan
 For example:
 
 ```go
-    m := consumer.Channels().State.Consuming.RWMutex()
-    m.RLock()
-
-    delay := time.NewTimer(someTime)
-    select {
-    case <-delay.C:
-        m.RUnlock()
-        ...
-    case <-consumer.Channels().State.Consuming.Channel()
-        m.RUnlock()
-        // release the 'delay' timer as what is done in the code base
-        ...
-    }
+delay := time.NewTimer(someTime)
+select {
+case <-delay.C:
+    m.RUnlock()
     ...
+case <- consumer.StateWait(kafka.Consuming)
+    // At every exit point from the select (other than the one above), we need to check:
+    // Ensure timer is stopped and its resources are freed
+    if !delay.Stop() {
+        // if the timer has been stopped then read from the channel
+        <-delay.C
+    }        m.RUnlock()
+    // release the 'delay' timer as what is done in the code base
+    ...
+}
 ```
 
 WARNING: Make sure you release the lock as soon as possible. Blocking it will prevent the kafka consumer state machine from transitioning to the state again in the future!

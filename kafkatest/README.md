@@ -149,6 +149,20 @@ if err := kafkaProducer.WaitForMessageSent(schema.MySchema, e, timeout); err != 
 }
 ```
 
+Alternatively, your test might want to check that no message is sent (for example, if you are testing a case where a dependency returns an error).
+
+You can check that no message is sent within a time window by calling `WaitNoMessageSent` with the duration of the window.
+Please, note that this function will block execution until the timeWindow duration has elapsed, until a message is sent through the mock, or until the producer is closed (in the latter 2  cases an error will be returned).
+
+```go
+timeWindow := 5 * time.Second
+
+// Wait up to 'timeWindow', expecting that no message is sent
+if err := kafkaProducer.WaitNoMessageSent(timeWindow); err != nil {
+    // handle error (message sent or producer closed)
+}
+```
+
 ### Message
 
 ```go
