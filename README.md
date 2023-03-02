@@ -438,7 +438,8 @@ case <- consumer.StateWait(kafka.Consuming)
     if !delay.Stop() {
         // if the timer has been stopped then read from the channel
         <-delay.C
-    }        m.RUnlock()
+    }
+    m.RUnlock()
     // release the 'delay' timer as what is done in the code base
     ...
 }
