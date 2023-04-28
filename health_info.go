@@ -41,7 +41,7 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 			return state.Update(health.StatusOK, msgHealthy, 0)
 		}
 		// Enough brokers are healthy, but not all of them
-		return state.Update(health.StatusWarning, h.ErrorMsg(), 0)
+		return state.Update(health.StatusOK, h.ErrorMsg(), 0)
 	}
 	// Not enough brokers are healthy
 	return state.Update(health.StatusCritical, h.ErrorMsg(), 0)

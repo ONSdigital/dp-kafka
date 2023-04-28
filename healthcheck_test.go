@@ -148,9 +148,9 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 		Convey("And a producer configured with the right topic and 2 reachable and 1 unreachable brokers", func() {
 			p, err := createProducerForTesting([]string{testBroker0, testBroker1, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'OK' because at least 2 brokers are reachable and valid", func() {
 				p.Checker(context.Background(), checkState)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -159,9 +159,9 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 		Convey("And a producer configured with the right topic and 3 reachable brokers, but only 2 containing the topic in its metadata", func() {
 			p, err := createProducerForTesting([]string{testBroker0, testBroker1, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'OK' because at least 2 brokers are reachable and valid", func() {
 				p.Checker(context.Background(), checkState)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -257,9 +257,9 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 		Convey("And a consumer-group configured with the right topic and a reachable and unreachable broker", func() {
 			cg, err := createConsumerForTesting([]string{testBroker0, "localhost:0000"}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'OK' because at least one broker is reachable and valid", func() {
 				cg.Checker(context.Background(), checkState)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -268,9 +268,9 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 		Convey("And a consumer-group configured with the right topic and 2 reachable brokers, but only one containing the topic in its metadata", func() {
 			cg, err := createConsumerForTesting([]string{testBroker0, testBroker3}, testTopic)
 			So(err, ShouldBeNil)
-			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
+			Convey("Then Checker sets the health status to 'OK' because at least one broker is reachable and valid", func() {
 				cg.Checker(context.Background(), checkState)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "unexpected metadata response from broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
