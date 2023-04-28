@@ -173,7 +173,7 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
 				err := p.Checker(context.Background(), checkState)
 				So(err, ShouldBeNil)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -185,7 +185,7 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 			Convey("Then Checker sets the health status to 'WARNING' because at least 2 brokers are reachable and valid", func() {
 				err := p.Checker(context.Background(), checkState)
 				So(err, ShouldBeNil)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -278,7 +278,7 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
 				err := cg.Checker(context.Background(), checkState)
 				So(err, ShouldBeNil)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "broker(s) not reachable at: [localhost:0000]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})
@@ -290,7 +290,7 @@ func TestKafkaConsumerHealthcheck(t *testing.T) {
 			Convey("Then Checker sets the health status to 'WARNING' because at least one broker is reachable and valid", func() {
 				err := cg.Checker(context.Background(), checkState)
 				So(err, ShouldBeNil)
-				So(checkState.Status(), ShouldEqual, health.StatusWarning)
+				So(checkState.Status(), ShouldEqual, health.StatusOK)
 				So(checkState.Message(), ShouldEqual, "topic testTopic not available in broker(s): [localhost:12303]")
 				So(checkState.StatusCode(), ShouldEqual, 0)
 			})

@@ -53,8 +53,8 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 	}
 
 	if numHealthy >= minHealthyThreshold {
-		// Enough brokers are healthy, but not all of them
-		return state.Update(health.StatusWarning, h.errorMsg(), 0)
+		// Enough brokers are healthy, but not all of them.  We should still return OK though as the services should not fail at this point
+		return state.Update(health.StatusOK, h.errorMsg(), 0)
 	}
 
 	// Not enough brokers are healthy
