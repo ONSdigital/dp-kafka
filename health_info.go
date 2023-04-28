@@ -40,7 +40,7 @@ func (h *HealthInfoMap) UpdateStatus(state *health.CheckState, minHealthyThresho
 			// All brokers are healthy
 			return state.Update(health.StatusOK, msgHealthy, 0)
 		}
-		// Enough brokers are healthy, but not all of them
+		// Enough brokers are healthy, but not all of them.  This is enough to continue operating the services so a status code of OK should be returned.
 		return state.Update(health.StatusOK, h.ErrorMsg(), 0)
 	}
 	// Not enough brokers are healthy
