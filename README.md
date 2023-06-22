@@ -569,3 +569,91 @@ You can drain multiple topics in parallel by providing multiple DrainTopicInput 
 This will create N go routines with a consumer in each. Each consumer will consume messages in batches of up to `BatchSize`. When all messages are consumed for a topic and group, the corresponding consumer and go-routine is closed. `DrainTopics` will block until all topics have been drained.
 
 WARNING: Services should not drain topics. This may be used by platform engineers to clean up environments, or by component tests to clean up local stacks between scenarios.
+
+## Upgrading to v3 from v2
+
+Version 3 of dp-kafka introduces some breaking changes, some of which are detailed below to help dependent applications. Not all steps to upgrade are captured below, but ones that have been seen in previous upgrades to dp-kafka v3.
+
+### NewProducer
+
+In version 2, the Producer was created as follows:
+
+```golang
+  func kafka.NewProducer(ctx context.Context, brokerAddrs []string, topic string, channels *kafka.ProducerChannels, pConfig *kafka.ProducerConfig) (producer *kafka.Producer, err error)
+  ```
+
+In version 3, the `topic` and `brokerAddrs` are encapsulated as part of the `pConfig` like below:
+
+```golang
+type ProducerConfig struct {
+    // ...some more config
+    Topic          string
+    BrokerAddrs    []string
+    // ...some more config
+}
+```
+
+The channels are instantiated [as part of the NewProducer function](https://github.com/ONSdigital/dp-kafka/blob/70e8c4d623782622cdc774498640d71908c6f7ed/producer.go#LL85C3-L85C3) and do not need to be passed in.
+
+### NewConsumerGroup
+
+In version 2, the Consumer Group was created as follows:
+
+```golang
+  func NewConsumerGroup(ctx context.Context, brokerAddrs []string, topic, group string,
+    channels *ConsumerGroupChannels, cgConfig *ConsumerGroupConfig) (*ConsumerGroup, error)
+  ```
+
+In version 3, the `topic`, `brokerAddrs`, `group` are encapsulated as part of the `cgConfig` like below:
+
+```golang
+type ConsumerGroupConfig struct {
+    // ...some more config
+    Topic             string
+    GroupName         string
+    BrokerAddrs       []string
+    // ...some more config
+}
+```
+
+The channels are instantiated [as part of the NewConsumerGroup function](https://github.com/ONSdigital/dp-kafka/blob/70e8c4d623782622cdc774498640d71908c6f7ed/consumer_group.go#LL107C6-L107C6) and do not need to be passed in.
+
+### iProducer.Channels().LogErrors()
+
+In version 2, you could instantiate a go-routine that waited on the errors channel and logged any errors like this:
+
+```golang
+    func (consumerChannels *ConsumerGroupChannels) LogErrors(ctx context.Context, errMsg string) {
+```
+
+In version 3, this is done at the Producer level, instead of the Channel and it doesn't take an `errMsg`:
+
+```golang
+    func (p *Producer) LogErrors(ctx context.Context) {
+```
+
+This may require alterations to mocks in tests to add a blank LogErrorsFunc, like so:
+
+```golang
+    kafkaProducerMock := &kafkatest.IProducerMock{
+        ChannelsFunc: func() *kafka.ProducerChannels {
+            return &kafka.ProducerChannels{}
+        },
+        CloseFunc: funcClose,
+        LogErrorsFunc: func(ctx context.Context) {
+            // Do nothing
+        },
+    }
+```
+
+### MinBrokersHealthy
+
+v3 introduces a new config item for the minimum brokers that must be healthy for both `consumers` and `producers`.
+
+This is passed as part of the config for both `ConsumerGroupConfig` and `ProducerConfig` as:
+
+```golang
+    MinBrokersHealthy *int
+```
+
+We typically set this via env vars and default to 2. Bear in mind component testing typically only uses one broker and so you may need to adjust the thresholds in test environments.
