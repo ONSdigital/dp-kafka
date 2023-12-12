@@ -11,6 +11,8 @@ import (
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 )
 
 const ErrorChanBufferSize = 20
@@ -586,7 +588,9 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 		default:
 			// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
 			// the consumer session will need to be recreated to get the new claims
-			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, cg.saramaCgHandler); err != nil {
+			otelHandler := otelsarama.WrapConsumerGroupHandler(cg.saramaCgHandler, otelsarama.WithPropagators(otel.GetTextMapPropagator()))
+			
+			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, otelHandler); err != nil {
 				log.Warn(ctx, "error consuming, will retry", log.Data{"attempt": consumeAttempt, "err": err.Error()})
 				if s := cg.state.Get(); s != Starting && s != Consuming {
 					// state changed during cg.saramaCg.Consume

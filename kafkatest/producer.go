@@ -26,11 +26,12 @@ var DefaultProducerConfig = &ProducerConfig{
 // with implementation of required functions and Sarama mocks to emulate a fully functional kafka Producer.
 type Producer struct {
 	cfg            *ProducerConfig              // Mock configuration
-	saramaErrors   chan *sarama.ProducerError   // Sarama level error channel
-	saramaMessages chan *sarama.ProducerMessage // Sarama level produced message channel
-	saramaMock     sarama.AsyncProducer         // Internal sarama async producer mock
-	p              *kafka.Producer              // Internal producer
-	Mock           *IProducerMock               // Implements all moq functions so users can validate calls
+	saramaErrors   	chan *sarama.ProducerError   // Sarama level error channel
+	saramaMessages 	chan *sarama.ProducerMessage // Sarama level produced message channel
+	saramaSuccesses chan *sarama.ProducerMessage // Sarama level successes message channel
+	saramaMock     	sarama.AsyncProducer         // Internal sarama async producer mock
+	p              	*kafka.Producer              // Internal producer
+	Mock           	*IProducerMock               // Implements all moq functions so users can validate calls
 }
 
 // producerInitialiser returns the saramaMock, or an error if it is nil (i.e. Sarama not initialised yet)
@@ -55,6 +56,7 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 		cfg:            cfg,
 		saramaErrors:   make(chan *sarama.ProducerError, cfg.ChannelBufferSize),
 		saramaMessages: make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
+		saramaSuccesses:make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
 	}
 
 	saramaMock := &mock.SaramaAsyncProducerMock{
@@ -66,6 +68,9 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 		},
 		InputFunc: func() chan<- *sarama.ProducerMessage {
 			return p.saramaMessages
+		},
+		SuccessesFunc: func() <-chan *sarama.ProducerMessage {
+			return p.saramaSuccesses
 		},
 	}
 

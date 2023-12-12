@@ -5,6 +5,8 @@ import (
 
 	"github.com/ONSdigital/dp-kafka/v3/interfaces"
 	"github.com/Shopify/sarama"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 type Message interfaces.Message
@@ -36,6 +38,13 @@ func (m SaramaMessage) Context() context.Context {
 	if traceID != "" {
 		ctx = context.WithValue(ctx, TraceIDHeaderKey, traceID)
 	}
+
+	// Inject current Otel span context, so any further processing can use it for propagation.
+	propagators := propagation.TraceContext{}
+	consumerMessageCarrier := otelsarama.NewConsumerMessageCarrier(m.message)
+	ctx = propagators.Extract(ctx, consumerMessageCarrier)
+	propagators.Inject(ctx, consumerMessageCarrier)
+
 	return ctx
 }
 

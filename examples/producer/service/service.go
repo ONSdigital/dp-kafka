@@ -111,7 +111,7 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 					<-delay.C
 				}
 				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
-				svc.producer.Channels().Output <- []byte(stdinLine)
+				svc.producer.Channels().Output <- kafka.BytesMessage{Value: []byte(stdinLine), Context: context.Background()} 
 				log.Info(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}

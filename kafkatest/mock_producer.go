@@ -74,7 +74,7 @@ type IProducerMock struct {
 	LogErrorsFunc func(ctx context.Context)
 
 	// SendFunc mocks the Send method.
-	SendFunc func(schema *avro.Schema, event interface{}) error
+	SendFunc func(ctx context.Context, schema *avro.Schema, event interface{}) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -115,6 +115,7 @@ type IProducerMock struct {
 		}
 		// Send holds details about calls to the Send method.
 		Send []struct {
+			Ctx context.Context
 			// Schema is the schema argument value.
 			Schema *avro.Schema
 			// Event is the event argument value.
@@ -354,11 +355,12 @@ func (mock *IProducerMock) LogErrorsCalls() []struct {
 }
 
 // Send calls SendFunc.
-func (mock *IProducerMock) Send(schema *avro.Schema, event interface{}) error {
+func (mock *IProducerMock) Send(ctx context.Context, schema *avro.Schema, event interface{}) error {
 	if mock.SendFunc == nil {
 		panic("IProducerMock.SendFunc: method is nil but IProducer.Send was just called")
 	}
 	callInfo := struct {
+		Ctx	context.Context
 		Schema *avro.Schema
 		Event  interface{}
 	}{
@@ -368,7 +370,7 @@ func (mock *IProducerMock) Send(schema *avro.Schema, event interface{}) error {
 	mock.lockSend.Lock()
 	mock.calls.Send = append(mock.calls.Send, callInfo)
 	mock.lockSend.Unlock()
-	return mock.SendFunc(schema, event)
+	return mock.SendFunc(context.Background(), schema, event)
 }
 
 // SendCalls gets all the calls that were made to Send.
@@ -376,10 +378,12 @@ func (mock *IProducerMock) Send(schema *avro.Schema, event interface{}) error {
 //
 //	len(mockedIProducer.SendCalls())
 func (mock *IProducerMock) SendCalls() []struct {
+	Ctx	context.Context
 	Schema *avro.Schema
 	Event  interface{}
 } {
 	var calls []struct {
+		Ctx	context.Context
 		Schema *avro.Schema
 		Event  interface{}
 	}

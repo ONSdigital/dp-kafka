@@ -1,12 +1,15 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 )
 
 // channel names
@@ -91,9 +94,14 @@ func (sc *StateChan) Wait() {
 	<-sc.channel
 }
 
+type BytesMessage struct {
+	Context		context.Context
+	Value		[]byte
+}
+
 // ProducerChannels represents the channels used by Producer.
 type ProducerChannels struct {
-	Output      chan []byte
+	Output      chan BytesMessage
 	Errors      chan error
 	Initialised chan struct{}
 	Closer      chan struct{}
@@ -132,7 +140,7 @@ func CreateConsumerGroupChannels(upstreamBufferSize, errorsBufferSize int) *Cons
 // CreateProducerChannels initialises a ProducerChannels with new channels.
 func CreateProducerChannels() *ProducerChannels {
 	return &ProducerChannels{
-		Output:      make(chan []byte),
+		Output:      make(chan BytesMessage),
 		Errors:      make(chan error),
 		Initialised: make(chan struct{}),
 		Closer:      make(chan struct{}),
@@ -222,7 +230,7 @@ func SafeCloseMessage(ch chan Message) (justClosed bool) {
 }
 
 // SafeCloseBytes closes a byte array channel and ignores the panic if the channel was already closed
-func SafeCloseBytes(ch chan []byte) (justClosed bool) {
+func SafeCloseBytes(ch chan BytesMessage) (justClosed bool) {
 	defer func() {
 		if recover() != nil {
 			justClosed = false
@@ -269,12 +277,13 @@ func SafeSendBool(ch chan bool, val bool) (err error) {
 }
 
 // SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed
-func SafeSendProducerMessage(ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
+func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
 		}
 	}()
+	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
 	ch <- val
 	return
 }
@@ -291,7 +300,7 @@ func SafeSendConsumerMessage(ch chan<- *sarama.ConsumerMessage, val *sarama.Cons
 }
 
 // SafeSendBytes sends a provided byte array value to the provided byte array chan and returns an error instead of panicking if the channel is closed
-func SafeSendBytes(ch chan []byte, val []byte) (err error) {
+func SafeSendBytes(ch chan BytesMessage, val BytesMessage) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send byte array value to channel: %v", pErr)

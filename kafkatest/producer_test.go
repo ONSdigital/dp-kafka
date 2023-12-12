@@ -145,7 +145,7 @@ func TestWaitForMessageSent(t *testing.T) {
 
 		Convey("When a valid event is sent", func(c C) {
 			go func() {
-				err := p.Mock.Send(TestSchema, &TestEvent{
+				err := p.Mock.Send(context.Background(), TestSchema, &TestEvent{
 					Field1: "value one",
 					Field2: "value two",
 				})
@@ -236,7 +236,7 @@ func TestWaitNoMessageSent(t *testing.T) {
 
 		Convey("When a valid event is sent", func(c C) {
 			go func() {
-				err := p.Mock.Send(TestSchema, &TestEvent{
+				err := p.Mock.Send(context.Background(), TestSchema, &TestEvent{
 					Field1: "value one",
 					Field2: "value two",
 				})

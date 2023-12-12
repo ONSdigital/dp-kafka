@@ -14,6 +14,8 @@ import (
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"go.opentelemetry.io/otel"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer
@@ -29,7 +31,7 @@ type IProducer interface {
 	LogErrors(ctx context.Context)
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
-	Send(schema *avro.Schema, event interface{}) error
+	Send(ctx context.Context, schema *avro.Schema, event interface{}) error
 	Close(ctx context.Context) (err error)
 	AddHeader(key, value string)
 }
@@ -218,6 +220,8 @@ func (p *Producer) Initialise(ctx context.Context) error {
 		return fmt.Errorf("failed to create a new sarama producer: %w", err)
 	}
 
+	saramaProducer = otelsarama.WrapAsyncProducer(p.config, saramaProducer, otelsarama.WithTracerProvider(otel.GetTracerProvider()), otelsarama.WithPropagators(otel.GetTextMapPropagator()))
+
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
 	if err := p.createLoopInitialised(); err != nil {
@@ -233,7 +237,7 @@ func (p *Producer) Initialise(ctx context.Context) error {
 }
 
 // Send marshals the provided event with the provided schema, and sends it to kafka
-func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
+func (p *Producer) Send(ctx context.Context, schema *avro.Schema, event interface{}) error {
 	bytes, err := schema.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event with avro schema: %w", err)
@@ -242,7 +246,7 @@ func (p *Producer) Send(schema *avro.Schema, event interface{}) error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	if err := SafeSendBytes(p.channels.Output, bytes); err != nil {
+	if err := SafeSendBytes(p.channels.Output, BytesMessage{Value: bytes, Context: ctx}); err != nil {
 		return fmt.Errorf("failed to send marshalled message to output channel: %w", err)
 	}
 
@@ -310,7 +314,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 		for {
 			delay := time.NewTimer(GetRetryTime(initAttempt, p.minRetryPeriod, p.maxRetryPeriod))
 			select {
-			case message, ok := <-p.channels.Output:
+			case output, ok := <-p.channels.Output:
 				// Ensure timer is stopped and its resources are freed
 				if !delay.Stop() {
 					// if the timer has been stopped then read from the channel
@@ -319,7 +323,7 @@ func (p *Producer) createLoopUninitialised(ctx context.Context) {
 				if !ok {
 					return // output chan closed
 				}
-				log.Info(ctx, "error sending a message", log.Data{"message": message, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
+				log.Info(ctx, "error sending a message", log.Data{"message": output.Value, "topic": p.topic}, log.FormatErrors([]error{errors.New("producer is not initialised")}))
 				if err := SafeSendErr(p.channels.Errors, errors.New("producer is not initialised")); err != nil {
 					return // errors chan closed
 				}
@@ -386,8 +390,9 @@ func (p *Producer) createLoopInitialised() error {
 					return // output chan closed
 				}
 				err := SafeSendProducerMessage(
+					message.Context,
 					p.producer.Input(),
-					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message), Headers: p.headers},
+					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
 				)
 				if err != nil {
 					return // sarama producer input channel closed

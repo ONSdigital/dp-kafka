@@ -83,8 +83,8 @@ func closeMockBrokers(brokers map[string]*sarama.MockBroker) {
 
 // createProducerForTesting creates a producer with a mock Sarama library for testing
 func createProducerForTesting(brokerAddrs []string, topic string) (*Producer, error) {
-	chSaramaErr, chSaramaIn := createSaramaChannels()
-	asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
+	chSaramaErr, chSaramaIn, chSaramaSuccesses := createSaramaChannels()
+	asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn, chSaramaSuccesses)
 	pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 		return asyncProducerMock, nil
 	}

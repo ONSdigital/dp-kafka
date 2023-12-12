@@ -1,6 +1,7 @@
 package kafka
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,8 +12,8 @@ import (
 )
 
 // createProducerChannels creates local producer channels for testing
-func createProducerChannels() (output chan []byte, errs chan error, init, closer, closed chan struct{}) {
-	output = make(chan []byte)
+func createProducerChannels() (output chan BytesMessage, errs chan error, init, closer, closed chan struct{}) {
+	output = make(chan BytesMessage)
 	errs = make(chan error)
 	init = make(chan struct{})
 	closer = make(chan struct{})
@@ -279,7 +280,7 @@ func TestSafeClose(t *testing.T) {
 	})
 
 	Convey("A byte array channel can be safely closed and closing it again does not panic", t, func(c C) {
-		ch := make(chan []byte)
+		ch := make(chan BytesMessage)
 		So(SafeCloseBytes(ch), ShouldBeTrue)
 		validateChanBytesClosed(c, ch, true)
 		So(SafeCloseBytes(ch), ShouldBeFalse)
@@ -302,14 +303,15 @@ func TestSafeSendBool(t *testing.T) {
 
 func TestSafeSendBytes(t *testing.T) {
 	Convey("A byte array value can be safely sent to a byte array chan an does not panic if it is closed", t, func(c C) {
-		ch := make(chan []byte)
+		ch := make(chan BytesMessage)
+		message := BytesMessage{Value: []byte{1, 2, 3}, Context: context.Background()}
 		go func() {
-			err := SafeSendBytes(ch, []byte{1, 2, 3})
+			err := SafeSendBytes(ch, message)
 			c.So(err, ShouldBeNil)
 		}()
 		validateChanReceivesBytes(ch, []byte{1, 2, 3})
 		close(ch)
-		err := SafeSendBytes(ch, []byte{1, 2, 3})
+		err := SafeSendBytes(ch, message)
 		So(err, ShouldResemble, errors.New("failed to send byte array value to channel: send on closed channel"))
 	})
 }
@@ -318,12 +320,12 @@ func TestSafeSendProducerMessage(t *testing.T) {
 	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed", t, func(c C) {
 		ch := make(chan *sarama.ProducerMessage)
 		go func() {
-			err := SafeSendProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+			err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
 			c.So(err, ShouldBeNil)
 		}()
 		validateChanReceivesProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
 		close(ch)
-		err := SafeSendProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+		err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
 		So(err, ShouldResemble, errors.New("failed to send ProducerMessage value to channel: send on closed channel"))
 	})
 }
@@ -430,7 +432,7 @@ func validateChanMessageClosed(c C, ch chan Message, expectedClosed bool) {
 }
 
 // validateChanBytesClosed validates that a byte array  channel is closed before a timeout expires
-func validateChanBytesClosed(c C, ch chan []byte, expectedClosed bool) {
+func validateChanBytesClosed(c C, ch chan BytesMessage, expectedClosed bool) {
 	var (
 		closed  bool
 		timeout bool
@@ -503,7 +505,7 @@ func validateChanReceivesBool(ch chan bool, expectedVal bool) {
 }
 
 // validateChanReceivesBytes validates that a byte array channel receives a provided byte array value
-func validateChanReceivesBytes(ch chan []byte, expectedVal []byte) {
+func validateChanReceivesBytes(ch chan BytesMessage, expectedVal []byte) {
 	var (
 		rxVal   []byte
 		timeout bool
@@ -519,7 +521,7 @@ func validateChanReceivesBytes(ch chan []byte, expectedVal []byte) {
 		if !ok {
 			break
 		}
-		rxVal = val
+		rxVal = val.Value
 	case <-delay.C:
 		timeout = true
 	}

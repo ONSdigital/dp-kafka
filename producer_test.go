@@ -22,9 +22,10 @@ const TIMEOUT = 100 * time.Millisecond
 var ErrSaramaNoBrokers = errors.New("kafka client has run out of available brokers to talk to (Is your cluster reachable?)")
 
 // createSaramaChannels creates sarama channels for testing
-func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) {
+func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage, saramaSuccessesChan chan *sarama.ProducerMessage) {
 	saramaErrsChan = make(chan *sarama.ProducerError)
 	saramaInputChan = make(chan *sarama.ProducerMessage)
+	saramaSuccessesChan = make(chan *sarama.ProducerMessage)
 	return
 }
 
@@ -32,6 +33,12 @@ func createSaramaChannels() (saramaErrsChan chan *sarama.ProducerError, saramaIn
 func createMockErrorsFunc(saramaErrsChan chan *sarama.ProducerError) func() <-chan *sarama.ProducerError {
 	return func() <-chan *sarama.ProducerError {
 		return saramaErrsChan
+	}
+}
+
+func createMockSuccessesFunc(saramaSuccessesChan chan *sarama.ProducerMessage) func() <-chan *sarama.ProducerMessage {
+	return func() <-chan *sarama.ProducerMessage {
+		return saramaSuccessesChan
 	}
 }
 
@@ -44,11 +51,12 @@ func createMockInputFunc(saramaInputChan chan *sarama.ProducerMessage) func() ch
 
 // createMockNewAsyncProducerComplete creates an AsyncProducer mock and returns it.
 func createMockNewAsyncProducerComplete(
-	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage) *mock.SaramaAsyncProducerMock {
+	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage, saramaSuccessesChan chan *sarama.ProducerMessage) *mock.SaramaAsyncProducerMock {
 	return &mock.SaramaAsyncProducerMock{
 		ErrorsFunc: createMockErrorsFunc(saramaErrsChan),
 		InputFunc:  createMockInputFunc(saramaInputChan),
 		CloseFunc:  func() error { return nil },
+		SuccessesFunc: createMockSuccessesFunc(saramaSuccessesChan),
 	}
 }
 
@@ -139,8 +147,8 @@ func TestProducerCreation(t *testing.T) {
 
 func TestProducer(t *testing.T) {
 	Convey("Given a correct initialization of a Kafka Producer", t, func() {
-		chSaramaErr, chSaramaIn := createSaramaChannels()
-		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
+		chSaramaErr, chSaramaIn, chSaramaSuccesses := createSaramaChannels()
+		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn, chSaramaSuccesses)
 		pInitCalls := 0
 		pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 			pInitCalls++
@@ -189,7 +197,7 @@ func TestProducer(t *testing.T) {
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -209,7 +217,7 @@ func TestProducer(t *testing.T) {
 
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -226,7 +234,7 @@ func TestProducer(t *testing.T) {
 		Convey("Use consumer driven traceid header", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -274,8 +282,8 @@ func TestProducer(t *testing.T) {
 // TestProducer checks that messages, errors, and closing events are correctly directed to the expected channels
 func TestProducer_WithDefaultContext(t *testing.T) {
 	Convey("Given a correct initialization of a Kafka Producer", t, func() {
-		chSaramaErr, chSaramaIn := createSaramaChannels()
-		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn)
+		chSaramaErr, chSaramaIn, chSaramaSuccesses := createSaramaChannels()
+		asyncProducerMock := createMockNewAsyncProducerComplete(chSaramaErr, chSaramaIn, chSaramaSuccesses)
 		pInitCalls := 0
 		pInit := func(addrs []string, conf *sarama.Config) (interfaces.SaramaAsyncProducer, error) {
 			pInitCalls++
@@ -322,7 +330,7 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 		Convey("Messages from the caller's output channel are redirected to Sarama AsyncProducer", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -342,7 +350,7 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -359,7 +367,7 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 		Convey("Use consumer driven traceid header", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
@@ -445,7 +453,7 @@ func TestProducerNotInitialised(t *testing.T) {
 		Convey("Messages from the caller's output channel are redirected to Error channel", func() {
 			// Send message to local kafka output chan
 			message := "HELLO"
-			producer.Channels().Output <- []byte(message)
+			producer.Channels().Output <- BytesMessage{Value: []byte(message), Context: context.Background()}
 
 			// Read and validate error
 			validateChanReceivesErr(producer.Channels().Errors, errors.New("producer is not initialised"))
@@ -481,7 +489,7 @@ func TestSend(t *testing.T) {
 		p := Producer{
 			mutex: &sync.RWMutex{},
 			channels: &ProducerChannels{
-				Output: make(chan []byte),
+				Output: make(chan BytesMessage),
 			},
 		}
 
@@ -495,10 +503,10 @@ func TestSend(t *testing.T) {
 		Convey("Then sending a valid message results in the expected message being sent to the Output channel", func(c C) {
 			go func() {
 				rx := <-p.channels.Output
-				c.So(rx, ShouldResemble, expectedBytes)
+				c.So(rx.Value, ShouldResemble, expectedBytes)
 			}()
 
-			err = p.Send(TestSchema, testEvent)
+			err = p.Send(context.Background(), TestSchema, testEvent)
 			So(err, ShouldBeNil)
 		})
 
@@ -508,7 +516,7 @@ func TestSend(t *testing.T) {
 				SomethingElse string `avro:"something_else"`
 			}
 
-			err = p.Send(TestSchema, DifferentEvent{
+			err = p.Send(context.Background(), TestSchema, DifferentEvent{
 				SomethingElse: "should fail to marshal",
 			})
 			So(err, ShouldResemble, fmt.Errorf("failed to marshal event with avro schema: %w",
@@ -518,7 +526,7 @@ func TestSend(t *testing.T) {
 
 		Convey("Then sending a valid message after the Output channel is closed results in the expected error being returned", func() {
 			close(p.channels.Output)
-			err = p.Send(TestSchema, testEvent)
+			err = p.Send(context.Background(), TestSchema, testEvent)
 			So(err, ShouldResemble, fmt.Errorf("failed to send marshalled message to output channel: %w",
 				errors.New("failed to send byte array value to channel: send on closed channel")),
 			)

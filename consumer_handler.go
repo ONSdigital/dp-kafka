@@ -6,6 +6,7 @@ import (
 
 	dprequest "github.com/ONSdigital/dp-net/v2/request"
 	"github.com/ONSdigital/log.go/v2/log"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Handler represents a handler for processing a single kafka message.
@@ -36,6 +37,9 @@ func shallCommit(err error) bool {
 func (cg *ConsumerGroup) handleMessage(ctx context.Context, workerID int, msg Message) {
 	msgCtx, cancel := context.WithCancel(ctx)
 	msgCtx = dprequest.WithRequestId(msgCtx, msg.GetHeader(TraceIDHeaderKey))
+
+	spanCtx := trace.SpanFromContext(msg.Context()).SpanContext()
+	msgCtx = trace.ContextWithSpanContext(msgCtx, spanCtx)
 
 	err := cg.handler(msgCtx, workerID, msg)
 	cancel() // TODO we might need to cancel the context also when Sarama session Cleanup is called
