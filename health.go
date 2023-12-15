@@ -3,7 +3,7 @@ package kafka
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v3/interfaces"
+	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 )

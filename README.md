@@ -263,14 +263,14 @@ Messages can be safely sent to Kafka by using the producer `Send` function, whic
 An error will be returned if marshal fails or the Output channel is closed:
 
 ```go
-    err := producer.Send(schema, event)
+    err := producer.Send(ctx, schema, event)
     ...
 ```
 
 Alternatively, you may send the byte array directly to the Output channel, like so:
 
 ```go
-    producer.Channels().Output <- []byte(msg)
+    producer.Channels().Output <- BytesMessage{Value: []byte(msg), Context: ctx}
 ```
 
 ## Message consumption using handlers
@@ -569,6 +569,21 @@ You can drain multiple topics in parallel by providing multiple DrainTopicInput 
 This will create N go routines with a consumer in each. Each consumer will consume messages in batches of up to `BatchSize`. When all messages are consumed for a topic and group, the corresponding consumer and go-routine is closed. `DrainTopics` will block until all topics have been drained.
 
 WARNING: Services should not drain topics. This may be used by platform engineers to clean up environments, or by component tests to clean up local stacks between scenarios.
+
+## Upgrading to v4 from v3
+
+Version 4 of dp-kafka introduces some breaking changes which were required in order to pass opentelemetry trace data to the Kafka producers. Each of the send methods below now requires a context to be passed in.
+
+```go
+    err := producer.Send(ctx, schema, event)
+    ...
+```
+
+Direct output to the channel requires a message wrapper object which contains the payload and the appropriate context
+
+```go
+    producer.Channels().Output <- BytesMessage{Value: []byte(msg), Context: ctx}
+```
 
 ## Upgrading to v3 from v2
 

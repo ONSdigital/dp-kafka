@@ -3,8 +3,8 @@ package kafkatest
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v3/interfaces"
-	"github.com/ONSdigital/dp-kafka/v3/mock"
+	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v4/mock"
 	"github.com/Shopify/sarama"
 )
 

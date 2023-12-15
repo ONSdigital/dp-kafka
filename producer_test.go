@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v3/avro"
-	"github.com/ONSdigital/dp-kafka/v3/interfaces"
-	"github.com/ONSdigital/dp-kafka/v3/mock"
+	"github.com/ONSdigital/dp-kafka/v4/avro"
+	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v4/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )

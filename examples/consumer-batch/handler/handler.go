@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v3"
-	"github.com/ONSdigital/dp-kafka/v3/examples/consumer-batch/config"
+	kafka "github.com/ONSdigital/dp-kafka/v4"
+	"github.com/ONSdigital/dp-kafka/v4/examples/consumer-batch/config"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 

@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/ONSdigital/dp-kafka/v3/examples/producer/config"
-	"github.com/ONSdigital/dp-kafka/v3/examples/producer/service"
+	"github.com/ONSdigital/dp-kafka/v4/examples/producer/config"
+	"github.com/ONSdigital/dp-kafka/v4/examples/producer/service"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 

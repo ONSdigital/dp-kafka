@@ -1,4 +1,4 @@
-module github.com/ONSdigital/dp-kafka/v3
+module github.com/ONSdigital/dp-kafka/v4
 
 go 1.19
 
@@ -20,6 +20,7 @@ require (
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	go.opentelemetry.io/otel/metric v1.19.0 // indirect
+	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 )
 
 require (
@@ -52,5 +53,4 @@ require (
 	golang.org/x/crypto v0.15.0 // indirect
 	golang.org/x/net v0.18.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
-	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 )

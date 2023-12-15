@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v3/interfaces"
-	"github.com/ONSdigital/dp-kafka/v3/mock"
+	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v4/mock"
 	"github.com/ONSdigital/log.go/v2/log"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"

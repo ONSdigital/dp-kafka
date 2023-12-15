@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v3"
-	"github.com/ONSdigital/dp-kafka/v3/avro"
-	"github.com/ONSdigital/dp-kafka/v3/mock"
+	kafka "github.com/ONSdigital/dp-kafka/v4"
+	"github.com/ONSdigital/dp-kafka/v4/avro"
+	"github.com/ONSdigital/dp-kafka/v4/mock"
 	"github.com/Shopify/sarama"
 )
 

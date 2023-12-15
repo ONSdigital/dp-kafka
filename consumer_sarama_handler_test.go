@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ONSdigital/dp-kafka/v3/mock"
+	"github.com/ONSdigital/dp-kafka/v4/mock"
 	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
