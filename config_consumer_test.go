@@ -64,6 +64,9 @@ func TestConsumerGroupConfig(t *testing.T) {
 				MaxRetryPeriod:   &testMaxRetryPeriod,
 			}
 			config, err := cgConfig.Get()
+			testRetries := 1
+			originalBackoffFuncEval := config.Consumer.Retry.BackoffFunc(testRetries)
+			testBackoffFuncEval := testConsumerRetryBackoffFunc(testRetries)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, kafkaVersion)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
@@ -72,7 +75,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			So(config.Consumer.Group.Session.Timeout, ShouldEqual, time.Second*10)
 			So(config.Net.KeepAlive, ShouldEqual, testKeepAlive)
 			So(config.Consumer.Retry.Backoff, ShouldEqual, testRetryBackoff)
-			So(config.Consumer.Retry.BackoffFunc, ShouldEqual, testConsumerRetryBackoffFunc)
+			So(originalBackoffFuncEval, ShouldEqual, testBackoffFuncEval)
 			So(config.Consumer.Offsets.Initial, ShouldEqual, testOffsetNewest)
 			So(config.Net.TLS.Enable, ShouldBeTrue)
 			So(config.Net.TLS.Config.InsecureSkipVerify, ShouldBeFalse)

@@ -54,13 +54,16 @@ func TestProducerConfig(t *testing.T) {
 				MaxRetryPeriod: &testMaxRetryPeriod,
 			}
 			config, err := pConfig.Get()
+			testRetries, testMaxRetries := 1, 1
+			originalBackoffFuncEval := config.Producer.Retry.BackoffFunc(testRetries, testMaxRetries)
+			testBackoffFuncEval := testProducerRetryBackoffFunc(testRetries, testMaxRetries)
 			So(err, ShouldBeNil)
 			So(config.Version, ShouldResemble, kafkaVersion)
 			So(config.Net.KeepAlive, ShouldEqual, testKeepAlive)
 			So(config.Producer.MaxMessageBytes, ShouldEqual, testMaxMessageBytes)
 			So(config.Producer.Retry.Max, ShouldEqual, testRetryMax)
 			So(config.Producer.Retry.Backoff, ShouldEqual, testRetryBackoff)
-			So(config.Producer.Retry.BackoffFunc, ShouldEqual, testProducerRetryBackoffFunc)
+			So(originalBackoffFuncEval, ShouldEqual, testBackoffFuncEval)
 			So(config.Net.TLS.Enable, ShouldBeTrue)
 			So(config.Net.TLS.Config.InsecureSkipVerify, ShouldBeTrue)
 

@@ -53,9 +53,9 @@ func createMockInputFunc(saramaInputChan chan *sarama.ProducerMessage) func() ch
 func createMockNewAsyncProducerComplete(
 	saramaErrsChan chan *sarama.ProducerError, saramaInputChan chan *sarama.ProducerMessage, saramaSuccessesChan chan *sarama.ProducerMessage) *mock.SaramaAsyncProducerMock {
 	return &mock.SaramaAsyncProducerMock{
-		ErrorsFunc: createMockErrorsFunc(saramaErrsChan),
-		InputFunc:  createMockInputFunc(saramaInputChan),
-		CloseFunc:  func() error { return nil },
+		ErrorsFunc:    createMockErrorsFunc(saramaErrsChan),
+		InputFunc:     createMockInputFunc(saramaInputChan),
+		CloseFunc:     func() error { return nil },
 		SuccessesFunc: createMockSuccessesFunc(saramaSuccessesChan),
 	}
 }
@@ -201,12 +201,13 @@ func TestProducer(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
@@ -221,12 +222,13 @@ func TestProducer(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(extractHeaderValue(saramaIn, testHeader), ShouldEqual, testValue)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
@@ -238,12 +240,13 @@ func TestProducer(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldNotBeEmpty)
 			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldEqual, testTraceID)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
@@ -334,12 +337,13 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
 
@@ -354,12 +358,13 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(extractHeaderValue(saramaIn, testHeader), ShouldEqual, testValue)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
@@ -371,12 +376,13 @@ func TestProducer_WithDefaultContext(t *testing.T) {
 
 			// Read sarama channels with timeout
 			saramaIn, saramaErr, timeout := GetFromSaramaChans(chSaramaErr, chSaramaIn)
+			saramaInValueEncoded, _ := saramaIn.Value.Encode()
 
 			// Validate that message was received by sarama message chan, with no error.
 			So(timeout, ShouldBeFalse)
 			So(saramaErr, ShouldBeNil)
 			So(saramaIn.Topic, ShouldEqual, testTopic)
-			So(saramaIn.Value, ShouldEqual, message)
+			So(string(saramaInValueEncoded), ShouldEqual, message)
 			So(extractHeaderValue(saramaIn, TraceIDHeaderKey), ShouldNotBeEmpty)
 			So(len(asyncProducerMock.CloseCalls()), ShouldEqual, 0)
 		})
