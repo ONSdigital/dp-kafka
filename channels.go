@@ -95,8 +95,8 @@ func (sc *StateChan) Wait() {
 }
 
 type BytesMessage struct {
-	Context		context.Context
-	Value		[]byte
+	Context context.Context
+	Value   []byte
 }
 
 // ProducerChannels represents the channels used by Producer.
@@ -277,13 +277,16 @@ func SafeSendBool(ch chan bool, val bool) (err error) {
 }
 
 // SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed
-func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
+func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage, otelEnabled bool) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
 		}
 	}()
-	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
+
+	if otelEnabled {
+		otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
+	}
 	ch <- val
 	return
 }

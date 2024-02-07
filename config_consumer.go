@@ -22,6 +22,7 @@ var (
 	defaultMinRetryPeriod            = 200 * time.Millisecond
 	defaultMaxRetryPeriod            = 32 * time.Second
 	defaultConsumerMinBrokersHealthy = 1
+	defaultConsumerOtelEnabled       = false
 )
 
 // ConsumerGroupConfig exposes the configurable parameters for a consumer group
@@ -51,6 +52,7 @@ type ConsumerGroupConfig struct {
 	Topic             string
 	GroupName         string
 	BrokerAddrs       []string
+	OtelEnabled       *bool
 }
 
 // Get creates a default sarama config for a consumer-group and overwrites any values provided in cgConfig.
@@ -109,6 +111,9 @@ func (c *ConsumerGroupConfig) Get() (*sarama.Config, error) {
 	}
 	if c.MinBrokersHealthy == nil {
 		c.MinBrokersHealthy = &defaultConsumerMinBrokersHealthy
+	}
+	if c.OtelEnabled == nil {
+		c.OtelEnabled = &defaultConsumerOtelEnabled
 	}
 
 	if err := c.Validate(); err != nil {

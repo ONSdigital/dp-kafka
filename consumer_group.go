@@ -70,6 +70,7 @@ type ConsumerGroup struct {
 	maxRetryPeriod    time.Duration
 	minBrokersHealthy int
 	ctx               context.Context // Context provided to the ConsumerGroup at creation time
+	otelEnabled       bool
 }
 
 // NewConsumerGroup creates a new consumer group with the provided configuration
@@ -588,9 +589,16 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 		default:
 			// 'Consume' is called inside an infinite loop, when a server-side rebalance happens,
 			// the consumer session will need to be recreated to get the new claims
-			otelHandler := otelsarama.WrapConsumerGroupHandler(cg.saramaCgHandler, otelsarama.WithPropagators(otel.GetTextMapPropagator()))
-			
-			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, otelHandler); err != nil {
+
+			var handler sarama.ConsumerGroupHandler
+			if cg.otelEnabled {
+				handler = otelsarama.WrapConsumerGroupHandler(cg.saramaCgHandler, otelsarama.WithPropagators(otel.GetTextMapPropagator()))
+
+			} else {
+				handler = cg.saramaCgHandler
+			}
+
+			if err := cg.saramaCg.Consume(ctx, []string{cg.topic}, handler); err != nil {
 				log.Warn(ctx, "error consuming, will retry", log.Data{"attempt": consumeAttempt, "err": err.Error()})
 				if s := cg.state.Get(); s != Starting && s != Consuming {
 					// state changed during cg.saramaCg.Consume

@@ -16,6 +16,7 @@ type SaramaMessage struct {
 	message      *sarama.ConsumerMessage
 	session      sarama.ConsumerGroupSession
 	upstreamDone chan struct{}
+	otelEnabled  bool
 }
 
 func NewSaramaMessage(m *sarama.ConsumerMessage, s sarama.ConsumerGroupSession, ud chan struct{}) *SaramaMessage {
@@ -39,12 +40,13 @@ func (m SaramaMessage) Context() context.Context {
 		ctx = context.WithValue(ctx, TraceIDHeaderKey, traceID)
 	}
 
-	// Inject current Otel span context, so any further processing can use it for propagation.
-	propagators := propagation.TraceContext{}
-	consumerMessageCarrier := otelsarama.NewConsumerMessageCarrier(m.message)
-	ctx = propagators.Extract(ctx, consumerMessageCarrier)
-	propagators.Inject(ctx, consumerMessageCarrier)
-
+	if m.otelEnabled {
+		// Inject current Otel span context, so any further processing can use it for propagation.
+		propagators := propagation.TraceContext{}
+		consumerMessageCarrier := otelsarama.NewConsumerMessageCarrier(m.message)
+		ctx = propagators.Extract(ctx, consumerMessageCarrier)
+		propagators.Inject(ctx, consumerMessageCarrier)
+	}
 	return ctx
 }
 

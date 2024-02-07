@@ -9,6 +9,7 @@ import (
 )
 
 var defaultProducerMinBrokersHealthy = 2
+var defaultOtelEnabled = false
 
 // ProducerConfig exposes the optional configurable parameters for a producer to overwrite default Sarama config values.
 // Any value that is not provided will use the default Sarama config value.
@@ -28,6 +29,7 @@ type ProducerConfig struct {
 	BrokerAddrs    []string
 	MinRetryPeriod *time.Duration
 	MaxRetryPeriod *time.Duration
+	OtelEnabled    *bool
 }
 
 // Get creates a default sarama config and overwrites any values provided in pConfig
@@ -68,6 +70,9 @@ func (p *ProducerConfig) Get() (*sarama.Config, error) {
 	}
 	if p.MinBrokersHealthy == nil {
 		p.MinBrokersHealthy = &defaultProducerMinBrokersHealthy
+	}
+	if p.OtelEnabled == nil {
+		p.OtelEnabled = &defaultOtelEnabled
 	}
 
 	if err := p.Validate(); err != nil {

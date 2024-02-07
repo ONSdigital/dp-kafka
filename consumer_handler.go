@@ -38,8 +38,10 @@ func (cg *ConsumerGroup) handleMessage(ctx context.Context, workerID int, msg Me
 	msgCtx, cancel := context.WithCancel(ctx)
 	msgCtx = dprequest.WithRequestId(msgCtx, msg.GetHeader(TraceIDHeaderKey))
 
-	spanCtx := trace.SpanFromContext(msg.Context()).SpanContext()
-	msgCtx = trace.ContextWithSpanContext(msgCtx, spanCtx)
+	if cg.otelEnabled {
+		spanCtx := trace.SpanFromContext(msg.Context()).SpanContext()
+		msgCtx = trace.ContextWithSpanContext(msgCtx, spanCtx)
+	}
 
 	err := cg.handler(msgCtx, workerID, msg)
 	cancel() // TODO we might need to cancel the context also when Sarama session Cleanup is called

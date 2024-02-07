@@ -51,6 +51,7 @@ type Producer struct {
 	maxRetryPeriod    time.Duration
 	minBrokersHealthy int
 	headers           []sarama.RecordHeader
+	otelEnabled       bool
 }
 
 // NewProducer returns a new producer instance using the provided config and channels.
@@ -220,8 +221,9 @@ func (p *Producer) Initialise(ctx context.Context) error {
 		return fmt.Errorf("failed to create a new sarama producer: %w", err)
 	}
 
-	saramaProducer = otelsarama.WrapAsyncProducer(p.config, saramaProducer, otelsarama.WithTracerProvider(otel.GetTracerProvider()), otelsarama.WithPropagators(otel.GetTextMapPropagator()))
-
+	if p.otelEnabled {
+		saramaProducer = otelsarama.WrapAsyncProducer(p.config, saramaProducer, otelsarama.WithTracerProvider(otel.GetTracerProvider()), otelsarama.WithPropagators(otel.GetTextMapPropagator()))
+	}
 	// On Successful initialization, close Init channel to stop uninitialised goroutine, and create initialised goroutine
 	p.producer = saramaProducer
 	if err := p.createLoopInitialised(); err != nil {
@@ -393,6 +395,7 @@ func (p *Producer) createLoopInitialised() error {
 					message.Context,
 					p.producer.Input(),
 					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
+					p.otelEnabled,
 				)
 				if err != nil {
 					return // sarama producer input channel closed
