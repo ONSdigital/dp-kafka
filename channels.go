@@ -277,16 +277,27 @@ func SafeSendBool(ch chan bool, val bool) (err error) {
 }
 
 // SafeSendProducerMessage sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed
-func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage, otelEnabled bool) (err error) {
+func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
 	defer func() {
 		if pErr := recover(); pErr != nil {
 			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
 		}
 	}()
 
-	if otelEnabled {
-		otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
-	}
+	ch <- val
+	return
+}
+
+// SafeSendProducerMessageWithOtel sends a provided ProducerMessage value to the provided ProducerMessage chan and returns an error instead of panicking if the channel is closed and enables otel tracing
+func SafeSendProducerMessageWithOtel(ctx context.Context, ch chan<- *sarama.ProducerMessage, val *sarama.ProducerMessage) (err error) {
+	defer func() {
+		if pErr := recover(); pErr != nil {
+			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
+		}
+	}()
+
+	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
+
 	ch <- val
 	return
 }

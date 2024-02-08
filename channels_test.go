@@ -317,27 +317,30 @@ func TestSafeSendBytes(t *testing.T) {
 }
 
 func TestSafeSendProducerMessage(t *testing.T) {
-	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed if otel is enabled", t, func(c C) {
-		ch := make(chan *sarama.ProducerMessage)
-		go func() {
-			err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"}, true)
-			c.So(err, ShouldBeNil)
-		}()
-		validateChanReceivesProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
-		close(ch)
-		err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"}, true)
-		So(err, ShouldResemble, errors.New("failed to send ProducerMessage value to channel: send on closed channel"))
-	})
-
 	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed if otel is disabled", t, func(c C) {
 		ch := make(chan *sarama.ProducerMessage)
 		go func() {
-			err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"}, false)
+			err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
 			c.So(err, ShouldBeNil)
 		}()
 		validateChanReceivesProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
 		close(ch)
-		err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"}, false)
+		err := SafeSendProducerMessage(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
+		So(err, ShouldResemble, errors.New("failed to send ProducerMessage value to channel: send on closed channel"))
+	})
+}
+
+func TestSafeSendProducerMessageWithOtel(t *testing.T) {
+
+	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed if otel is enabled", t, func(c C) {
+		ch := make(chan *sarama.ProducerMessage)
+		go func() {
+			err := SafeSendProducerMessageWithOtel(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
+			c.So(err, ShouldBeNil)
+		}()
+		validateChanReceivesProducerMessage(ch, &sarama.ProducerMessage{Topic: "testTopic"})
+		close(ch)
+		err := SafeSendProducerMessageWithOtel(context.Background(), ch, &sarama.ProducerMessage{Topic: "testTopic"})
 		So(err, ShouldResemble, errors.New("failed to send ProducerMessage value to channel: send on closed channel"))
 	})
 }

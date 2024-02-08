@@ -391,14 +391,24 @@ func (p *Producer) createLoopInitialised() error {
 				if !ok {
 					return // output chan closed
 				}
-				err := SafeSendProducerMessage(
-					message.Context,
-					p.producer.Input(),
-					&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
-					p.otelEnabled,
-				)
-				if err != nil {
-					return // sarama producer input channel closed
+				if p.otelEnabled {
+					err := SafeSendProducerMessageWithOtel(
+						message.Context,
+						p.producer.Input(),
+						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
+					)
+					if err != nil {
+						return // sarama producer input channel closed
+					}
+				} else {
+					err := SafeSendProducerMessage(
+						message.Context,
+						p.producer.Input(),
+						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
+					)
+					if err != nil {
+						return // sarama producer input channel closed
+					}
 				}
 			case <-p.channels.Closer:
 				return
