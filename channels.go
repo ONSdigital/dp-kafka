@@ -283,7 +283,6 @@ func SafeSendProducerMessage(ctx context.Context, ch chan<- *sarama.ProducerMess
 			err = fmt.Errorf("failed to send ProducerMessage value to channel: %v", pErr)
 		}
 	}()
-
 	ch <- val
 	return
 }
@@ -297,7 +296,6 @@ func SafeSendProducerMessageWithOtel(ctx context.Context, ch chan<- *sarama.Prod
 	}()
 
 	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(val))
-
 	ch <- val
 	return
 }
