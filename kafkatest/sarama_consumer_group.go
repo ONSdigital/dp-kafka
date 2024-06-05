@@ -3,9 +3,9 @@ package kafkatest
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/dp-kafka/v4/mock"
-	"github.com/Shopify/sarama"
 )
 
 // NewSaramaConsumerGroupSessionMock returns a new sarama consuemr group session mock with the provided number of partitions

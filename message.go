@@ -3,10 +3,11 @@ package kafka
 import (
 	"context"
 
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
-	"github.com/Shopify/sarama"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"github.com/IBM/sarama"
+	"github.com/dnwe/otelsarama"
 	"go.opentelemetry.io/otel/propagation"
+
+	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 )
 
 type Message interfaces.Message

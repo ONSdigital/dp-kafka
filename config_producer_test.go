@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -15,7 +15,9 @@ func TestProducerConfig(t *testing.T) {
 		kafkaVersion, err := sarama.ParseKafkaVersion(testKafkaVersion)
 		So(err, ShouldBeNil)
 		Convey("getProducerConfig with a producerConfig with some values results in the expected values being overwritten in the default sarama config", func() {
+			kafkaVersion := "1.0.0"
 			pConfig := &ProducerConfig{
+				KafkaVersion:    &kafkaVersion,
 				MaxMessageBytes: &testMaxMessageBytes,
 				RetryBackoff:    &testRetryBackoff,
 				Topic:           testTopic,

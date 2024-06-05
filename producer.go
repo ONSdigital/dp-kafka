@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/IBM/sarama"
+	"github.com/dnwe/otelsarama"
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v4/avro"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/dp-net/v2/request"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
-	"github.com/google/uuid"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
-	"go.opentelemetry.io/otel"
 )
 
 //go:generate moq -out ./kafkatest/mock_producer.go -pkg kafkatest . IProducer

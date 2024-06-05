@@ -4,10 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"github.com/IBM/sarama"
+
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/dp-kafka/v4/mock"
-	"github.com/Shopify/sarama"
+
 	. "github.com/smartystreets/goconvey/convey"
 )
 

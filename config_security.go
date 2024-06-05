@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Shopify/sarama"
-	saramatls "github.com/Shopify/sarama/tools/tls"
+	"github.com/IBM/sarama"
+	saramatls "github.com/IBM/sarama/tools/tls"
 )
 
 const certPrefix = "-----BEGIN " // magic string for PEM/Cert/Key (when not file path)
@@ -45,7 +45,7 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) error {
 
 	var saramaTLSConfig *tls.Config
 	if strings.HasPrefix(tlsConfig.ClientCert, certPrefix) {
-		// create cert from strings (not files), cf https://github.com/Shopify/sarama/blob/master/tools/tls/config.go
+		// create cert from strings (not files), cf https://github.com/IBM/sarama/blob/master/tools/tls/config.go
 		cert, err := tls.X509KeyPair(
 			[]byte(expandNewlines(tlsConfig.ClientCert)),
 			[]byte(expandNewlines(tlsConfig.ClientKey)))

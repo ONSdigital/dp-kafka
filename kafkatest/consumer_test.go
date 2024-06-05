@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	kafka "github.com/ONSdigital/dp-kafka/v4"
-	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

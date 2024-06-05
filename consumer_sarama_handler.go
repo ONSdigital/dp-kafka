@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
 )
 
 // SaramaHandler is a consumer-group handler used by Sarama as a callback receiver
