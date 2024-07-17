@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"github.com/dnwe/otelsarama"
 	"go.opentelemetry.io/otel"
 )
 

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -16,7 +16,9 @@ func TestConsumerGroupConfig(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("getConsumerGroupConfig with a consumerGroupConfig with some values results in the expected values being overwritten in the default sarama config", func() {
+			kafkaVersion := "1.0.0"
 			cgConfig := &ConsumerGroupConfig{
+				KafkaVersion: &kafkaVersion,
 				RetryBackoff: &testRetryBackoff,
 				Topic:        testTopic,
 				BrokerAddrs:  testBrokerAddrs,
