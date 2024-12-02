@@ -6,7 +6,7 @@ package kafkatest
 import (
 	"context"
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	kafka "github.com/ONSdigital/dp-kafka/v4"
+	"github.com/ONSdigital/dp-kafka/v4"
 	"github.com/ONSdigital/dp-kafka/v4/avro"
 	"sync"
 )
@@ -42,7 +42,7 @@ var _ kafka.IProducer = &IProducerMock{}
 //			LogErrorsFunc: func(ctx context.Context)  {
 //				panic("mock out the LogErrors method")
 //			},
-//			SendFunc: func(schema *avro.Schema, event interface{}) error {
+//			SendFunc: func(ctx context.Context, schema *avro.Schema, event interface{}) error {
 //				panic("mock out the Send method")
 //			},
 //		}
@@ -115,6 +115,7 @@ type IProducerMock struct {
 		}
 		// Send holds details about calls to the Send method.
 		Send []struct {
+			// Ctx is the ctx argument value.
 			Ctx context.Context
 			// Schema is the schema argument value.
 			Schema *avro.Schema
@@ -360,17 +361,18 @@ func (mock *IProducerMock) Send(ctx context.Context, schema *avro.Schema, event 
 		panic("IProducerMock.SendFunc: method is nil but IProducer.Send was just called")
 	}
 	callInfo := struct {
-		Ctx	context.Context
+		Ctx    context.Context
 		Schema *avro.Schema
 		Event  interface{}
 	}{
+		Ctx:    ctx,
 		Schema: schema,
 		Event:  event,
 	}
 	mock.lockSend.Lock()
 	mock.calls.Send = append(mock.calls.Send, callInfo)
 	mock.lockSend.Unlock()
-	return mock.SendFunc(context.Background(), schema, event)
+	return mock.SendFunc(ctx, schema, event)
 }
 
 // SendCalls gets all the calls that were made to Send.
@@ -378,12 +380,12 @@ func (mock *IProducerMock) Send(ctx context.Context, schema *avro.Schema, event 
 //
 //	len(mockedIProducer.SendCalls())
 func (mock *IProducerMock) SendCalls() []struct {
-	Ctx	context.Context
+	Ctx    context.Context
 	Schema *avro.Schema
 	Event  interface{}
 } {
 	var calls []struct {
-		Ctx	context.Context
+		Ctx    context.Context
 		Schema *avro.Schema
 		Event  interface{}
 	}

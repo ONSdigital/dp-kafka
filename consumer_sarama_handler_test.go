@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-kafka/v4/mock"
-	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

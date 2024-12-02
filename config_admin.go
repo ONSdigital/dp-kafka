@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 // AdminConfig exposes the optional configurable parameters for an admin client to overwrite default Sarama config values.

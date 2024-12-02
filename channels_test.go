@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

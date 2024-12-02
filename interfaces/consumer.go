@@ -1,6 +1,6 @@
 package interfaces
 
-import "github.com/Shopify/sarama"
+import "github.com/IBM/sarama"
 
 //go:generate moq -out ../mock/sarama_cg.go -pkg mock . SaramaConsumerGroup
 //go:generate moq -out ../mock/sarama_cg_session.go -pkg mock . SaramaConsumerGroupSession
