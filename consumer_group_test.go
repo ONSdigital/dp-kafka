@@ -300,7 +300,7 @@ func TestRegisterHandler(t *testing.T) {
 			Convey("Then the handler is called when a message is received from the Upstream channel", func() {
 				sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				sentMessage.CommitFunc = func() {}
@@ -364,13 +364,13 @@ func TestRegisterBatchHandler(t *testing.T) {
 			Convey("Then the batch handler is called when the batch is full from messages received from the Upstream channel", func() {
 				msg1, err := newMessage([]byte{1, 3, 5}, 1)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				msg1.ReleaseFunc = func() {}
 
 				msg2, err := newMessage([]byte{2, 4, 6}, 2)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				msg2.ReleaseFunc = func() {}
 

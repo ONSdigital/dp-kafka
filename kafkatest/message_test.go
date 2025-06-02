@@ -11,7 +11,7 @@ func TestMessageMock(t *testing.T) {
 		payload := []byte{0, 1, 2, 3, 4, 5}
 		msg, err := NewMessage(payload, 1)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		Convey("The initial state is not marked or committed", func() {
