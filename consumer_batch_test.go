@@ -49,7 +49,7 @@ func TestIsEmpty(t *testing.T) {
 
 		msg, err := newMessage([]byte{1, 2, 3, 4}, 0)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		batch.messages = append(batch.messages, msg)
@@ -64,7 +64,7 @@ func TestAdd(t *testing.T) {
 
 		msg, err := newMessage([]byte{1, 2, 3, 4}, 0)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		Convey("When add is called with a valid message", func() {
@@ -81,12 +81,12 @@ func TestCommit(t *testing.T) {
 	Convey("Given a batch with two valid messages", t, func() {
 		message1, err := newMessage([]byte{0, 1, 2, 3}, 1)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		message2, err := newMessage([]byte{4, 5, 6, 7}, 2)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		batchSize := 2
@@ -112,17 +112,17 @@ func TestClear(t *testing.T) {
 	Convey("Given a batch with two valid messages", t, func() {
 		message1, err := newMessage([]byte{0, 1, 2, 3}, 1)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		message2, err := newMessage([]byte{4, 5, 6, 7}, 2)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		message3, err := newMessage([]byte{8, 9, 10, 11}, 3)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		batchSize := 2
@@ -155,7 +155,7 @@ func TestSize(t *testing.T) {
 	Convey("Given a batch", t, func() {
 		message, err := newMessage([]byte{1, 2, 3, 4}, 0)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		batchSize := 1
@@ -179,7 +179,7 @@ func TestIsFull(t *testing.T) {
 	Convey("Given a batch with a size of 2", t, func() {
 		message, err := newMessage([]byte{1, 2, 3, 4}, 0)
 		if err != nil {
-			t.Errorf(errNewMessage)
+			t.Errorf("%s", errNewMessage)
 		}
 
 		batchSize := 2

@@ -75,19 +75,19 @@ func TestConsumerMock(t *testing.T) {
 			payload1 := []byte{0, 1, 2, 3, 4, 5}
 			message1, err := NewMessage(payload1, 1)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			payload2 := []byte{6, 7, 8, 9, 0}
 			message2, err := NewMessage(payload2, 2)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			payload3 := []byte{10, 11, 12, 13, 14}
 			message3, err := NewMessage(payload3, 3)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			wg := sync.WaitGroup{}
