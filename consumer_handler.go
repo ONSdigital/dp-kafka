@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	dprequest "github.com/ONSdigital/dp-net/v2/request"
+	dprequest "github.com/ONSdigital/dp-net/v3/request"
 	"github.com/ONSdigital/log.go/v2/log"
 	"go.opentelemetry.io/otel/trace"
 )
