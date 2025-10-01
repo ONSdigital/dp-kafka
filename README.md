@@ -2,6 +2,14 @@
 
 Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/Shopify/sarama)
 
+## Tools
+
+To run some of our tests you will need additional tooling:
+
+### Audit
+
+We use `dis-vulncheck` to do auditing, which you will [need to install](https://github.com/ONSdigital/dis-vulncheck).
+
 ## Configuration
 
 By default, the library assumes plaintext connections,
