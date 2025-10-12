@@ -2,6 +2,7 @@ package kafkatest
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -270,6 +271,116 @@ func TestQueueMessage(t *testing.T) {
 	})
 }
 
+func TestQueueJSON(t *testing.T) {
+	cgConfig := &kafka.ConsumerGroupConfig{
+		Topic:       "test-topic",
+		GroupName:   "test-group",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest consumer", t, func() {
+		cg, err := NewConsumer(ctx, cgConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When a valid JSON event is queued with QueueJSON", func() {
+			t0 := time.Now()
+			event := &TestEvent{
+				Field1: "value one",
+				Field2: "value two",
+			}
+			err := cg.QueueJSON(event)
+			So(err, ShouldBeNil)
+
+			Convey("Then the expected Sarama message is sent with JSON payload", func() {
+				delay := time.NewTimer(time.Second)
+				select {
+				case <-delay.C:
+					t.Fail()
+				case msg := <-cg.saramaMessages:
+					if !delay.Stop() {
+						<-delay.C
+					}
+
+					So(msg.Headers, ShouldResemble, []*sarama.RecordHeader{})
+					So(msg.Timestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.BlockTimestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.Topic, ShouldEqual, "test-topic")
+					So(msg.Offset, ShouldEqual, 1)
+
+					var got TestEvent
+					err := json.Unmarshal(msg.Value, &got)
+					So(err, ShouldBeNil)
+					So(&got, ShouldResemble, event)
+				}
+			})
+		})
+
+		Convey("When saramaMessages is closed, QueueJSON fails with expected error", func() {
+			close(cg.saramaMessages)
+			event := &TestEvent{Field1: "x", Field2: "y"}
+			err := cg.QueueJSON(event)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "failed to send message to saramaMessages channel")
+		})
+
+		Convey("When JSON marshalling fails, QueueJSON returns the marshal error", func() {
+			// json.Marshal fails on unsupported types, e.g., chan or func
+			ev := struct {
+				Bad chan struct{} `json:"bad"`
+			}{Bad: make(chan struct{})}
+			err := cg.QueueJSON(ev)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "failed to marshal event as JSON")
+		})
+	})
+}
+
+func TestQueueBytes(t *testing.T) {
+	cgConfig := &kafka.ConsumerGroupConfig{
+		Topic:       "test-topic",
+		GroupName:   "test-group",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest consumer", t, func() {
+		cg, err := NewConsumer(ctx, cgConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When raw bytes are queued with QueueBytes", func() {
+			t0 := time.Now()
+			payload := []byte(`{"raw":true,"n":1}`)
+			err := cg.QueueBytes(payload)
+			So(err, ShouldBeNil)
+
+			Convey("Then the expected Sarama message is sent with the same bytes", func() {
+				delay := time.NewTimer(time.Second)
+				select {
+				case <-delay.C:
+					t.Fail()
+				case msg := <-cg.saramaMessages:
+					if !delay.Stop() {
+						<-delay.C
+					}
+
+					So(msg.Headers, ShouldResemble, []*sarama.RecordHeader{})
+					So(msg.Timestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.BlockTimestamp, ShouldHappenOnOrBetween, t0, time.Now())
+					So(msg.Topic, ShouldEqual, "test-topic")
+					So(msg.Offset, ShouldEqual, 1)
+					So(msg.Value, ShouldResemble, payload)
+				}
+			})
+		})
+
+		Convey("When saramaMessages is closed, QueueBytes fails with expected error", func() {
+			close(cg.saramaMessages)
+			err := cg.QueueBytes([]byte("x"))
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "failed to send message to saramaMessages channel")
+		})
+	})
+}
+
 func TestConsume(t *testing.T) {
 	cgConfig := &kafka.ConsumerGroupConfig{
 		Topic:       "test-topic",
@@ -328,6 +439,56 @@ func TestConsume(t *testing.T) {
 						})
 					})
 				})
+			})
+		})
+	})
+}
+
+func TestConsumeJSON(t *testing.T) {
+	cgConfig := &kafka.ConsumerGroupConfig{
+		Topic:       "test-topic",
+		GroupName:   "test-group",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest consumer with a JSON handler registered", t, func() {
+		cg, err := NewConsumer(ctx, cgConfig, nil)
+		So(err, ShouldBeNil)
+
+		handlerCalled := make(chan struct{})
+		var handled kafka.Message
+		cg.cg.RegisterHandler(ctx, func(ctx context.Context, workerID int, msg kafka.Message) error {
+			handled = msg
+			kafka.SafeClose(handlerCalled)
+			return nil
+		})
+
+		Convey("And a JSON message is queued", func() {
+			ev := &TestEvent{Field1: "one", Field2: "two"}
+			err := cg.QueueJSON(ev)
+			So(err, ShouldBeNil)
+
+			Convey("When the consumer group starts, the handler receives the JSON and it unmarshals correctly", func() {
+				cg.cg.Start()
+
+				delay := time.NewTimer(time.Second)
+				select {
+				case <-delay.C:
+					t.Fail()
+				case <-handlerCalled:
+					if !delay.Stop() {
+						<-delay.C
+					}
+				}
+
+				So(handled, ShouldNotBeNil)
+				var got TestEvent
+				err = json.Unmarshal(handled.GetData(), &got)
+				So(err, ShouldBeNil)
+				So(got, ShouldResemble, TestEvent{Field1: "one", Field2: "two"})
+
+				cg.cg.Stop()
+				cg.cg.StateWait(kafka.Stopped)
 			})
 		})
 	})

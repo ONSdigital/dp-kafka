@@ -2,6 +2,7 @@ package kafkatest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -25,13 +26,13 @@ var DefaultProducerConfig = &ProducerConfig{
 // Producer is an extension of the moq Producer
 // with implementation of required functions and Sarama mocks to emulate a fully functional kafka Producer.
 type Producer struct {
-	cfg            *ProducerConfig              // Mock configuration
-	saramaErrors   	chan *sarama.ProducerError   // Sarama level error channel
-	saramaMessages 	chan *sarama.ProducerMessage // Sarama level produced message channel
+	cfg             *ProducerConfig              // Mock configuration
+	saramaErrors    chan *sarama.ProducerError   // Sarama level error channel
+	saramaMessages  chan *sarama.ProducerMessage // Sarama level produced message channel
 	saramaSuccesses chan *sarama.ProducerMessage // Sarama level successes message channel
-	saramaMock     	sarama.AsyncProducer         // Internal sarama async producer mock
-	p              	*kafka.Producer              // Internal producer
-	Mock           	*IProducerMock               // Implements all moq functions so users can validate calls
+	saramaMock      sarama.AsyncProducer         // Internal sarama async producer mock
+	p               *kafka.Producer              // Internal producer
+	Mock            *IProducerMock               // Implements all moq functions so users can validate calls
 }
 
 // producerInitialiser returns the saramaMock, or an error if it is nil (i.e. Sarama not initialised yet)
@@ -53,10 +54,10 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 	}
 
 	p := &Producer{
-		cfg:            cfg,
-		saramaErrors:   make(chan *sarama.ProducerError, cfg.ChannelBufferSize),
-		saramaMessages: make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
-		saramaSuccesses:make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
+		cfg:             cfg,
+		saramaErrors:    make(chan *sarama.ProducerError, cfg.ChannelBufferSize),
+		saramaMessages:  make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
+		saramaSuccesses: make(chan *sarama.ProducerMessage, cfg.ChannelBufferSize),
 	}
 
 	saramaMock := &mock.SaramaAsyncProducerMock{
@@ -103,6 +104,8 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 		IsInitialisedFunc: p.p.IsInitialised,
 		LogErrorsFunc:     p.p.LogErrors,
 		SendFunc:          p.p.Send,
+		SendJSONFunc:      p.p.SendJSON,
+		SendBytesFunc:     p.p.SendBytes,
 	}
 
 	return p, nil
@@ -163,5 +166,30 @@ func (p *Producer) WaitNoMessageSent(timeWindow time.Duration) error {
 			return errors.New("sarama messages channel closed")
 		}
 		return errors.New("unexpected message was sent within the time window")
+	}
+}
+
+// WaitForJSONMessageSent waits for one JSON message and unmarshals into v.
+func (p *Producer) WaitForJSONMessageSent(v interface{}, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-p.p.Channels().Closer:
+		return fmt.Errorf("closer channel closed")
+	case msg, ok := <-p.saramaMessages:
+		if !ok {
+			return fmt.Errorf("sarama messages channel closed")
+		}
+		b, err := msg.Value.Encode()
+		if err != nil {
+			return fmt.Errorf("error encoding sent message: %w", err)
+		}
+		if err := json.Unmarshal(b, v); err != nil {
+			return fmt.Errorf("failed to unmarshal produced json event: %w", err)
+		}
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("timeout waiting for produced json message")
 	}
 }

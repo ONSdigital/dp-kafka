@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -536,6 +537,92 @@ func TestSend(t *testing.T) {
 			So(err, ShouldResemble, fmt.Errorf("failed to send marshalled message to output channel: %w",
 				errors.New("failed to send byte array value to channel: send on closed channel")),
 			)
+		})
+	})
+}
+
+func TestSendJSON(t *testing.T) {
+	type TestEvent struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+
+	Convey("Given a producer with an Output channel", t, func() {
+		p := Producer{
+			mutex: &sync.RWMutex{},
+			channels: &ProducerChannels{
+				Output: make(chan BytesMessage),
+			},
+		}
+
+		ev := TestEvent{ID: "123", Name: "Alice"}
+		expected, err := json.Marshal(ev)
+		So(err, ShouldBeNil)
+
+		Convey("Then SendJSON sends the JSON-marshalled bytes to the Output channel", func(c C) {
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				rx := <-p.channels.Output
+				c.So(rx.Value, ShouldResemble, expected)
+			}()
+
+			err := p.SendJSON(context.Background(), ev)
+			So(err, ShouldBeNil)
+			<-done
+		})
+
+		Convey("Then SendJSON returns an error if JSON marshalling fails", func() {
+			type Bad struct {
+				C chan struct{} `json:"c"`
+			}
+			err := p.SendJSON(context.Background(), Bad{C: make(chan struct{})})
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "failed to marshal event as JSON")
+		})
+
+		Convey("Then SendJSON returns an error if the Output channel is closed", func() {
+			close(p.channels.Output)
+			err := p.SendJSON(context.Background(), ev)
+			So(err, ShouldResemble, fmt.Errorf(
+				"failed to send marshalled JSON message to output channel: %w",
+				errors.New("failed to send byte array value to channel: send on closed channel"),
+			))
+		})
+	})
+}
+
+func TestSendBytes(t *testing.T) {
+	Convey("Given a producer with an Output channel", t, func() {
+		p := Producer{
+			mutex: &sync.RWMutex{},
+			channels: &ProducerChannels{
+				Output: make(chan BytesMessage),
+			},
+		}
+
+		payload := []byte(`{"raw":true,"n":1}`)
+
+		Convey("Then SendBytes writes the payload to the Output channel unchanged", func(c C) {
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				rx := <-p.channels.Output
+				c.So(rx.Value, ShouldResemble, payload)
+			}()
+
+			err := p.SendBytes(context.Background(), payload)
+			So(err, ShouldBeNil)
+			<-done
+		})
+
+		Convey("Then SendBytes returns an error if the Output channel is closed", func() {
+			close(p.channels.Output)
+			err := p.SendBytes(context.Background(), payload)
+			So(err, ShouldResemble, fmt.Errorf(
+				"failed to send raw bytes to output channel: %w",
+				errors.New("failed to send byte array value to channel: send on closed channel"),
+			))
 		})
 	})
 }

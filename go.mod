@@ -1,6 +1,6 @@
 module github.com/ONSdigital/dp-kafka/v4
 
-go 1.24.7
+go 1.24.0
 
 require (
 	github.com/ONSdigital/dp-healthcheck v1.6.4
@@ -46,8 +46,8 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama v0.43.0
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
-	golang.org/x/crypto v0.40.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sys v0.34.0 // indirect
+	golang.org/x/crypto v0.43.0 // indirect
+	golang.org/x/net v0.46.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	gopkg.in/avro.v0 v0.0.0-20171217001914-a730b5802183 // indirect
 )

@@ -2,6 +2,7 @@ package kafkatest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -217,6 +218,37 @@ func (cg *Consumer) QueueMessage(schema *avro.Schema, event interface{}) error {
 		Value:  bytes,
 		Topic:  cg.cg.Topic(),
 		Offset: cg.newOffset(),
+	}
+
+	if err := kafka.SafeSendConsumerMessage(cg.saramaMessages, msg); err != nil {
+		return fmt.Errorf("failed to send message to saramaMessages channel: %w", err)
+	}
+	return nil
+}
+
+// QueueJSON will marshal the provided event to JSON and queue it for consumption.
+// This emulates a message being received by a Kafka broker, which is kept until a consumer consumes it.
+func (cg *Consumer) QueueJSON(event interface{}) error {
+	bytes, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event as JSON: %w", err)
+	}
+	return cg.QueueBytes(bytes)
+}
+
+// QueueBytes enqueues a pre-encoded payload (JSON or otherwise).
+func (cg *Consumer) QueueBytes(b []byte) error {
+	cg.mutex.Lock()
+	defer cg.mutex.Unlock()
+
+	msgTime := time.Now()
+	msg := &sarama.ConsumerMessage{
+		Headers:        []*sarama.RecordHeader{},
+		Timestamp:      msgTime,
+		BlockTimestamp: msgTime,
+		Value:          b,
+		Topic:          cg.cg.Topic(),
+		Offset:         cg.newOffset(),
 	}
 
 	if err := kafka.SafeSendConsumerMessage(cg.saramaMessages, msg); err != nil {
