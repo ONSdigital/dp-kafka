@@ -1,4 +1,8 @@
+//revive:disable:var-naming fixed in future version inorder to avoid breaking change
 package interfaces
+
+// TODO rename package to something more adequate
+//revive:enable:var-naming
 
 import "github.com/Shopify/sarama"
 

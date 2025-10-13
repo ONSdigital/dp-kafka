@@ -42,7 +42,7 @@ func getProducerConfig(cfg *config.Config) *kafka.ProducerConfig {
 
 // Init: Create ConsumerGroup with config, and register the handler
 func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
-	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
+	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) //nolint:gosec // safe conversion: KafkaMaxBytes fits within int32 // TODO should this be part of config package?
 	svc.cfg = cfg
 
 	// Create Producer with channels and config
@@ -91,7 +91,6 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 		for {
 			delay := time.NewTimer(ticker)
 			select {
-
 			case <-delay.C:
 				log.Info(ctx, "[KAFKA-TEST] tick")
 
@@ -111,7 +110,7 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 					<-delay.C
 				}
 				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
-				svc.producer.Channels().Output <- kafka.BytesMessage{Value: []byte(stdinLine), Context: context.Background()} 
+				svc.producer.Channels().Output <- kafka.BytesMessage{Value: []byte(stdinLine), Context: context.Background()}
 				log.Info(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}

@@ -555,39 +555,59 @@ func TestSendJSON(t *testing.T) {
 			},
 		}
 
-		ev := TestEvent{ID: "123", Name: "Alice"}
-		expected, err := json.Marshal(ev)
-		So(err, ShouldBeNil)
-
-		Convey("Then SendJSON sends the JSON-marshalled bytes to the Output channel", func(c C) {
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				rx := <-p.channels.Output
-				c.So(rx.Value, ShouldResemble, expected)
-			}()
-
-			err := p.SendJSON(context.Background(), ev)
+		Convey("And a valid event struct", func() {
+			ev := TestEvent{ID: "123", Name: "Alice"}
+			expected, err := json.Marshal(ev)
 			So(err, ShouldBeNil)
-			<-done
+
+			Convey("When SendJSON is called", func(c C) {
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					rx := <-p.channels.Output
+					c.So(rx.Value, ShouldResemble, expected)
+				}()
+
+				err := p.SendJSON(context.Background(), ev)
+
+				Convey("Then it succeeds and sends the marshalled bytes to Output", func() {
+					So(err, ShouldBeNil)
+					<-done
+				})
+			})
 		})
 
-		Convey("Then SendJSON returns an error if JSON marshalling fails", func() {
+		Convey("And an invalid JSON message is sent", func() {
 			type Bad struct {
 				C chan struct{} `json:"c"`
 			}
-			err := p.SendJSON(context.Background(), Bad{C: make(chan struct{})})
-			So(err, ShouldNotBeNil)
-			So(err.Error(), ShouldContainSubstring, "failed to marshal event as JSON")
+			bad := Bad{C: make(chan struct{})}
+
+			Convey("When SendJSON is called", func() {
+				err := p.SendJSON(context.Background(), bad)
+
+				Convey("Then an error is returned", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "failed to marshal event as JSON")
+				})
+			})
 		})
 
-		Convey("Then SendJSON returns an error if the Output channel is closed", func() {
+		Convey("And the Output channel is closed", func() {
 			close(p.channels.Output)
-			err := p.SendJSON(context.Background(), ev)
-			So(err, ShouldResemble, fmt.Errorf(
-				"failed to send marshalled JSON message to output channel: %w",
-				errors.New("failed to send byte array value to channel: send on closed channel"),
-			))
+
+			ev := TestEvent{ID: "123", Name: "Alice"}
+
+			Convey("When SendJSON is called", func() {
+				err := p.SendJSON(context.Background(), ev)
+
+				Convey("Then it returns a wrapped send error", func() {
+					So(err, ShouldResemble, fmt.Errorf(
+						"failed to send marshalled JSON message to output channel: %w",
+						errors.New("failed to send byte array value to channel: send on closed channel"),
+					))
+				})
+			})
 		})
 	})
 }
@@ -603,26 +623,37 @@ func TestSendBytes(t *testing.T) {
 
 		payload := []byte(`{"raw":true,"n":1}`)
 
-		Convey("Then SendBytes writes the payload to the Output channel unchanged", func(c C) {
-			done := make(chan struct{})
-			go func() {
-				defer close(done)
-				rx := <-p.channels.Output
-				c.So(rx.Value, ShouldResemble, payload)
-			}()
+		Convey("And a valid byte payload", func(c C) {
+			Convey("When SendBytes is called", func() {
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					rx := <-p.channels.Output
+					c.So(rx.Value, ShouldResemble, payload)
+				}()
 
-			err := p.SendBytes(context.Background(), payload)
-			So(err, ShouldBeNil)
-			<-done
+				err := p.SendBytes(context.Background(), payload)
+
+				Convey("Then it succeeds and writes the payload unchanged", func() {
+					So(err, ShouldBeNil)
+					<-done
+				})
+			})
 		})
 
-		Convey("Then SendBytes returns an error if the Output channel is closed", func() {
+		Convey("And the Output channel is closed", func() {
 			close(p.channels.Output)
-			err := p.SendBytes(context.Background(), payload)
-			So(err, ShouldResemble, fmt.Errorf(
-				"failed to send raw bytes to output channel: %w",
-				errors.New("failed to send byte array value to channel: send on closed channel"),
-			))
+
+			Convey("When SendBytes is called", func() {
+				err := p.SendBytes(context.Background(), payload)
+
+				Convey("Then it returns a wrapped send error", func() {
+					So(err, ShouldResemble, fmt.Errorf(
+						"failed to send raw bytes to output channel: %w",
+						errors.New("failed to send byte array value to channel: send on closed channel"),
+					))
+				})
+			})
 		})
 	})
 }

@@ -26,7 +26,7 @@ type Service struct {
 
 // Init: Create ConsumerGroup with config, and register the handler
 func (svc *Service) Init(ctx context.Context, cfg *config.Config) (err error) {
-	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) // TODO should this be part of config package?
+	kafka.SetMaxMessageSize(int32(cfg.KafkaMaxBytes)) //nolint:gosec // safe conversion: KafkaMaxBytes fits within int32 // TODO should this be part of config package?
 	svc.cfg = cfg
 
 	// Create handler

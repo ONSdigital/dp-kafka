@@ -10,6 +10,14 @@ To run some of our tests you will need additional tooling:
 
 We use `dis-vulncheck` to do auditing, which you will [need to install](https://github.com/ONSdigital/dis-vulncheck).
 
+### Linter
+
+We use `golangc-lint` v2 for linting and is installed by using the command
+
+```
+  go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
+```
+
 ## Configuration
 
 By default, the library assumes plaintext connections,

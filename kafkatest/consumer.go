@@ -236,7 +236,7 @@ func (cg *Consumer) QueueJSON(event interface{}) error {
 	return cg.QueueBytes(bytes)
 }
 
-// QueueBytes enqueues a pre-encoded payload (JSON or otherwise).
+// QueueBytes enqueues a pre-encoded payload encoded in bytes.
 func (cg *Consumer) QueueBytes(b []byte) error {
 	cg.mutex.Lock()
 	defer cg.mutex.Unlock()

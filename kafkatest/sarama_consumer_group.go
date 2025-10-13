@@ -15,7 +15,7 @@ func NewSaramaConsumerGroupSessionMock(memberID, topic string, numPartitions int
 
 	part := make([]int32, numPartitions)
 	var i int32
-	for i = 0; i < int32(numPartitions); i++ {
+	for i = 0; i < int32(numPartitions); i++ { //nolint:gosec // safe conversion: numPartitions fits within int32
 		part[i] = i + 1
 	}
 	claims := map[string][]int32{

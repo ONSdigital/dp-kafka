@@ -569,7 +569,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 
 	consumeAttempt := 1
 	for {
-		if s := cg.state.Get(); s != Starting && s != Consuming {
+		if s := cg.state.Get(); isNotStartingOrConsuming(s) {
 			// state was changed during cg.saramaCg.Consume
 			return
 		}
@@ -593,7 +593,6 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 			var handler sarama.ConsumerGroupHandler
 			if cg.otelEnabled {
 				handler = otelsarama.WrapConsumerGroupHandler(cg.saramaCgHandler, otelsarama.WithPropagators(otel.GetTextMapPropagator()))
-
 			} else {
 				handler = cg.saramaCgHandler
 			}
@@ -648,6 +647,10 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 	}
 }
 
+func isNotStartingOrConsuming(s State) bool {
+	return s != Starting && s != Consuming
+}
+
 // createConsumeLoop creates a goroutine for the consumer group once the sarama consumer has been initialised.
 // The consumer will initially be set at 'Stopped' sate.
 func (cg *ConsumerGroup) createConsumeLoop(ctx context.Context) {
@@ -697,7 +700,7 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 				if !ok {
 					return
 				}
-				if errSend := SafeSendErr(cg.channels.Errors, err); err != nil {
+				if errSend := SafeSendErr(cg.channels.Errors, err); errSend != nil {
 					log.Error(ctx, "consumer-group error sending error to the error channel", errSend, log.Data{"original_error": err, "topic": cg.topic, "group": cg.group})
 				}
 			}
