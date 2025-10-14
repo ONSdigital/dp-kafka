@@ -14,7 +14,7 @@ We use `dis-vulncheck` to do auditing, which you will [need to install](https://
 
 We use `golangc-lint` v2 for linting and is installed by using the command
 
-```
+```shell
   go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
 ```
 
@@ -40,16 +40,16 @@ First of all, we need to update the manifest of the app to contain the kafka top
 
 2. In the [manifest of the app][dp-configs-manifests], add the revelant kafka topics at the end of the file as follows
 
-  ```yml
-  kafka:
-    topics:
-      - name: `topic name 1` (e.g. `content-published`)
-        subnets: [ `web` or `publishing` or both `web, publishing` ]
-        access: [ `read` or `write` ]
-      - name: `topic name 2` 
-        subnets: [ `web` or `publishing` or both `web, publishing` ]
-        access: [ `read` or `write` ]
-  ```
+    ```yml
+    kafka:
+      topics:
+        - name: `topic name 1` (e.g. `content-published`)
+          subnets: [ `web` or `publishing` or both `web, publishing` ]
+          access: [ `read` or `write` ]
+        - name: `topic name 2` 
+          subnets: [ `web` or `publishing` or both `web, publishing` ]
+          access: [ `read` or `write` ]
+    ```
 
    More details of kafka section can be found [here][kafka-section-detail]
 
@@ -399,6 +399,7 @@ When a session finishes, we call Consume() again, which tries to establish a new
 ## Start/Stop consumer
 
 A consumer can be stopped by calling `Stop()`:
+
 - If the consumer was not initialised, this will set the initial state to 'stopped', so the consumer will do nothing until it is started.
 - If the consumer is Satarting/Consuming, the sarama handler will be notified that it needs to stop: it will stop processing any in-flight message, it will not consume any new message and it will terminate the session.
 
@@ -406,6 +407,7 @@ A consumer can be stopped by calling `Stop()`:
 If the caller needs to block until the consumer has completely stopped consuming, then you can call `StopAndWait()`, which is synchronous.
 
 A consumer can be started by calling `Start()`:
+
 - If the consumer was not initialised, this will set the initial state to 'starting', so the consumer will start consuming straight away after being initialised.
 - If the consumer is Stopping/Stopped, the idle loop will be notified that it needs to start consuming.
 
@@ -485,16 +487,17 @@ pConfig := &kafka.ProducerConfig{MaxMessageBytes: &cfg.KafkaMaxBytes}
 producer, err := kafka.NewProducer(ctx, cfg.Brokers, cfg.ProducedTopic, pChannels, pConfig)
 producer.AddHeader(key, value)
 ```
+
 The consumers can then retrieve these headers by the `GetHeader` api as follows.
 
 ```go
 // consumer loop
 func consume(upstream chan kafka.Message) {
-	for {
-		msg := <-upstream
-		value := msg.GetHeader(key)
-		msg.Commit()
-	}
+    for {
+        msg := <-upstream
+        value := msg.GetHeader(key)
+        msg.Commit()
+    }
 }
 ```
 
@@ -522,6 +525,7 @@ Assuming you have a healthcheck `hc`, you can subscribe a kafka consumer like so
 ```
 
 Warnings:
+
 - A kafka consumer may be subscribed to multiple checkers, but it must be subscribed to only one healthcheck library instance.
 
 - Once the consumer is subscribed, calls to Start/Stop must not be manually performed, as they would interfere with the managed calls on health change events.
@@ -548,7 +552,6 @@ Some mocks are provided, so that you can test your code interactions with this l
    [kafka-setup-tools-readme]: <https://github.com/ONSdigital/dp-setup/tree/develop/scripts/kafka>
    [manifest-example]: <https://github.com/ONSdigital/dp-configs/blob/master/manifests/dp-import-api.yml>
 
-
 ## Drain topics
 
 In some scenarios we may need to "drain a topic", or consume all the messages in a particular topic and group, disregarding them.
@@ -559,27 +562,27 @@ A tool to drain topics is provided as part of this library.
 You can drain multiple topics in parallel by providing multiple DrainTopicInput structs, like so:
 
 ```go
-	kafka.DrainTopics(c.ctx,
-		&kafka.DrainTopicConfig{
-			BrokerAddrs:  cfg.BrokerAddrs,
-			KafkaVersion: cfg.KafkaVersion,
-			Timeout:      cfg.Timeout,
-			BatchSize:    cfg.BatchSize,
-		},
-		&kafka.DrainTopicInput{
-			Topic:     "myTopic-1",
-			GroupName: "myGroup-1",
-		},
-		&kafka.DrainTopicInput{
-			Topic:     "myTopic-2",
-			GroupName: "myGroup-2",
-		},
+    kafka.DrainTopics(c.ctx,
+        &kafka.DrainTopicConfig{
+            BrokerAddrs:  cfg.BrokerAddrs,
+            KafkaVersion: cfg.KafkaVersion,
+            Timeout:      cfg.Timeout,
+            BatchSize:    cfg.BatchSize,
+        },
+        &kafka.DrainTopicInput{
+            Topic:     "myTopic-1",
+            GroupName: "myGroup-1",
+        },
+        &kafka.DrainTopicInput{
+            Topic:     "myTopic-2",
+            GroupName: "myGroup-2",
+        },
         ...
         &kafka.DrainTopicInput{
-			Topic:     "myTopic-N",
-			GroupName: "myGroup-N",
-		},
-	)
+            Topic:     "myTopic-N",
+            GroupName: "myGroup-N",
+        },
+    )
 ```
 
 This will create N go routines with a consumer in each. Each consumer will consume messages in batches of up to `BatchSize`. When all messages are consumed for a topic and group, the corresponding consumer and go-routine is closed. `DrainTopics` will block until all topics have been drained.
