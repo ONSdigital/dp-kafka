@@ -331,7 +331,6 @@ func TestSafeSendProducerMessage(t *testing.T) {
 }
 
 func TestSafeSendProducerMessageWithOtel(t *testing.T) {
-
 	Convey("A ProducerMessage value can be safely sent to a ProducerMessage chan an does not panic if it is closed if otel is enabled", t, func(c C) {
 		ch := make(chan *sarama.ProducerMessage)
 		go func() {

@@ -48,7 +48,7 @@ func TestHandler(t *testing.T) {
 		Convey("When a message is received from the Upstream channel", func() {
 			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage
@@ -62,7 +62,7 @@ func TestHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				cg.channels.Upstream <- newMessage
@@ -93,7 +93,7 @@ func TestHandler(t *testing.T) {
 		Convey("When a message is received from the Upstream channel", func() {
 			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage
@@ -107,7 +107,7 @@ func TestHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				cg.channels.Upstream <- newMessage
@@ -138,7 +138,7 @@ func TestHandler(t *testing.T) {
 		Convey("When a message is received from the Upstream channel", func() {
 			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage
@@ -152,7 +152,7 @@ func TestHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				cg.channels.Upstream <- newMessage
@@ -183,7 +183,7 @@ func TestHandler(t *testing.T) {
 		Convey("When a message is received from the Upstream channel", func() {
 			sentMessage, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage
@@ -197,7 +197,7 @@ func TestHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{1, 3, 7}, 8)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure the first message has been fully processed and we can validate calls
@@ -236,17 +236,17 @@ func TestBatchHandler(t *testing.T) {
 		Convey("When three messages are received from the Upstream channel", func() {
 			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage1
@@ -262,7 +262,7 @@ func TestBatchHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{0}, 10)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				cg.channels.Upstream <- newMessage
@@ -279,7 +279,7 @@ func TestBatchHandler(t *testing.T) {
 		Convey("When a message is received from the Upstream channel and nothing else is received in the following batchWaitTime", func() {
 			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 
 			cg.channels.Upstream <- sentMessage1
@@ -293,7 +293,7 @@ func TestBatchHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{0}, 10)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 
 				cg.channels.Upstream <- newMessage
@@ -325,15 +325,15 @@ func TestBatchHandler(t *testing.T) {
 		Convey("When three messages are received from the Upstream channel", func() {
 			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
@@ -348,7 +348,7 @@ func TestBatchHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{0}, 10)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
@@ -383,15 +383,15 @@ func TestBatchHandler(t *testing.T) {
 		Convey("When three messages are received from the Upstream channel", func() {
 			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
@@ -406,7 +406,7 @@ func TestBatchHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{0}, 10)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls
@@ -441,15 +441,15 @@ func TestBatchHandler(t *testing.T) {
 		Convey("When three messages are received from the Upstream channel", func() {
 			sentMessage1, err := newMessage([]byte{2, 4, 8}, 7)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage2, err := newMessage([]byte{1, 3, 7}, 8)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			sentMessage3, err := newMessage([]byte{3, 5, 9}, 9)
 			if err != nil {
-				t.Errorf(errNewMessage)
+				t.Errorf("%s", errNewMessage)
 			}
 			cg.channels.Upstream <- sentMessage1
 			cg.channels.Upstream <- sentMessage2
@@ -464,7 +464,7 @@ func TestBatchHandler(t *testing.T) {
 				wg.Add(1)
 				newMessage, err := newMessage([]byte{0}, 10)
 				if err != nil {
-					t.Errorf(errNewMessage)
+					t.Errorf("%s", errNewMessage)
 				}
 				cg.channels.Upstream <- newMessage
 				wg.Wait() // wait for another message, to make sure that all messages in batch have been fully processed and we can validate calls

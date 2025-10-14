@@ -549,6 +549,10 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	}
 }
 
+func isNotStartingOrConsuming(s State) bool {
+	return s != Starting && s != Consuming
+}
+
 // startingState represents the 'Starting' transient state and 'Consuming' stationary state.
 // It sets the state to Starting and calls saramaCg.Consume in an infinite loop,
 // this will make the consumer consume messages again every time that a session is destroyed and created.
@@ -570,7 +574,7 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 
 	consumeAttempt := 1
 	for {
-		if s := cg.state.Get(); s != Starting && s != Consuming {
+		if s := cg.state.Get(); isNotStartingOrConsuming(s) {
 			// state was changed during cg.saramaCg.Consume
 			return
 		}
@@ -594,7 +598,6 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 			var handler sarama.ConsumerGroupHandler
 			if cg.otelEnabled {
 				handler = otelsarama.WrapConsumerGroupHandler(cg.saramaCgHandler, otelsarama.WithPropagators(otel.GetTextMapPropagator()))
-
 			} else {
 				handler = cg.saramaCgHandler
 			}
@@ -698,7 +701,7 @@ func (cg *ConsumerGroup) createErrorLoop(ctx context.Context) {
 				if !ok {
 					return
 				}
-				if errSend := SafeSendErr(cg.channels.Errors, err); err != nil {
+				if errSend := SafeSendErr(cg.channels.Errors, err); errSend != nil {
 					log.Error(ctx, "consumer-group error sending error to the error channel", errSend, log.Data{"original_error": err, "topic": cg.topic, "group": cg.group})
 				}
 			}

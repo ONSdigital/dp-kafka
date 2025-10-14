@@ -1,93 +1,95 @@
-# This file was inspired by the golangci-lint one:
-# https://github.com/golangci/golangci-lint/blob/master/.golangci.yml
+version: "2"
 run:
-  # default concurrency is a available CPU number
   concurrency: 4
-
-  # timeout for analysis, e.g. 30s, 5m, default is 1m
-  timeout: 5m
-linters-settings:
-  govet:
-    check-shadowing: true
-  golint:
-    min-confidence: 0
-  gocyclo:
-    min-complexity: 20
-  gocognit:
-    min-complexity: 100
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  misspell:
-    locale: UK
-  lll:
-    line-length: 140
-  gofmt:
-    simplify: false
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - wrapperFunc
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - hugeParam
-  funlen:
-  # lines: 100
-  # statements: 100
-
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
+  default: none
   enable:
-    - deadcode
     - depguard
     - dogsled
+    - gocognit
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - revive
     - gosec
     - govet
     - ineffassign
     - nakedret
-    - unconvert
-    - varcheck
-    - whitespace
-    - gocognit
     - prealloc
-
+    - revive
+    - unconvert
+    - whitespace
+  settings:
+    revive:
+      rules:
+        - name: unused-parameter
+          disabled: true
+    depguard:
+      rules:
+        avro-wrapper:
+          files:
+            - ^avro/.*$
+          allow:
+            - github.com/go-avro/avro
+            - .
+        main:
+          files:
+            - ^(?!avro/).*$ # all paths not starting with avro/
+          deny:
+            - pkg: github.com/go-avro/avro
+              desc: "Use github.com/ONSdigital/dp-kafka/v4/avro wrapper instead."
+    dupl:
+      threshold: 100
+    gocognit:
+      min-complexity: 100
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocritic:
+      disabled-checks:
+        - wrapperFunc
+        - dupImport
+        - ifElseChain
+        - octalLiteral
+        - hugeParam
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gocyclo:
+      min-complexity: 20
+    lll:
+      line-length: 140
+    misspell:
+      locale: UK
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupl
+          - errcheck
+          - goconst
+          - gocritic
+          - gocyclo
+          - gosec
+          - govet
+          - ineffassign
+          - revive
+        path: _test\.go
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - goconst
-        - revive
-        - gocritic
-        - ineffassign
-        - govet
-        - typecheck
   new: false
-
-# golangci.com configuration
-# https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.43.x # use the fixed version to not introduce new linters unexpectedly
-  prepare:
-    - echo "here I can run custom commands, but no preparation needed for this repo"
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: false
+  exclusions:
+    generated: lax
