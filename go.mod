@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.5
 
 require (
-	github.com/IBM/sarama v1.45.2
+	github.com/IBM/sarama v1.46.2
 	github.com/ONSdigital/dp-healthcheck v1.6.4
 	github.com/ONSdigital/dp-net/v2 v2.22.0
 	github.com/ONSdigital/dp-net/v3 v3.5.0
@@ -20,11 +20,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.38.0
 )
 
-require (
-	github.com/hashicorp/errwrap v1.0.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-)
+require go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 
 require (
 	github.com/ONSdigital/dp-api-clients-go/v2 v2.266.0 // indirect
