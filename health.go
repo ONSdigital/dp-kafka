@@ -90,9 +90,15 @@ func validateBroker(ctx context.Context, broker interfaces.SaramaBroker, topic s
 		return healthInfo
 	}
 
+	// Only mark HasTopic=true if the metadata for the requested topic exists
+	// AND indicates no error (and has at least one partition). Some Sarama variants
+	// return a TopicMetadata entry with the requested name but an error code
+	// (e.g. ErrUnknownTopicOrPartition) when the topic is missing.
 	for _, metadata := range resp.Topics {
 		if metadata.Name == topic {
-			healthInfo.HasTopic = true
+			if metadata.Err == sarama.ErrNoError && len(metadata.Partitions) > 0 {
+				healthInfo.HasTopic = true
+			}
 			return healthInfo
 		}
 	}
