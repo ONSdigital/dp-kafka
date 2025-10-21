@@ -1,3 +1,4 @@
+//revive:disable:var-naming fixed in future version inorder to avoid breaking change
 package interfaces
 
 import "github.com/IBM/sarama"
