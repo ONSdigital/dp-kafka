@@ -549,10 +549,6 @@ func (cg *ConsumerGroup) stoppedState(ctx context.Context, logData log.Data) {
 	}
 }
 
-func isNotStartingOrConsuming(s State) bool {
-	return s != Starting && s != Consuming
-}
-
 // startingState represents the 'Starting' transient state and 'Consuming' stationary state.
 // It sets the state to Starting and calls saramaCg.Consume in an infinite loop,
 // this will make the consumer consume messages again every time that a session is destroyed and created.
@@ -650,6 +646,10 @@ func (cg *ConsumerGroup) startingState(ctx context.Context, logData log.Data) {
 			}
 		}
 	}
+}
+
+func isNotStartingOrConsuming(s State) bool {
+	return s != Starting && s != Consuming
 }
 
 // createConsumeLoop creates a goroutine for the consumer group once the sarama consumer has been initialised.

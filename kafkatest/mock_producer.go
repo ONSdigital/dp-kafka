@@ -45,6 +45,12 @@ var _ kafka.IProducer = &IProducerMock{}
 //			SendFunc: func(ctx context.Context, schema *avro.Schema, event interface{}) error {
 //				panic("mock out the Send method")
 //			},
+//			SendBytesFunc: func(ctx context.Context, b []byte) error {
+//				panic("mock out the SendBytes method")
+//			},
+//			SendJSONFunc: func(ctx context.Context, event interface{}) error {
+//				panic("mock out the SendJSON method")
+//			},
 //		}
 //
 //		// use mockedIProducer in code that requires kafka.IProducer
@@ -75,6 +81,12 @@ type IProducerMock struct {
 
 	// SendFunc mocks the Send method.
 	SendFunc func(ctx context.Context, schema *avro.Schema, event interface{}) error
+
+	// SendBytesFunc mocks the SendBytes method.
+	SendBytesFunc func(ctx context.Context, b []byte) error
+
+	// SendJSONFunc mocks the SendJSON method.
+	SendJSONFunc func(ctx context.Context, event interface{}) error
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -122,6 +134,20 @@ type IProducerMock struct {
 			// Event is the event argument value.
 			Event interface{}
 		}
+		// SendBytes holds details about calls to the SendBytes method.
+		SendBytes []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// B is the b argument value.
+			B []byte
+		}
+		// SendJSON holds details about calls to the SendJSON method.
+		SendJSON []struct {
+			// Ctx is the ctx argument value.
+			Ctx context.Context
+			// Event is the event argument value.
+			Event interface{}
+		}
 	}
 	lockAddHeader     sync.RWMutex
 	lockChannels      sync.RWMutex
@@ -131,6 +157,8 @@ type IProducerMock struct {
 	lockIsInitialised sync.RWMutex
 	lockLogErrors     sync.RWMutex
 	lockSend          sync.RWMutex
+	lockSendBytes     sync.RWMutex
+	lockSendJSON      sync.RWMutex
 }
 
 // AddHeader calls AddHeaderFunc.
@@ -392,5 +420,77 @@ func (mock *IProducerMock) SendCalls() []struct {
 	mock.lockSend.RLock()
 	calls = mock.calls.Send
 	mock.lockSend.RUnlock()
+	return calls
+}
+
+// SendBytes calls SendBytesFunc.
+func (mock *IProducerMock) SendBytes(ctx context.Context, b []byte) error {
+	if mock.SendBytesFunc == nil {
+		panic("IProducerMock.SendBytesFunc: method is nil but IProducer.SendBytes was just called")
+	}
+	callInfo := struct {
+		Ctx context.Context
+		B   []byte
+	}{
+		Ctx: ctx,
+		B:   b,
+	}
+	mock.lockSendBytes.Lock()
+	mock.calls.SendBytes = append(mock.calls.SendBytes, callInfo)
+	mock.lockSendBytes.Unlock()
+	return mock.SendBytesFunc(ctx, b)
+}
+
+// SendBytesCalls gets all the calls that were made to SendBytes.
+// Check the length with:
+//
+//	len(mockedIProducer.SendBytesCalls())
+func (mock *IProducerMock) SendBytesCalls() []struct {
+	Ctx context.Context
+	B   []byte
+} {
+	var calls []struct {
+		Ctx context.Context
+		B   []byte
+	}
+	mock.lockSendBytes.RLock()
+	calls = mock.calls.SendBytes
+	mock.lockSendBytes.RUnlock()
+	return calls
+}
+
+// SendJSON calls SendJSONFunc.
+func (mock *IProducerMock) SendJSON(ctx context.Context, event interface{}) error {
+	if mock.SendJSONFunc == nil {
+		panic("IProducerMock.SendJSONFunc: method is nil but IProducer.SendJSON was just called")
+	}
+	callInfo := struct {
+		Ctx   context.Context
+		Event interface{}
+	}{
+		Ctx:   ctx,
+		Event: event,
+	}
+	mock.lockSendJSON.Lock()
+	mock.calls.SendJSON = append(mock.calls.SendJSON, callInfo)
+	mock.lockSendJSON.Unlock()
+	return mock.SendJSONFunc(ctx, event)
+}
+
+// SendJSONCalls gets all the calls that were made to SendJSON.
+// Check the length with:
+//
+//	len(mockedIProducer.SendJSONCalls())
+func (mock *IProducerMock) SendJSONCalls() []struct {
+	Ctx   context.Context
+	Event interface{}
+} {
+	var calls []struct {
+		Ctx   context.Context
+		Event interface{}
+	}
+	mock.lockSendJSON.RLock()
+	calls = mock.calls.SendJSON
+	mock.lockSendJSON.RUnlock()
 	return calls
 }

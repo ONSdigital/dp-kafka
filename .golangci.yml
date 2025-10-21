@@ -33,7 +33,7 @@ linters:
             - .
         main:
           files:
-            - ^(?!avro/).*$ # all paths not starting with avro/
+            - ^(?!avro/).*$   # all paths not starting with avro/
           deny:
             - pkg: github.com/go-avro/avro
               desc: "Use github.com/ONSdigital/dp-kafka/v4/avro wrapper instead."

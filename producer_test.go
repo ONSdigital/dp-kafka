@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -536,6 +537,123 @@ func TestSend(t *testing.T) {
 			So(err, ShouldResemble, fmt.Errorf("failed to send marshalled message to output channel: %w",
 				errors.New("failed to send byte array value to channel: send on closed channel")),
 			)
+		})
+	})
+}
+
+func TestSendJSON(t *testing.T) {
+	type TestEvent struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+
+	Convey("Given a producer with an Output channel", t, func() {
+		p := Producer{
+			mutex: &sync.RWMutex{},
+			channels: &ProducerChannels{
+				Output: make(chan BytesMessage),
+			},
+		}
+
+		Convey("And a valid event struct", func() {
+			ev := TestEvent{ID: "123", Name: "Alice"}
+			expected, err := json.Marshal(ev)
+			So(err, ShouldBeNil)
+
+			Convey("When SendJSON is called", func(c C) {
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					rx := <-p.channels.Output
+					c.So(rx.Value, ShouldResemble, expected)
+				}()
+
+				err := p.SendJSON(context.Background(), ev)
+
+				Convey("Then it succeeds and sends the marshalled bytes to Output", func() {
+					So(err, ShouldBeNil)
+					<-done
+				})
+			})
+		})
+
+		Convey("And an invalid JSON message is sent", func() {
+			type Bad struct {
+				C chan struct{} `json:"c"`
+			}
+			bad := Bad{C: make(chan struct{})}
+
+			Convey("When SendJSON is called", func() {
+				err := p.SendJSON(context.Background(), bad)
+
+				Convey("Then an error is returned", func() {
+					So(err, ShouldNotBeNil)
+					So(err.Error(), ShouldContainSubstring, "failed to marshal event as JSON")
+				})
+			})
+		})
+
+		Convey("And the Output channel is closed", func() {
+			close(p.channels.Output)
+
+			ev := TestEvent{ID: "123", Name: "Alice"}
+
+			Convey("When SendJSON is called", func() {
+				err := p.SendJSON(context.Background(), ev)
+
+				Convey("Then it returns a wrapped send error", func() {
+					So(err, ShouldResemble, fmt.Errorf(
+						"failed to send marshalled JSON message to output channel: %w",
+						errors.New("failed to send byte array value to channel: send on closed channel"),
+					))
+				})
+			})
+		})
+	})
+}
+
+func TestSendBytes(t *testing.T) {
+	Convey("Given a producer with an Output channel", t, func() {
+		p := Producer{
+			mutex: &sync.RWMutex{},
+			channels: &ProducerChannels{
+				Output: make(chan BytesMessage),
+			},
+		}
+
+		payload := []byte(`{"raw":true,"n":1}`)
+
+		Convey("And a valid byte payload", func(c C) {
+			Convey("When SendBytes is called", func() {
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					rx := <-p.channels.Output
+					c.So(rx.Value, ShouldResemble, payload)
+				}()
+
+				err := p.SendBytes(context.Background(), payload)
+
+				Convey("Then it succeeds and writes the payload unchanged", func() {
+					So(err, ShouldBeNil)
+					<-done
+				})
+			})
+		})
+
+		Convey("And the Output channel is closed", func() {
+			close(p.channels.Output)
+
+			Convey("When SendBytes is called", func() {
+				err := p.SendBytes(context.Background(), payload)
+
+				Convey("Then it returns a wrapped send error", func() {
+					So(err, ShouldResemble, fmt.Errorf(
+						"failed to send raw bytes to output channel: %w",
+						errors.New("failed to send byte array value to channel: send on closed channel"),
+					))
+				})
+			})
 		})
 	})
 }

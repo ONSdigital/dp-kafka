@@ -2,6 +2,7 @@ package kafkatest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -103,6 +104,8 @@ func NewProducer(ctx context.Context, pConfig *kafka.ProducerConfig, cfg *Produc
 		IsInitialisedFunc: p.p.IsInitialised,
 		LogErrorsFunc:     p.p.LogErrors,
 		SendFunc:          p.p.Send,
+		SendJSONFunc:      p.p.SendJSON,
+		SendBytesFunc:     p.p.SendBytes,
 	}
 
 	return p, nil
@@ -163,5 +166,30 @@ func (p *Producer) WaitNoMessageSent(timeWindow time.Duration) error {
 			return errors.New("sarama messages channel closed")
 		}
 		return errors.New("unexpected message was sent within the time window")
+	}
+}
+
+// WaitForJSONMessageSent waits for one JSON message and unmarshals into v.
+func (p *Producer) WaitForJSONMessageSent(v interface{}, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-p.p.Channels().Closer:
+		return fmt.Errorf("closer channel closed")
+	case msg, ok := <-p.saramaMessages:
+		if !ok {
+			return fmt.Errorf("sarama messages channel closed")
+		}
+		b, err := msg.Value.Encode()
+		if err != nil {
+			return fmt.Errorf("error encoding sent message: %w", err)
+		}
+		if err := json.Unmarshal(b, v); err != nil {
+			return fmt.Errorf("failed to unmarshal produced json event: %w", err)
+		}
+		return nil
+	case <-timer.C:
+		return fmt.Errorf("timeout waiting for produced json message")
 	}
 }

@@ -2,6 +2,7 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -33,6 +34,8 @@ type IProducer interface {
 	IsInitialised() bool
 	Initialise(ctx context.Context) error
 	Send(ctx context.Context, schema *avro.Schema, event interface{}) error
+	SendJSON(ctx context.Context, event interface{}) error
+	SendBytes(ctx context.Context, b []byte) error
 	Close(ctx context.Context) (err error)
 	AddHeader(key, value string)
 }
@@ -256,6 +259,36 @@ func (p *Producer) Send(ctx context.Context, schema *avro.Schema, event interfac
 	return nil
 }
 
+// SendJSON marshals the provided event to JSON and sends it to Kafka.
+// This emulates producing a JSON message instead of Avro.
+func (p *Producer) SendJSON(ctx context.Context, event interface{}) error {
+	bytes, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event as JSON: %w", err)
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if err := SafeSendBytes(p.channels.Output, BytesMessage{Value: bytes, Context: ctx}); err != nil {
+		return fmt.Errorf("failed to send marshalled JSON message to output channel: %w", err)
+	}
+
+	return nil
+}
+
+// SendBytes sends a pre-encoded byte payload directly to Kafka without performing any
+// schema-based marshalling. This function is useful when producing messages that are already serialized
+func (p *Producer) SendBytes(ctx context.Context, b []byte) error {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	if err := SafeSendBytes(p.channels.Output, BytesMessage{Value: b, Context: ctx}); err != nil {
+		return fmt.Errorf("failed to send raw bytes to output channel: %w", err)
+	}
+	return nil
+}
+
 // Close safely closes the producer and releases all resources.
 // pass in a context with a timeout or deadline.
 func (p *Producer) Close(ctx context.Context) (err error) {
@@ -396,7 +429,7 @@ func (p *Producer) createLoopInitialised() error {
 					err := SafeSendProducerMessageWithOtel(
 						message.Context,
 						p.producer.Input(),
-						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
+						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.ByteEncoder(message.Value), Headers: p.headers},
 					)
 					if err != nil {
 						return // sarama producer input channel closed
@@ -405,7 +438,7 @@ func (p *Producer) createLoopInitialised() error {
 					err := SafeSendProducerMessage(
 						message.Context,
 						p.producer.Input(),
-						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.StringEncoder(message.Value), Headers: p.headers},
+						&sarama.ProducerMessage{Topic: p.topic, Value: sarama.ByteEncoder(message.Value), Headers: p.headers},
 					)
 					if err != nil {
 						return // sarama producer input channel closed

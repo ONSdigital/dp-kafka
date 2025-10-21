@@ -276,6 +276,81 @@ func TestWaitNoMessageSent(t *testing.T) {
 	})
 }
 
+func TestWaitForJSONMessageSent_WithSendJSON(t *testing.T) {
+	pConfig := &kafka.ProducerConfig{
+		Topic:       "test-topic",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest producer", t, func() {
+		p, err := NewProducer(ctx, pConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When a valid event is sent via SendJSON", func(c C) {
+			want := TestEvent{Field1: "value one", Field2: "value two"}
+			go func() {
+				err := p.Mock.SendJSON(context.Background(), want)
+				c.So(err, ShouldBeNil)
+			}()
+
+			Convey("Then WaitForJSONMessageSent receives and unmarshals the JSON event", func() {
+				var got TestEvent
+				err := p.WaitForJSONMessageSent(&got, time.Second)
+				So(err, ShouldBeNil)
+				So(got, ShouldResemble, want)
+			})
+		})
+	})
+}
+
+func TestWaitForJSONMessageSent_InvalidJSON(t *testing.T) {
+	pConfig := &kafka.ProducerConfig{
+		Topic:       "test-topic",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest producer", t, func() {
+		p, err := NewProducer(ctx, pConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When invalid JSON bytes are injected into Output", func() {
+			// Directly push a malformed JSON payload into the producer's output channel
+			p.Mock.Channels().Output <- kafka.BytesMessage{
+				Value:   []byte("{not-valid-json"),
+				Context: context.Background(),
+			}
+
+			Convey("Then WaitForJSONMessageSent fails with an unmarshal error", func() {
+				var got TestEvent
+				err := p.WaitForJSONMessageSent(&got, time.Second)
+				So(err, ShouldNotBeNil)
+				So(err.Error(), ShouldContainSubstring, "failed to unmarshal produced json event")
+			})
+		})
+	})
+}
+
+func TestWaitForJSONMessageSent_Timeout(t *testing.T) {
+	pConfig := &kafka.ProducerConfig{
+		Topic:       "test-topic",
+		BrokerAddrs: []string{"addr1", "addr2", "addr3"},
+	}
+
+	Convey("Given a valid kafkatest producer", t, func() {
+		p, err := NewProducer(ctx, pConfig, nil)
+		So(err, ShouldBeNil)
+
+		Convey("When no JSON message is produced", func() {
+			var got TestEvent
+			start := time.Now()
+			err := p.WaitForJSONMessageSent(&got, 100*time.Millisecond)
+			So(err, ShouldNotBeNil)
+			So(err.Error(), ShouldContainSubstring, "timeout waiting for produced json message")
+			So(time.Since(start), ShouldBeGreaterThanOrEqualTo, 100*time.Millisecond)
+		})
+	})
+}
+
 func validateCloseProducer(p *Producer) {
 	closedOutput := false
 	closedErrors := false
