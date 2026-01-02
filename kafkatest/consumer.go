@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	kafka "github.com/ONSdigital/dp-kafka/v4"
-	"github.com/ONSdigital/dp-kafka/v4/avro"
-	"github.com/ONSdigital/dp-kafka/v4/mock"
+	kafka "github.com/ONSdigital/dp-kafka/v5"
+	"github.com/ONSdigital/dp-kafka/v5/avro"
+	"github.com/ONSdigital/dp-kafka/v5/mock"
 )
 
 type ConsumerConfig struct {

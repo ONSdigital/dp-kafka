@@ -4,7 +4,7 @@
 package mock
 
 import (
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
 	"github.com/IBM/sarama"
 	"sync"
 )

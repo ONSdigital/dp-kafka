@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v4"
-	"github.com/ONSdigital/dp-kafka/v4/examples/producer/config"
+	kafka "github.com/ONSdigital/dp-kafka/v5"
+	"github.com/ONSdigital/dp-kafka/v5/examples/producer/config"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 

@@ -10,8 +10,8 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
-	"github.com/ONSdigital/dp-kafka/v4/mock"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/mock"
 	"github.com/ONSdigital/log.go/v2/log"
 	. "github.com/smartystreets/goconvey/convey"
 )

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/IBM/sarama"
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
 	"github.com/dnwe/otelsarama"
 	"go.opentelemetry.io/otel/propagation"
 )

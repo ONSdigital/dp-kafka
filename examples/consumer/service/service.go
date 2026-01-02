@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	kafka "github.com/ONSdigital/dp-kafka/v4"
-	"github.com/ONSdigital/dp-kafka/v4/examples/consumer/config"
-	"github.com/ONSdigital/dp-kafka/v4/examples/consumer/handler"
+	kafka "github.com/ONSdigital/dp-kafka/v5"
+	"github.com/ONSdigital/dp-kafka/v5/examples/consumer/config"
+	"github.com/ONSdigital/dp-kafka/v5/examples/consumer/handler"
 	"github.com/ONSdigital/log.go/v2/log"
 )
 

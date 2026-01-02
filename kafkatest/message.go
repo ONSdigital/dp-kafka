@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ONSdigital/dp-kafka/v4/mock"
+	"github.com/ONSdigital/dp-kafka/v5/mock"
 )
 
 // mInternal is an internal struct to keep track of the message mock state

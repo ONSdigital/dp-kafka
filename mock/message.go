@@ -5,7 +5,7 @@ package mock
 
 import (
 	"context"
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
 	"sync"
 )
 

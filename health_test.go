@@ -6,8 +6,8 @@ import (
 
 	"github.com/IBM/sarama"
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
-	"github.com/ONSdigital/dp-kafka/v4/mock"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/mock"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

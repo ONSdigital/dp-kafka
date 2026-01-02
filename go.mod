@@ -1,12 +1,12 @@
-module github.com/ONSdigital/dp-kafka/v4
+module github.com/ONSdigital/dp-kafka/v5
 
 go 1.24.0
 
 require (
 	github.com/IBM/sarama v1.45.2
 	github.com/ONSdigital/dp-healthcheck v1.6.4
-	github.com/ONSdigital/dp-net/v3 v3.5.0
-	github.com/ONSdigital/log.go/v2 v2.5.0
+	github.com/ONSdigital/dp-net/v3 v3.9.0
+	github.com/ONSdigital/log.go/v2 v2.5.1
 	github.com/dnwe/otelsarama v0.0.0-20240308230250-9388d9d40bc0
 	github.com/go-avro/avro v0.0.0-20171219232920-444163702c11
 	github.com/google/uuid v1.6.0
@@ -19,7 +19,7 @@ require (
 )
 
 require (
-	github.com/ONSdigital/dp-api-clients-go/v2 v2.269.0 // indirect
+	github.com/ONSdigital/dp-api-clients-go/v2 v2.270.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.7.0 // indirect

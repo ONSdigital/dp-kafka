@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	health "github.com/ONSdigital/dp-healthcheck/healthcheck"
-	"github.com/ONSdigital/dp-kafka/v4/interfaces"
+	"github.com/ONSdigital/dp-kafka/v5/interfaces"
 )
 
 // HealthInfo contains the health information for one broker
