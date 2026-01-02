@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -23,7 +23,7 @@ func TestProducerConfig(t *testing.T) {
 			}
 			config, err := pConfig.Get()
 			So(err, ShouldBeNil)
-			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
+			So(config.Version, ShouldResemble, sarama.V2_1_0_0)
 			So(config.Net.KeepAlive, ShouldEqual, 0)
 			So(config.Producer.MaxMessageBytes, ShouldEqual, testMaxMessageBytes)
 			So(config.Producer.Retry.Max, ShouldEqual, 3)

@@ -3,9 +3,9 @@ package kafka
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
-	"github.com/Shopify/sarama"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
+	"github.com/dnwe/otelsarama"
 	"go.opentelemetry.io/otel/propagation"
 )
 

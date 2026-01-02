@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/IBM/sarama"
 	kafka "github.com/ONSdigital/dp-kafka/v4"
 	"github.com/ONSdigital/dp-kafka/v4/avro"
 	"github.com/ONSdigital/dp-kafka/v4/mock"
-	"github.com/Shopify/sarama"
 )
 
 type ConsumerConfig struct {
@@ -64,7 +64,7 @@ func (cg *Consumer) newOffset() int64 {
 }
 
 // createSaramaConsumeFunc returns a mocked Sarama 'Consume' function,
-// based on the [following interface](https://github.com/Shopify/sarama/blob/main/consumer_group.go#L19).
+// based on the [following interface](https://github.com/IBM/sarama/blob/main/consumer_group.go#L19).
 // This mock implements the following life-cycle, corresponding to the same steps described in the real 'Consume' func:
 //  1. A new session is created, with a new ID, the provided topic
 //     and the number of partitions according to cfg

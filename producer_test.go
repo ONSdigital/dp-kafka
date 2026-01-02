@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-kafka/v4/avro"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/dp-kafka/v4/mock"
-	"github.com/Shopify/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 

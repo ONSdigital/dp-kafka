@@ -8,14 +8,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-healthcheck/healthcheck"
 	"github.com/ONSdigital/dp-kafka/v4/avro"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/dp-net/v3/request"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
+	"github.com/dnwe/otelsarama"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
 	"go.opentelemetry.io/otel"
 )
 

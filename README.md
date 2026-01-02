@@ -1,6 +1,6 @@
 # dp-kafka
 
-Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/Shopify/sarama)
+Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/IBM/sarama)
 
 ## Tools
 

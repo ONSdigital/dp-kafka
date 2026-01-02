@@ -6,7 +6,7 @@ package mock
 import (
 	"context"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"sync"
 )
 

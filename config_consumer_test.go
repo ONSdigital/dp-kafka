@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -24,7 +24,7 @@ func TestConsumerGroupConfig(t *testing.T) {
 			}
 			config, err := cgConfig.Get()
 			So(err, ShouldBeNil)
-			So(config.Version, ShouldResemble, sarama.V1_0_0_0)
+			So(config.Version, ShouldResemble, sarama.V2_1_0_0)
 			So(config.Consumer.MaxWaitTime, ShouldEqual, 50*time.Millisecond)
 			So(config.Consumer.Offsets.Initial, ShouldEqual, OffsetOldest)
 			So(config.Consumer.Return.Errors, ShouldBeTrue)

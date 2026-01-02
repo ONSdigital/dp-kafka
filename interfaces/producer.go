@@ -4,7 +4,7 @@ package interfaces
 // TODO rename package to something more adequate
 //revive:enable:var-naming
 
-import "github.com/Shopify/sarama"
+import "github.com/IBM/sarama"
 
 //go:generate moq -out ../mock/sarama_async_producer.go -pkg mock . SaramaAsyncProducer
 

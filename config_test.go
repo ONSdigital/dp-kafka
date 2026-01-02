@@ -11,7 +11,7 @@ var (
 	testRetryBackoff             = 5 * time.Second
 	testProducerRetryBackoffFunc = func(retries, maxRetries int) time.Duration { return time.Second }
 	testConsumerRetryBackoffFunc = func(retries int) time.Duration { return time.Second }
-	testKafkaVersion             = "1.0.2"
+	testKafkaVersion             = "3.8.0"
 	testOffsetNewest             = OffsetNewest
 	testGroupName                = "someGroupName"
 	testBrokerAddrs              = []string{"kafka:9092", "kafka:9093", "kafka:9094"}

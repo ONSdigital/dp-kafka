@@ -3,9 +3,9 @@ package kafka
 import (
 	"context"
 
+	"github.com/IBM/sarama"
 	"github.com/ONSdigital/dp-kafka/v4/interfaces"
 	"github.com/ONSdigital/log.go/v2/log"
-	"github.com/Shopify/sarama"
 )
 
 // ServiceName is the name of this service: Kafka.
@@ -91,7 +91,7 @@ func validateBroker(ctx context.Context, broker interfaces.SaramaBroker, topic s
 	}
 
 	for _, metadata := range resp.Topics {
-		if metadata.Name == topic {
+		if metadata.Name == topic && metadata.Err == sarama.ErrNoError {
 			healthInfo.HasTopic = true
 			return healthInfo
 		}
