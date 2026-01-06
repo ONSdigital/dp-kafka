@@ -40,6 +40,7 @@ func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker0.Addr(), broker0.BrokerID()).
 			SetLeader(testTopic, partition, leaderID),
+		"ApiVersionsRequest": sarama.NewMockApiVersionsResponse(t),
 	})
 
 	// Broker 1 is available for testTopic partition 0
@@ -48,6 +49,7 @@ func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker1.Addr(), broker1.BrokerID()).
 			SetLeader(testTopic, partition, leaderID),
+		"ApiVersionsRequest": sarama.NewMockApiVersionsResponse(t),
 	})
 
 	// Broker 2 is available for testTopic partition 0
@@ -56,6 +58,7 @@ func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker2.Addr(), broker2.BrokerID()).
 			SetLeader(testTopic, partition, leaderID),
+		"ApiVersionsRequest": sarama.NewMockApiVersionsResponse(t),
 	})
 
 	// Broker 3 is the leader of testTopic2 partition 0
@@ -64,6 +67,7 @@ func createMockBrokers(t *testing.T) (brokers map[string]*sarama.MockBroker) {
 		"MetadataRequest": sarama.NewMockMetadataResponse(t).
 			SetBroker(broker3.Addr(), broker3.BrokerID()).
 			SetLeader(testTopic2, partition, broker3.BrokerID()),
+		"ApiVersionsRequest": sarama.NewMockApiVersionsResponse(t),
 	})
 
 	return map[string]*sarama.MockBroker{
@@ -148,7 +152,7 @@ func createUninitialisedConsumerForTesting(brokerAddrs []string, topic string) (
 }
 
 func TestKafkaProducerHealthcheck(t *testing.T) {
-	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
+	Convey("Given 3 kafka brokers for one topic and 1 for another (Producer Health Check)", t, func() {
 		brokers := createMockBrokers(t)
 		defer closeMockBrokers(brokers)
 
@@ -253,7 +257,7 @@ func TestKafkaProducerHealthcheck(t *testing.T) {
 }
 
 func TestKafkaConsumerHealthcheck(t *testing.T) {
-	Convey("Given 3 kafka brokers for one topic and 1 for another", t, func() {
+	Convey("Given 3 kafka brokers for one topic and 1 for another (Consumer Health Check)", t, func() {
 		brokers := createMockBrokers(t)
 		defer closeMockBrokers(brokers)
 

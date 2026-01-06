@@ -3,7 +3,7 @@ module github.com/ONSdigital/dp-kafka/v5
 go 1.24.0
 
 require (
-	github.com/IBM/sarama v1.45.2
+	github.com/IBM/sarama v1.46.3
 	github.com/ONSdigital/dp-healthcheck v1.6.4
 	github.com/ONSdigital/dp-net/v3 v3.9.0
 	github.com/ONSdigital/log.go/v2 v2.5.1
@@ -30,8 +30,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
