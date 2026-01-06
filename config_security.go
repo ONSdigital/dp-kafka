@@ -45,7 +45,7 @@ func addAnyTLS(tlsConfig *SecurityConfig, saramaConfig *sarama.Config) error {
 
 	var saramaTLSConfig *tls.Config
 	if strings.HasPrefix(tlsConfig.ClientCert, certPrefix) {
-		// create cert from strings (not files), cf https://github.com/IBM/sarama/blob/master/tools/tls/config.go
+		// create cert from strings (not files), cf https://github.com/IBM/sarama/blob/main/tools/tls/config.go
 		cert, err := tls.X509KeyPair(
 			[]byte(expandNewlines(tlsConfig.ClientCert)),
 			[]byte(expandNewlines(tlsConfig.ClientKey)))
