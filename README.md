@@ -2,6 +2,13 @@
 
 Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/IBM/sarama)
 
+## V5 Retraction
+
+Warning: Version 5.0.0 of this library (this major version) has been temporarily retracted due to incompatibiities in
+the `kafkatest` package used for component testing in downstream apps. Please use the latest v4 release instead and if
+you need to make changes to this library please branch from and merge to the
+[v4 branch](https://github.com/ONSdigital/dp-kafka/tree/v4) instead of `main`.
+
 ## Tools
 
 To run some of our tests you will need additional tooling:

@@ -2,6 +2,11 @@ module github.com/ONSdigital/dp-kafka/v5
 
 go 1.24.0
 
+retract (
+	v5.0.1 // Contains v5 retraction only
+	v5.0.0 // Retracted due to unexpected issues with kafkatest (see README.md)
+)
+
 require (
 	github.com/IBM/sarama v1.46.3
 	github.com/ONSdigital/dp-healthcheck v1.6.4
