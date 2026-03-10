@@ -2,13 +2,6 @@
 
 Kafka client wrapper using channels to abstract kafka consumers and producers. This library is built on top of [Sarama](https://github.com/IBM/sarama)
 
-## V5 Retraction
-
-Warning: Version 5.0.0 of this library (this major version) has been temporarily retracted due to incompatibiities in
-the `kafkatest` package used for component testing in downstream apps. Please use the latest v4 release instead and if
-you need to make changes to this library please branch from and merge to the
-[v4 branch](https://github.com/ONSdigital/dp-kafka/tree/v4) instead of `main`.
-
 ## Tools
 
 To run some of our tests you will need additional tooling:
@@ -592,6 +585,19 @@ You can drain multiple topics in parallel by providing multiple DrainTopicInput 
 This will create N go routines with a consumer in each. Each consumer will consume messages in batches of up to `BatchSize`. When all messages are consumed for a topic and group, the corresponding consumer and go-routine is closed. `DrainTopics` will block until all topics have been drained.
 
 WARNING: Services should not drain topics. This may be used by platform engineers to clean up environments, or by component tests to clean up local stacks between scenarios.
+
+## Upgrading to v5 from v4
+
+The main change between v4 and v5 was enforced by the upstream sarama dependency moving from
+[Shopify/sarama](https://pkg.go.dev/github.com/Shopify/sarama) to
+[IBM/sarama](https://pkg.go.dev/github.com/IBM/sarama). This caused breaking changes to the exported functions and
+variables.
+
+A result of upgrading sarama was that functioanlity in the `kafkatest` library was broken. So the opportunity
+was taken to retire the functional mocks found in v4, which were used mainly for component tests, in favour of using a
+testcontainers based approach via the new `KafkaFeature` found in
+[dp-component-test](https://github.com/ONSdigital/dp-component-test).
+For more details of remaining mocks, useful for unit tests, please see the [kafkatest README](kafkatest/README.md).
 
 ## Upgrading to v4 from v3
 

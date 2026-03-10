@@ -9,6 +9,9 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 )
 
+//go:generate moq -out ./kafkatest/mock_message.go -pkg kafkatest . Message
+
+
 type Message interfaces.Message
 
 // SaramaMessage represents a Sarama specific Kafka message
