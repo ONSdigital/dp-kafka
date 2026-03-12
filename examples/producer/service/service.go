@@ -61,6 +61,7 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 	svc.producer.LogErrors(ctx)
 
 	// Create loop-control channel and context
+	//nolint:gosec // context not cancelled in main routine // FIXME consider rewriting to defer eventLoopCancel()
 	eventLoopContext, eventLoopCancel := context.WithCancel(ctx)
 	eventLoopDone := make(chan bool)
 
@@ -110,7 +111,7 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 					<-delay.C
 				}
 				// Used for this example to write messages to kafka consumer topic (should not be needed in applications)
-				svc.producer.Channels().Output <- kafka.BytesMessage{Value: []byte(stdinLine), Context: context.Background()}
+				svc.producer.Channels().Output <- kafka.BytesMessage{Value: []byte(stdinLine), Context: ctx}
 				log.Info(ctx, "[KAFKA-TEST] Message output", log.Data{"messageSent": stdinLine, "messageChars": []byte(stdinLine)})
 			}
 		}
@@ -122,6 +123,7 @@ func (svc *Service) Start(ctx context.Context, cancel context.CancelFunc) (err e
 func (svc *Service) Close(ctx context.Context) error {
 	log.Info(ctx, "[KAFKA-TEST] Commencing graceful shutdown", log.Data{"graceful_shutdown_timeout": svc.cfg.GracefulShutdownTimeout})
 	ctx, cancel := context.WithTimeout(ctx, svc.cfg.GracefulShutdownTimeout)
+	defer cancel()
 	var shutdownErr error
 
 	go func() {

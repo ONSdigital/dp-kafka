@@ -55,7 +55,7 @@ func (t TopicAuthList) Apply(adm sarama.ClusterAdmin) error {
 }
 
 func (t TopicAuth) GetAcls(domain string) Acls {
-	acls := make([]*sarama.AclCreation, 0)
+	acls := make([]*sarama.AclCreation, 0, len(t.Hosts)*len(t.Operations)*len(t.Subnets))
 	for _, subnet := range t.Subnets {
 		for _, op := range t.Operations {
 			for _, host := range t.Hosts {

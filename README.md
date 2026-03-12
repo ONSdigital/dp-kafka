@@ -593,7 +593,7 @@ The main change between v4 and v5 was enforced by the upstream sarama dependency
 [IBM/sarama](https://pkg.go.dev/github.com/IBM/sarama). This caused breaking changes to the exported functions and
 variables.
 
-A result of upgrading sarama was that functioanlity in the `kafkatest` library was broken. So the opportunity
+A result of upgrading sarama was that functionality in the `kafkatest` library was broken. So the opportunity
 was taken to retire the functional mocks found in v4, which were used mainly for component tests, in favour of using a
 testcontainers based approach via the new `KafkaFeature` found in
 [dp-component-test](https://github.com/ONSdigital/dp-component-test).

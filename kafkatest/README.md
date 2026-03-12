@@ -23,9 +23,9 @@ producer := kafkatest.IProducerMock{...}
 message := kafkatest.MessageMock{...}
 ```
 
-### Message
+## Message
 
-There is additionally a helper function for creating a [Message] mock which reurns the given body via its GetData
+There is additionally a helper function for creating a [Message] mock which returns the given body via its GetData
 function.
 
 ```go

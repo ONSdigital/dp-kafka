@@ -353,7 +353,7 @@ func populateItem(nestedMap map[string]interface{}, typ reflect.Type) reflect.Va
 			switch typ.Field(i).Type.Kind() {
 			case reflect.Slice:
 				sliceInterface := fieldValue.([]interface{})
-				sliceString := make([]string, len(sliceInterface))
+				sliceString := make([]string, 0, len(sliceInterface))
 				for _, val := range sliceInterface {
 					sliceString = append(sliceString, val.(string))
 				}

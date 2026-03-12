@@ -434,8 +434,7 @@ func setUp(testSchema string, dataSet int) (avro.Schema, reflect.Value, reflect.
 		v = reflect.ValueOf(testData)
 		typ = reflect.TypeOf(testData)
 	case 3:
-		var winningYears []string
-		winningYears = append(winningYears, "1934", "1972", "1999")
+		winningYears := []string{"1934", "1972", "1999"}
 		testData := &testData3{
 			WinningYears: winningYears,
 		}
