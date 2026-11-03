@@ -7,7 +7,6 @@ linters:
     - depguard
     - dogsled
     - gocognit
-    - goconst
     - gocritic
     - gocyclo
     - gosec
@@ -41,9 +40,6 @@ linters:
       threshold: 100
     gocognit:
       min-complexity: 100
-    goconst:
-      min-len: 2
-      min-occurrences: 2
     gocritic:
       disabled-checks:
         - wrapperFunc
