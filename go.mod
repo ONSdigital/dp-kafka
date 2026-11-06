@@ -1,6 +1,6 @@
 module github.com/ONSdigital/dp-kafka/v5
 
-go 1.24.0
+go 1.25.0
 
 retract (
 	v5.0.1 // Contains v5 retraction only
@@ -43,7 +43,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
-	github.com/klauspost/compress v1.18.2 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pierrec/lz4/v4 v4.1.23 // indirect
