@@ -39,7 +39,7 @@ var ErrMissingNestedScema = errors.New("nested schema missing from parent")
 func (schema *Schema) Marshal(s interface{}) ([]byte, error) {
 	v := reflect.ValueOf(s)
 
-	if v.Kind() == reflect.PtrTo(reflect.TypeOf(s)).Kind() {
+	if v.Kind() == reflect.PointerTo(reflect.TypeOf(s)).Kind() {
 		v = reflect.Indirect(v)
 	}
 
@@ -51,7 +51,7 @@ func (schema *Schema) Marshal(s interface{}) ([]byte, error) {
 
 	// If a pointer to a struct is passed, get the type of the dereferenced object.
 	typ := reflect.TypeOf(s)
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 
@@ -91,7 +91,7 @@ func (schema *Schema) Unmarshal(message []byte, s interface{}) error {
 	v := reflect.ValueOf(s)
 	vp := reflect.ValueOf(s)
 
-	if v.Kind() == reflect.PtrTo(reflect.TypeOf(s)).Kind() {
+	if v.Kind() == reflect.PointerTo(reflect.TypeOf(s)).Kind() {
 		v = reflect.Indirect(v)
 	}
 
@@ -103,7 +103,7 @@ func (schema *Schema) Unmarshal(message []byte, s interface{}) error {
 
 	// If a pointer to a struct is passed, get the type of the dereferenced object.
 	typ := reflect.TypeOf(s)
-	if typ.Kind() == reflect.Ptr {
+	if typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
 	}
 
@@ -353,7 +353,7 @@ func populateItem(nestedMap map[string]interface{}, typ reflect.Type) reflect.Va
 			switch typ.Field(i).Type.Kind() {
 			case reflect.Slice:
 				sliceInterface := fieldValue.([]interface{})
-				sliceString := make([]string, len(sliceInterface))
+				sliceString := make([]string, 0, len(sliceInterface))
 				for _, val := range sliceInterface {
 					sliceString = append(sliceString, val.(string))
 				}
