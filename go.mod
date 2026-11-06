@@ -1,6 +1,6 @@
 module github.com/ONSdigital/dp-kafka/v4
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/ONSdigital/dp-healthcheck v1.6.4
@@ -38,7 +38,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/jtolds/gls v4.20.0+incompatible // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
